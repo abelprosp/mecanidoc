@@ -62,33 +62,30 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4 flex flex-col items-center text-center h-full relative group hover:shadow-lg transition-shadow">
       
-      {/* Header: Brand & Stars */}
-      <div className="flex justify-between items-start w-full mb-4">
-         {/* Brand Logo (Left) */}
-         <div className="h-6 flex items-center">
-            {product.brands?.logo_url ? (
-              <img src={product.brands.logo_url} alt={product.brand} className="h-full w-auto object-contain" />
-            ) : (
-              <span className="text-xs font-bold text-gray-700 uppercase">{product.brand || 'Marque'}</span>
-            )}
+      {/* Header: Brand/Model & Stars */}
+      <div className="flex justify-between items-start w-full mb-3">
+         {/* Brand & Model Name (Left) */}
+         <div className="flex flex-col items-start">
+            <span className="text-xs font-bold text-gray-800 uppercase">{product.brand || 'Marque'}</span>
+            <span className="text-[11px] text-gray-600 font-medium line-clamp-1">{product.name}</span>
          </div>
 
          {/* Stars (Right) */}
          <div className="flex flex-col items-end">
-             <div className="flex gap-1 text-yellow-400 mb-1">
+             <div className="flex gap-0.5 text-yellow-400 mb-1">
                 {[...Array(5)].map((_, i) => (
-                   <Star key={i} size={14} fill="currentColor" className="text-yellow-400" />
+                   <Star key={i} size={12} fill="currentColor" className="text-yellow-400" />
                 ))}
              </div>
              <div className="flex items-baseline gap-1 text-xs">
                 <span className="font-bold text-orange-500">4.6/5</span>
-                <span className="text-gray-400">(481 avis)</span>
+                <span className="text-gray-400 text-[10px]">(481 avis)</span>
              </div>
          </div>
       </div>
 
       {/* Image & Labels Row */}
-      <div className="flex justify-center items-center gap-3 mb-4 w-full">
+      <div className="flex justify-center items-center gap-3 mb-3 w-full">
          {/* Image */}
          <div className="w-28 h-28 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative">
             <img 
@@ -106,14 +103,9 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
          </div>
       </div>
 
-      {/* Title */}
-      <h3 className="font-bold text-gray-800 text-sm uppercase mb-1 line-clamp-2 min-h-[40px]">
-        {product.name}
-      </h3>
-      
-      {/* Specs */}
-      <p className="text-gray-500 text-sm mb-4">
-        {specs.width}/{specs.height}R{specs.diameter}
+      {/* Specs - Dimension with load and speed index */}
+      <p className="text-gray-800 text-sm font-semibold mb-3">
+        {specs.width}/{specs.height}R{specs.diameter} {specs.load_index || ''}{specs.speed_index || ''}
       </p>
 
       {/* Badges (Season/Category) */}
