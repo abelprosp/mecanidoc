@@ -13,8 +13,9 @@ export default function Hero() {
     const fetchSpecs = async () => {
       const { data } = await supabase
         .from('products')
-        .select('specs')
-        .not('specs', 'is', null);
+        .select('specs, category')
+        .not('specs', 'is', null)
+        .ilike('category', 'Auto'); // Filtrar apenas produtos da categoria Auto
 
       if (data) {
         const validSpecs = data

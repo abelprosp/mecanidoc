@@ -1,10 +1,33 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Car, Bike, Truck, Tractor, Sun, ChevronDown, CloudLightning, CloudSnow } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase';
 
 export default function HeroTractor() {
+  const [allSpecs, setAllSpecs] = useState<any[]>([]);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchSpecs = async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('specs, category')
+        .not('specs', 'is', null)
+        .ilike('category', 'Tracteur'); // Filtrar apenas produtos da categoria Tracteur
+
+      if (data) {
+        const validSpecs = data
+          .map((item: any) => item.specs)
+          .filter((spec: any) => spec && spec.width);
+        setAllSpecs(validSpecs);
+      }
+    };
+
+    fetchSpecs();
+  }, []);
+
   const [selected, setSelected] = useState({
     width: '',
     height: '',
@@ -13,6 +36,74 @@ export default function HeroTractor() {
     speed: '',
     season: ''
   });
+
+  // Derived dimensions with cascading logic
+  const availableWidths = useMemo(() => {
+    const widths = new Set(allSpecs.map(s => s.width).filter(Boolean));
+    return Array.from(widths).sort((a: any, b: any) => parseFloat(a) - parseFloat(b));
+  }, [allSpecs]);
+
+  const availableHeights = useMemo(() => {
+    if (!selected.width) return [];
+    const heights = new Set(
+      allSpecs
+        .filter(s => s.width === selected.width)
+        .map(s => s.height)
+        .filter(Boolean)
+    );
+    return Array.from(heights).sort((a: any, b: any) => parseFloat(a) - parseFloat(b));
+  }, [allSpecs, selected.width]);
+
+  const availableDiameters = useMemo(() => {
+    if (!selected.width || !selected.height) return [];
+    const diameters = new Set(
+      allSpecs
+        .filter(s => s.width === selected.width && s.height === selected.height)
+        .map(s => s.diameter)
+        .filter(Boolean)
+    );
+    return Array.from(diameters).sort((a: any, b: any) => parseFloat(a) - parseFloat(b));
+  }, [allSpecs, selected.width, selected.height]);
+
+  const availableLoads = useMemo(() => {
+    if (!selected.width || !selected.height || !selected.diameter) return [];
+    const loads = new Set(
+      allSpecs
+        .filter(s => s.width === selected.width && s.height === selected.height && s.diameter === selected.diameter)
+        .map(s => s.load_index)
+        .filter(Boolean)
+    );
+    return Array.from(loads).sort((a: any, b: any) => parseFloat(a) - parseFloat(b));
+  }, [allSpecs, selected.width, selected.height, selected.diameter]);
+
+  const availableSpeeds = useMemo(() => {
+    if (!selected.width || !selected.height || !selected.diameter) return [];
+    const speeds = new Set(
+      allSpecs
+        .filter(s => 
+          s.width === selected.width && 
+          s.height === selected.height && 
+          s.diameter === selected.diameter && 
+          (!selected.load || s.load_index === selected.load)
+        )
+        .map(s => s.speed_index)
+        .filter(Boolean)
+    );
+    return Array.from(speeds).sort();
+  }, [allSpecs, selected.width, selected.height, selected.diameter, selected.load]);
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    params.set('category', 'Tracteur');
+    if (selected.width) params.set('width', selected.width);
+    if (selected.height) params.set('height', selected.height);
+    if (selected.diameter) params.set('diameter', selected.diameter);
+    if (selected.load) params.set('load_index', selected.load);
+    if (selected.speed) params.set('speed_index', selected.speed);
+    if (selected.season) params.set('season', selected.season);
+    
+    window.location.href = `/search?${params.toString()}`;
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -95,23 +186,106 @@ export default function HeroTractor() {
                 
                 {/* Dropdowns Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-8">
-                  {[
-                    { label: 'Largeur', key: 'width' },
-                    { label: 'Hauteur', key: 'height' },
-                    { label: 'Diamètre', key: 'diameter' },
-                    { label: 'Charge', key: 'load' },
-                    { label: 'Vitesse', key: 'speed' }
-                  ].map((item) => (
-                    <div key={item.key} className="flex flex-col gap-1">
-                      <label className="text-sm font-semibold text-gray-800 ml-1 mb-1">{item.label}</label>
-                      <div className="relative">
-                        <select className="w-full appearance-none border border-gray-300 rounded px-3 py-2.5 text-sm text-gray-500 focus:outline-none focus:border-blue-500 bg-white">
-                          <option>{item.label}</option>
-                        </select>
-                        <ChevronDown className="absolute right-2 top-3 text-gray-400 pointer-events-none" size={16} />
-                      </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-semibold text-gray-800 ml-1 mb-1">Largeur</label>
+                    <div className="relative">
+                      <select 
+                        value={selected.width}
+                        onChange={(e) => setSelected({
+                          ...selected, 
+                          width: e.target.value,
+                          height: '',
+                          diameter: '',
+                          load: '',
+                          speed: ''
+                        })}
+                        className="w-full appearance-none border border-gray-300 rounded px-3 py-2.5 text-sm text-gray-500 focus:outline-none focus:border-blue-500 bg-white"
+                      >
+                        <option value="">Largeur</option>
+                        {availableWidths.map((w: any) => <option key={w} value={w}>{w}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-3 text-gray-400 pointer-events-none" size={16} />
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-semibold text-gray-800 ml-1 mb-1">Hauteur</label>
+                    <div className="relative">
+                      <select 
+                        value={selected.height}
+                        disabled={!selected.width}
+                        onChange={(e) => setSelected({
+                          ...selected, 
+                          height: e.target.value,
+                          diameter: '',
+                          load: '',
+                          speed: ''
+                        })}
+                        className={`w-full appearance-none border border-gray-300 rounded px-3 py-2.5 text-sm text-gray-500 focus:outline-none focus:border-blue-500 ${!selected.width ? 'bg-gray-100' : 'bg-white'}`}
+                      >
+                        <option value="">Hauteur</option>
+                        {availableHeights.map((h: any) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-3 text-gray-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-semibold text-gray-800 ml-1 mb-1">Diamètre</label>
+                    <div className="relative">
+                      <select 
+                        value={selected.diameter}
+                        disabled={!selected.height}
+                        onChange={(e) => setSelected({
+                          ...selected, 
+                          diameter: e.target.value,
+                          load: '',
+                          speed: ''
+                        })}
+                        className={`w-full appearance-none border border-gray-300 rounded px-3 py-2.5 text-sm text-gray-500 focus:outline-none focus:border-blue-500 ${!selected.height ? 'bg-gray-100' : 'bg-white'}`}
+                      >
+                        <option value="">Diamètre</option>
+                        {availableDiameters.map((d: any) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-3 text-gray-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-semibold text-gray-800 ml-1 mb-1">Charge</label>
+                    <div className="relative">
+                      <select 
+                        value={selected.load}
+                        disabled={!selected.diameter}
+                        onChange={(e) => setSelected({
+                          ...selected, 
+                          load: e.target.value,
+                          speed: ''
+                        })}
+                        className={`w-full appearance-none border border-gray-300 rounded px-3 py-2.5 text-sm text-gray-500 focus:outline-none focus:border-blue-500 ${!selected.diameter ? 'bg-gray-100' : 'bg-white'}`}
+                      >
+                        <option value="">Charge</option>
+                        {availableLoads.map((l: any) => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-3 text-gray-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-semibold text-gray-800 ml-1 mb-1">Vitesse</label>
+                    <div className="relative">
+                      <select 
+                        value={selected.speed}
+                        disabled={!selected.diameter}
+                        onChange={(e) => setSelected({...selected, speed: e.target.value})}
+                        className={`w-full appearance-none border border-gray-300 rounded px-3 py-2.5 text-sm text-gray-500 focus:outline-none focus:border-blue-500 ${!selected.diameter ? 'bg-gray-100' : 'bg-white'}`}
+                      >
+                        <option value="">Vitesse</option>
+                        {availableSpeeds.map((s: any) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-3 text-gray-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Bottom Section: Seasons & Button */}
@@ -140,9 +314,12 @@ export default function HeroTractor() {
                   </div>
 
                   {/* Submit Button */}
-                  <button className="bg-[#99A1AF] text-white font-bold py-4 px-8 rounded text-sm text-center uppercase tracking-wide hover:bg-gray-500 transition-colors shadow-sm leading-tight w-full md:w-auto">
-                    SÉLECTIONNEZ<br />
-                    TOUS LES ATTRIBUTS REQUIS
+                  <button 
+                    onClick={handleSearch}
+                    className="bg-[#99A1AF] text-white font-bold py-4 px-8 rounded text-sm text-center uppercase tracking-wide hover:bg-gray-500 transition-colors shadow-sm leading-tight w-full md:w-auto"
+                  >
+                    RECHERCHER<br />
+                    LES PNEUS
                   </button>
                 </div>
 
