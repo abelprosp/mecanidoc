@@ -13,7 +13,7 @@ export default function Home() {
     <main className="min-h-screen">
       <Header />
       <Hero />
-      <BrandCarousel />
+      <BrandCarousel category="Auto" />
       <BestSellers category="Auto" />
       <WarrantyBanner />
       <DeliveryModes />

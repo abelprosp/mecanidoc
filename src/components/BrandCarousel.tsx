@@ -4,17 +4,28 @@ import React, { useEffect, useState } from 'react';
 import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
-export default function BrandCarousel() {
+interface BrandCarouselProps {
+  category?: string;
+}
+
+export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps) {
   const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+
+  // Mapeamento de categorias para títulos
+  const categoryTitles: { [key: string]: string } = {
+    'Auto': 'Auto',
+    'Moto': 'Moto',
+    'Camion': 'Camion',
+    'Tracteur': 'Agricoles'
+  };
 
   useEffect(() => {
     const fetchBrands = async () => {
       const { data, error } = await supabase
         .from('brands')
         .select('*')
-        .eq('is_active', true)
         .order('name', { ascending: true });
 
       if (error) {
@@ -52,7 +63,7 @@ export default function BrandCarousel() {
             <h3 className="font-extrabold text-gray-800 text-lg uppercase leading-tight tracking-wide">
               Marques<br />
               Pneus<br />
-              Auto
+              {categoryTitles[category] || category}
             </h3>
           </div>
           
@@ -76,7 +87,7 @@ export default function BrandCarousel() {
                      <div 
                        key={brand.id} 
                        className="flex-shrink-0 snap-center"
-                       onClick={() => window.location.href = `/search?brand=${encodeURIComponent(brand.name)}`}
+                       onClick={() => window.location.href = `/search?brand=${encodeURIComponent(brand.name)}&category=${encodeURIComponent(category)}`}
                      >
                      <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow w-40 h-32 flex flex-col items-center justify-center p-4 gap-3 cursor-pointer">
                        <div className="h-12 flex items-center justify-center w-full">

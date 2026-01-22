@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import HeroCamion from "@/components/HeroCamion";
-import BrandCarouselCamion from "@/components/BrandCarouselCamion";
-import BestSellersCamion from "@/components/BestSellersCamion";
+import BrandCarousel from "@/components/BrandCarousel";
+import BestSellers from "@/components/BestSellers";
 import WarrantyBanner from "@/components/WarrantyBanner";
 import DeliveryModes from "@/components/DeliveryModes";
 import FAQ from "@/components/FAQ";
@@ -13,8 +13,8 @@ export default function CamionPage() {
     <main className="min-h-screen">
       <Header />
       <HeroCamion />
-      <BrandCarouselCamion />
-      <BestSellersCamion />
+      <BrandCarousel category="Camion" />
+      <BestSellers category="Camion" />
       <WarrantyBanner />
       <DeliveryModes />
       <FAQ />

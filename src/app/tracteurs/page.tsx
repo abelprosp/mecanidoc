@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import HeroTractor from "@/components/HeroTractor";
-import BrandCarouselTractor from "@/components/BrandCarouselTractor";
-import BestSellersTractor from "@/components/BestSellersTractor";
+import BrandCarousel from "@/components/BrandCarousel";
+import BestSellers from "@/components/BestSellers";
 import WarrantyBanner from "@/components/WarrantyBanner";
 import DeliveryModes from "@/components/DeliveryModes";
 import FAQ from "@/components/FAQ";
@@ -13,8 +13,8 @@ export default function TractorPage() {
     <main className="min-h-screen">
       <Header />
       <HeroTractor />
-      <BrandCarouselTractor />
-      <BestSellersTractor />
+      <BrandCarousel category="Tracteur" />
+      <BestSellers category="Tracteur" />
       <WarrantyBanner />
       <DeliveryModes />
       <FAQ />
