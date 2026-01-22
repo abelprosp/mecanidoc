@@ -25,7 +25,7 @@ export default function BestSellers({ category }: BestSellersProps) {
         .limit(12); // Increased limit for carousel
 
       if (category) {
-        query = query.eq('category', category.toLowerCase());
+        query = query.ilike('category', category);
       }
       
       const { data, error } = await query;
