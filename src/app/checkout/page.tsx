@@ -33,7 +33,7 @@ export default function CheckoutPage() {
   // Extras State - sempre marcados por padrão
   const [showExtras, setShowExtras] = useState(false);
   const [extras, setExtras] = useState({
-    fastDelivery: true,
+    deliveryType: 'fast', // 'normal' ou 'fast'
     warranty: true
   });
   
@@ -60,33 +60,41 @@ export default function CheckoutPage() {
   // Calculations - Frete dinâmico baseado na quantidade
   const subtotal = cartTotal;
   
-  // Lógica de frete rápido:
-  // 1 pneu: frete rápido €10.00
-  // 2-4 pneus: frete rápido GRATUITO
-  // Mais de 4 pneus: usar configuração padrão
+  // Lógica de frete:
+  // Entrega Normal (5 dias úteis):
+  //   - 1 pneu: €10.00
+  //   - 2-4 pneus: GRATUITA
+  // Entrega Rápida (24-72h):
+  //   - 1 pneu: €19.90
+  //   - 2 pneus: €19.90
+  //   - 3 pneus: €29.90
+  //   - 4 pneus: €29.90
+  //   - 5+ pneus: €29.90
   let deliveryFee = 0;
-  let fastDeliveryFee = 0;
   
-  if (totalTires === 1) {
-    // 1 pneu: frete rápido €10.00
-    if (extras.fastDelivery) {
-      fastDeliveryFee = 10.00;
+  if (extras.deliveryType === 'normal') {
+    // Entrega Normal (5 dias úteis)
+    if (totalTires === 1) {
+      deliveryFee = 10.00;
+    } else if (totalTires >= 2 && totalTires <= 4) {
+      deliveryFee = 0; // Grátis
+    } else {
+      deliveryFee = settings.delivery_base_fee || 0;
     }
-  } else if (totalTires >= 2 && totalTires <= 4) {
-    // 2 a 4 pneus: frete rápido GRATUITO
-    if (extras.fastDelivery) {
-      fastDeliveryFee = 0; // Grátis
+  } else if (extras.deliveryType === 'fast') {
+    // Entrega Rápida (24-72h)
+    if (totalTires === 1 || totalTires === 2) {
+      deliveryFee = 19.90;
+    } else {
+      // 3+ pneus
+      deliveryFee = 29.90;
     }
-  } else {
-    // Mais de 4 pneus: usar configuração padrão
-    deliveryFee = extras.fastDelivery ? 0 : (settings.delivery_base_fee || 0);
-    fastDeliveryFee = extras.fastDelivery ? (settings.fast_delivery_fee || 0) : 0;
   }
   
   // Seguro é por unidade (por pneu)
   const warrantyFeePerUnit = extras.warranty ? (settings.warranty_fee || 5.50) : 0;
   const warrantyFee = warrantyFeePerUnit * totalTires;
-  const total = subtotal + deliveryFee + fastDeliveryFee + warrantyFee;
+  const total = subtotal + deliveryFee + warrantyFee;
 
   const handlePlaceOrder = async () => {
     if (!termsAccepted) {
@@ -280,10 +288,16 @@ export default function CheckoutPage() {
                    <span>Sous-total</span>
                    <span>€{subtotal.toFixed(2)}</span>
                  </div>
-                 {extras.fastDelivery && (
+                 {deliveryFee > 0 && (
                    <div className="flex justify-between text-blue-600">
-                     <span>Livraison Rapide</span>
-                     <span>{fastDeliveryFee === 0 ? 'GRATUITE' : `€${fastDeliveryFee.toFixed(2)}`}</span>
+                     <span>{extras.deliveryType === 'fast' ? 'Livraison Rapide' : 'Livraison Standard'}</span>
+                     <span>€{deliveryFee.toFixed(2)}</span>
+                   </div>
+                 )}
+                 {deliveryFee === 0 && extras.deliveryType === 'normal' && (
+                   <div className="flex justify-between text-green-600">
+                     <span>Livraison Standard</span>
+                     <span>GRATUITE</span>
                    </div>
                  )}
                  {extras.warranty && (
@@ -310,22 +324,43 @@ export default function CheckoutPage() {
                  
                  {showExtras && (
                    <div className="p-4 bg-gray-50 space-y-3 animate-in slide-in-from-top-2">
-                     <label className="flex items-start gap-3 cursor-pointer">
+                     {/* Entrega Normal */}
+                     <label className="flex items-start gap-3 cursor-pointer p-3 rounded border-2 border-transparent hover:border-gray-300 transition-colors" style={{ borderColor: extras.deliveryType === 'normal' ? '#0066CC' : 'transparent' }}>
                         <input 
-                          type="checkbox" 
-                          checked={extras.fastDelivery}
-                          onChange={(e) => setExtras({...extras, fastDelivery: e.target.checked})}
+                          type="radio" 
+                          name="deliveryType"
+                          checked={extras.deliveryType === 'normal'}
+                          onChange={() => setExtras({...extras, deliveryType: 'normal'})}
                           className="mt-1"
                         />
-                        <div>
+                        <div className="flex-1">
                            <span className="block font-bold text-sm text-gray-700">
-                             Livraison Rapide {totalTires === 1 ? `(+€10.00)` : totalTires >= 2 && totalTires <= 4 ? `(GRATUITE)` : `(+€${(settings.fast_delivery_fee || 19.90).toFixed(2)})`}
+                             Livraison Standard {totalTires === 1 ? `(+€10.00)` : totalTires >= 2 && totalTires <= 4 ? `(GRATUITE)` : `(+€${(settings.delivery_base_fee || 10).toFixed(2)})`}
                            </span>
-                           <span className="text-xs text-gray-500">
-                             Recevez votre commande en 24h/48h.
-                             {totalTires >= 2 && totalTires <= 4 && extras.fastDelivery && (
+                           <span className="text-xs text-gray-500 block mt-1">
+                             Livraison en 5 jours ouvrés.
+                             {totalTires >= 2 && totalTires <= 4 && (
                                <span className="text-green-600 font-semibold block mt-1">✓ Gratuite à partir de 2 pneus</span>
                              )}
+                           </span>
+                        </div>
+                     </label>
+                     
+                     {/* Entrega Rápida */}
+                     <label className="flex items-start gap-3 cursor-pointer p-3 rounded border-2 border-transparent hover:border-gray-300 transition-colors" style={{ borderColor: extras.deliveryType === 'fast' ? '#0066CC' : 'transparent' }}>
+                        <input 
+                          type="radio" 
+                          name="deliveryType"
+                          checked={extras.deliveryType === 'fast'}
+                          onChange={() => setExtras({...extras, deliveryType: 'fast'})}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                           <span className="block font-bold text-sm text-gray-700">
+                             Livraison Rapide (+€{totalTires === 1 || totalTires === 2 ? '19.90' : '29.90'})
+                           </span>
+                           <span className="text-xs text-gray-500 block mt-1">
+                             Livraison entre 24h et 72h.
                            </span>
                         </div>
                      </label>
