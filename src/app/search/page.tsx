@@ -22,6 +22,7 @@ function SearchContent() {
     diameter: searchParams.get('diameter') || '',
     brand: searchParams.get('brand') || '',
     season: searchParams.get('season') || 'Tous',
+    searchQuery: searchParams.get('q') || '',
   });
 
   useEffect(() => {
@@ -68,6 +69,12 @@ function SearchContent() {
         .from('products')
         .select('*, brands(id, name, logo_url)')
         .eq('is_active', true);
+
+      // Apply Search Query (busca geral por qualquer atributo)
+      if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
+        const searchTerm = filters.searchQuery.trim().toLowerCase();
+        query = query.or(`name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,pa_tipo.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+      }
 
       // Apply Filters
       if (filters.category && filters.category !== 'Toutes') {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingCart, User, ChevronDown, Menu, X,
   CloudSun, Mountain, Truck, Tent, Sun, Snowflake, Car, Zap, Disc,
@@ -9,8 +9,10 @@ import {
   Tractor, Leaf, Factory, Search, CircleDot, Warehouse
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase';
+import { Loader2 } from 'lucide-react';
 
 // Mapeamento de ícones (fallback se não houver ícone definido)
 const iconMap: { [key: string]: any } = {
@@ -69,6 +71,11 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeMobileCategory, setActiveMobileCategory] = useState<string | null>(null);
   const [navigationData, setNavigationData] = useState<Array<{ title: string; key: string; columns: any[][] }>>(baseNavigationData);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   // Buscar subcategorias dinamicamente do banco
@@ -128,6 +135,115 @@ export default function Header() {
     fetchSubcategories();
   }, []);
 
+  // Busca de produtos
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const searchProducts = async () => {
+      setSearchLoading(true);
+      const query = searchQuery.trim().toLowerCase();
+      
+      try {
+        // Buscar produtos por múltiplos atributos
+        let productsQuery = supabase
+          .from('products')
+          .select('*, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .limit(10);
+
+        // Busca por nome do produto
+        const { data: byName } = await supabase
+          .from('products')
+          .select('*, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .ilike('name', `%${query}%`)
+          .limit(10);
+
+        // Busca por marca
+        const { data: byBrand } = await supabase
+          .from('products')
+          .select('*, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .ilike('brand', `%${query}%`)
+          .limit(10);
+
+        // Busca por categoria
+        const { data: byCategory } = await supabase
+          .from('products')
+          .select('*, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .ilike('category', `%${query}%`)
+          .limit(10);
+
+        // Busca por pa_tipo
+        const { data: byPaTipo } = await supabase
+          .from('products')
+          .select('*, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .ilike('pa_tipo', `%${query}%`)
+          .limit(10);
+
+        // Busca nas especificações (specs JSONB) - fazer múltiplas queries
+        const specsQueries = [
+          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { width: query }).limit(10),
+          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { height: query }).limit(10),
+          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { diameter: query }).limit(10),
+          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { load_index: query }).limit(10),
+          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { speed_index: query }).limit(10),
+          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { season: query }).limit(10),
+        ];
+        
+        const specsResults = await Promise.all(specsQueries.map(q => q));
+        const bySpecs = specsResults.flatMap(result => result.data || []);
+
+        // Combinar todos os resultados e remover duplicatas
+        const allResults = [
+          ...(byName || []),
+          ...(byBrand || []),
+          ...(byCategory || []),
+          ...(byPaTipo || []),
+          ...(bySpecs || [])
+        ];
+
+        // Remover duplicatas por ID
+        const uniqueResults = allResults.filter((product, index, self) => 
+          index === self.findIndex((p) => p.id === product.id)
+        );
+
+        setSearchResults(uniqueResults.slice(0, 10));
+      } catch (error) {
+        console.error('Error searching products:', error);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      searchProducts();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Focar no input quando o modal abrir
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+
+  const router = useRouter();
+
+  const handleProductClick = (productId: string) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    router.push(`/product/${productId}`);
+  };
+
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between relative">
@@ -184,6 +300,13 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-4 md:gap-6">
+          <button 
+            onClick={() => setSearchOpen(true)}
+            className="text-gray-600 hover:text-blue-600 transition-colors"
+            aria-label="Rechercher"
+          >
+            <Search size={20} className="md:w-6 md:h-6" />
+          </button>
           <Link href="/auth/login" className="text-gray-600 hover:text-blue-600">
             <User size={20} className="md:w-6 md:h-6" />
           </Link>
@@ -229,6 +352,146 @@ export default function Header() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search Modal */}
+      {searchOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[100] flex items-start justify-center pt-20 md:pt-32"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSearchOpen(false);
+              setSearchQuery('');
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+            {/* Search Input */}
+            <div className="p-4 border-b flex items-center gap-3">
+              <Search className="text-gray-400" size={20} />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Rechercher par nom, marque, catégorie, dimensions..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 outline-none text-gray-800 placeholder-gray-400"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setSearchOpen(false);
+                    setSearchQuery('');
+                  }
+                }}
+              />
+              {searchLoading && <Loader2 className="animate-spin text-gray-400" size={20} />}
+              <button
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Search Results */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {searchQuery.length < 2 ? (
+                <p className="text-gray-400 text-sm text-center py-8">
+                  Tapez au moins 2 caractères pour rechercher
+                </p>
+              ) : searchLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="animate-spin text-gray-400" size={24} />
+                </div>
+              ) : searchResults.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-8">
+                  Aucun produit trouvé pour "{searchQuery}"
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500 mb-3">
+                    {searchResults.length} résultat{searchResults.length > 1 ? 's' : ''} trouvé{searchResults.length > 1 ? 's' : ''}
+                  </p>
+                  {searchResults.map((product) => {
+                    const specs = product.specs || {};
+                    return (
+                      <button
+                        key={product.id}
+                        onClick={() => handleProductClick(product.id)}
+                        className="w-full text-left p-3 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors group"
+                      >
+                        <div className="flex items-center gap-4">
+                          {/* Product Image */}
+                          <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={product.images?.[0] || 'https://placehold.co/200x200/f3f4f6/d1d5db?text=Pneu'}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          
+                          {/* Product Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {product.brands?.logo_url ? (
+                                <img
+                                  src={product.brands.logo_url}
+                                  alt={product.brands.name}
+                                  className="h-4 w-auto object-contain"
+                                />
+                              ) : (
+                                <span className="text-xs font-bold text-gray-600 uppercase">
+                                  {product.brands?.name || product.brand || 'Marque'}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="font-bold text-gray-800 text-sm mb-1 truncate group-hover:text-blue-600">
+                              {product.name}
+                            </h4>
+                            <p className="text-xs text-gray-500">
+                              {specs.width}/{specs.height} R{specs.diameter} {specs.load_index}{specs.speed_index}
+                              {specs.autres_categories && specs.autres_categories.length > 0 && (
+                                <span className="ml-1">• {specs.autres_categories.join(', ')}</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {product.category || 'Auto'} {product.pa_tipo && `• ${product.pa_tipo}`}
+                            </p>
+                          </div>
+
+                          {/* Price */}
+                          <div className="flex-shrink-0 text-right">
+                            <p className="font-bold text-gray-800">
+                              €{product.base_price?.toFixed(2) || '0.00'}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {searchQuery.length >= 2 && searchResults.length > 0 && (
+              <div className="p-4 border-t bg-gray-50">
+                <Link
+                  href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                  onClick={() => {
+                    setSearchOpen(false);
+                    setSearchQuery('');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium text-center block"
+                >
+                  Voir tous les résultats pour "{searchQuery}"
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
