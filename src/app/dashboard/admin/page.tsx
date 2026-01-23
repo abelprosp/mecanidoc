@@ -242,8 +242,15 @@ function ProductsSection() {
     
     const selectedBrand = brands.find(b => b.id === editingProduct.brand_id);
     
-    // Processar autres_categories se for string
+    // Processar specs - incluir season e autres_categories
     let processedSpecs = { ...(editingProduct.specs || {}) };
+    
+    // Se season foi definido no formulário, adicionar aos specs
+    if (editingProduct.season) {
+      processedSpecs.season = editingProduct.season;
+    }
+    
+    // Processar autres_categories se for string
     if (processedSpecs.autres_categories && typeof processedSpecs.autres_categories === 'string') {
       processedSpecs.autres_categories = processedSpecs.autres_categories
         .split(/[,;|]/)
@@ -262,7 +269,6 @@ function ProductsSection() {
       base_price: parseFloat(editingProduct.base_price) || 0,
       sale_price: editingProduct.sale_price ? parseFloat(editingProduct.sale_price) : null,
       stock_quantity: parseInt(editingProduct.stock_quantity) || 0,
-      season: editingProduct.season || null,
       specs: processedSpecs,
       labels: editingProduct.labels || null,
       pa_tipo: editingProduct.pa_tipo || null,
@@ -370,9 +376,11 @@ function ProductsSection() {
             <div className="flex gap-2 mt-3">
               <button onClick={() => {
                 // Garantir que image_url seja definido a partir de images[0] se necessário
+                // E garantir que season seja acessível no nível do produto a partir de specs
                 const productToEdit = {
                   ...product,
-                  image_url: product.image_url || (product.images && product.images[0] ? product.images[0] : '')
+                  image_url: product.image_url || (product.images && product.images[0] ? product.images[0] : ''),
+                  season: product.specs?.season || product.season || ''
                 };
                 setEditingProduct(productToEdit);
               }} className="flex-1 text-blue-600 font-bold border border-blue-200 px-3 py-1.5 rounded text-sm hover:bg-blue-50">
@@ -435,9 +443,11 @@ function ProductsSection() {
                     <div className="flex gap-2">
                       <button onClick={() => {
                         // Garantir que image_url seja definido a partir de images[0] se necessário
+                        // E garantir que season seja acessível no nível do produto a partir de specs
                         const productToEdit = {
                           ...product,
-                          image_url: product.image_url || (product.images && product.images[0] ? product.images[0] : '')
+                          image_url: product.image_url || (product.images && product.images[0] ? product.images[0] : ''),
+                          season: product.specs?.season || product.season || ''
                         };
                         setEditingProduct(productToEdit);
                       }} className="text-blue-600 font-bold border border-blue-200 px-3 py-1 rounded hover:bg-blue-50">
@@ -579,8 +589,19 @@ function ProductsSection() {
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">Saison</label>
                   <select 
-                    value={editingProduct.season || ''} 
-                    onChange={e => setEditingProduct({...editingProduct, season: e.target.value})}
+                    value={editingProduct.season || editingProduct.specs?.season || ''} 
+                    onChange={e => {
+                      const seasonValue = e.target.value;
+                      // Atualizar tanto no nível do produto quanto nos specs
+                      setEditingProduct({
+                        ...editingProduct, 
+                        season: seasonValue,
+                        specs: {
+                          ...(editingProduct.specs || {}),
+                          season: seasonValue || undefined
+                        }
+                      });
+                    }}
                     className="w-full border border-gray-300 rounded px-3 py-2"
                   >
                     <option value="">-</option>
