@@ -40,9 +40,13 @@ export default function RelatedProducts({
         .neq('id', productId) // Excluir o produto atual
         .limit(12);
 
-      // Filtrar por categoria
+      // Filtrar por categoria - garantir match exato para evitar mistura
       if (category) {
-        query = query.ilike('category', category);
+        const normalizedCategory = category.trim();
+        // Filtrar por categoria exata - garantir que categorias diferentes não se misturem
+        query = query.or(
+          `category.eq.${normalizedCategory},category.eq.${normalizedCategory.toLowerCase()},category.eq.${normalizedCategory.toUpperCase()}`
+        );
       }
 
       // Filtrar por marca (brand_id ou brand texto)
@@ -68,7 +72,14 @@ export default function RelatedProducts({
       if (error) {
         console.error("Error fetching related products:", error);
       } else {
-        setProducts(data || []);
+        // Filtro adicional no cliente para garantir match exato (case-insensitive)
+        const normalizedCategory = category?.trim().toLowerCase();
+        const filtered = (data || []).filter((product: any) => {
+          if (!category) return true;
+          const productCategory = (product.category || '').toLowerCase();
+          return productCategory === normalizedCategory;
+        });
+        setProducts(filtered);
       }
       setLoading(false);
     };
@@ -100,7 +111,7 @@ export default function RelatedProducts({
 
   return (
     <section className="py-8 bg-transparent relative group">
-      <div className="container mx-auto px-4">
+      <div className="md:container md:mx-auto md:px-4">
         <h2 className="text-sm font-bold text-gray-900 mb-6 uppercase tracking-wide">
           Produits similaires
         </h2>

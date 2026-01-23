@@ -106,8 +106,8 @@ export default function HeroTractor() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="relative bg-gray-900 h-auto md:h-[550px] rounded-[2.5rem] flex flex-col items-center justify-center text-white overflow-hidden shadow-2xl py-12 md:py-0">
+    <div className="md:container md:mx-auto md:px-4 py-4 md:py-8">
+      <div className="relative bg-gray-900 h-auto md:h-[550px] md:rounded-[2.5rem] flex flex-col items-center justify-center text-white overflow-hidden shadow-2xl py-12 md:py-0">
         {/* Background Image - Tractor specific */}
         <div className="absolute inset-0 z-0">
           <img 

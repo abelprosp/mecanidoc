@@ -77,7 +77,7 @@ export default function CategoryHero({ title, subtitle, image }: CategoryHeroPro
   };
 
   return (
-    <section className="relative bg-gray-900 text-white py-16 mb-8 rounded-2xl overflow-hidden shadow-sm mx-4 mt-4">
+    <section className="relative bg-gray-900 text-white py-8 md:py-16 mb-4 md:mb-8 md:rounded-2xl overflow-hidden shadow-sm md:mx-4">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
@@ -88,7 +88,7 @@ export default function CategoryHero({ title, subtitle, image }: CategoryHeroPro
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent"></div>
       </div>
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="md:container md:mx-auto md:px-4 relative z-10">
         <div className="max-w-3xl">
           <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-tight mb-2">
             {title}

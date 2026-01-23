@@ -24,21 +24,113 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
 
   useEffect(() => {
     const fetchBrands = async () => {
-      const { data, error } = await supabase
-        .from('brands')
-        .select('*')
-        .order('name', { ascending: true });
+      setLoading(true);
+      console.log('🔍 BrandCarousel - Buscando marcas para categoria:', category);
+      
+      if (category) {
+        // Buscar apenas marcas que têm produtos ativos na categoria específica
+        const normalizedCategory = category.trim().toLowerCase();
+        console.log('🔍 Categoria normalizada:', normalizedCategory);
+        
+        // Buscar produtos da categoria com suas marcas - usar múltiplas queries para garantir
+        const normalizedCategoryUpper = normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1);
+        
+        // Query 1: Buscar por categoria exata (lowercase)
+        const { data: productsData1 } = await supabase
+          .from('products')
+          .select('brand_id, brand, category, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .eq('category', normalizedCategory);
+        
+        // Query 2: Buscar por categoria exata (uppercase)
+        const { data: productsData2 } = await supabase
+          .from('products')
+          .select('brand_id, brand, category, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .eq('category', normalizedCategoryUpper);
+        
+        // Query 3: Buscar por categoria case-insensitive
+        const { data: productsData3 } = await supabase
+          .from('products')
+          .select('brand_id, brand, category, brands(id, name, logo_url)')
+          .eq('is_active', true)
+          .ilike('category', normalizedCategory);
+        
+        // Combinar todos os resultados e remover duplicatas
+        const allProductsMap = new Map<string, any>();
+        [...(productsData1 || []), ...(productsData2 || []), ...(productsData3 || [])].forEach((product: any) => {
+          const key = product.brand_id || product.brand || `brand_${product.brand}`;
+          if (!allProductsMap.has(key)) {
+            allProductsMap.set(key, product);
+          }
+        });
+        
+        const productsData = Array.from(allProductsMap.values());
+        const productsError = null;
 
-      if (error) {
-        console.error('Error fetching brands:', error);
+        if (productsError) {
+          console.error('❌ Error fetching products for brands:', productsError);
+          setLoading(false);
+          return;
+        }
+
+        console.log('📦 Total de produtos encontrados:', productsData?.length || 0);
+
+        // Filtrar produtos pela categoria (case-insensitive) e extrair marcas únicas
+        const brandMap = new Map<string, any>();
+        
+        (productsData || []).forEach((product: any) => {
+          const productCategory = (product.category || '').toLowerCase();
+          
+          // Verificar se o produto pertence à categoria
+          if (productCategory === normalizedCategory) {
+            // Priorizar brand_id se existir
+            if (product.brand_id && product.brands) {
+              if (!brandMap.has(product.brand_id)) {
+                brandMap.set(product.brand_id, product.brands);
+              }
+            } else if (product.brand) {
+              // Se não houver brand_id, usar o nome da marca
+              const brandName = product.brand.trim();
+              if (!brandMap.has(brandName)) {
+                brandMap.set(brandName, {
+                  id: null,
+                  name: brandName,
+                  logo_url: null
+                });
+              }
+            }
+          }
+        });
+
+        console.log('🏷️ Marcas únicas encontradas:', brandMap.size);
+
+        // Converter Map para array e ordenar por nome
+        const uniqueBrands = Array.from(brandMap.values())
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        console.log('✅ Marcas finais:', uniqueBrands.length, uniqueBrands.map(b => b.name));
+        setBrands(uniqueBrands);
       } else {
-        setBrands(data || []);
+        // Se não houver categoria, mostrar todas as marcas (comportamento padrão)
+        const { data, error } = await supabase
+          .from('brands')
+          .select('*')
+          .order('name', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching brands:', error);
+        } else {
+          console.log('📋 Todas as marcas (sem filtro):', data?.length || 0);
+          setBrands(data || []);
+        }
       }
+      
       setLoading(false);
     };
 
     fetchBrands();
-  }, []);
+  }, [category]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -52,21 +144,24 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
 
   if (loading) {
     return (
-      <div className="py-6 bg-white">
-        <div className="container mx-auto px-4 flex justify-center">
+      <section className="py-2 md:py-6 bg-white">
+        <div className="md:container md:mx-auto md:px-4 flex justify-center">
           <Loader2 className="animate-spin text-gray-400" />
         </div>
-      </div>
+      </section>
     );
   }
 
   if (brands.length === 0) {
+    console.log('⚠️ BrandCarousel - Nenhuma marca encontrada para categoria:', category);
     return null;
   }
 
+  console.log('✅ BrandCarousel - Renderizando com', brands.length, 'marcas');
+
   return (
-    <section className="py-6 bg-white">
-      <div className="container mx-auto px-4">
+    <section className="py-2 md:py-6 bg-white">
+      <div className="md:container md:mx-auto md:px-4">
         {/* Title - horizontal like BestSellers */}
         <h2 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
           Marques Pneus {categoryTitles[category] || category}

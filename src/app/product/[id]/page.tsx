@@ -183,7 +183,7 @@ export default function ProductPage() {
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="md:container md:mx-auto md:px-4 py-4 md:py-8">
         
         {/* Top Section: Product Main */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row mb-6">
@@ -191,27 +191,30 @@ export default function ProductPage() {
           {/* Left Column: Image & Badges */}
           <div className="w-full md:w-5/12 p-8 border-r border-gray-100 flex flex-col items-center">
             
-            {/* Main Image com Labels sobrepostos */}
-            <div className="w-full h-80 flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative">
-              {/* Brand Logo - apenas imagem, sem estilo de botão */}
-              <div className="absolute top-4 left-4 z-10">
+            {/* Main Image com Labels e Marca - com padding para evitar sobreposição */}
+            <div className="w-full h-80 flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative p-8 md:p-12">
+              {/* Brand Logo - posicionado fora da área da imagem */}
+              <div className="absolute top-2 left-2 md:top-4 md:left-4 z-10">
                 {product.brands?.logo_url ? (
-                  <img src={product.brands.logo_url} alt={product.brand} className="h-10 w-auto object-contain" />
+                  <img src={product.brands.logo_url} alt={product.brand} className="h-8 md:h-10 w-auto object-contain" />
                 ) : (
-                  <span className="text-sm font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
+                  <span className="text-xs md:text-sm font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
                 )}
               </div>
 
-              {/* Imagem do pneu */}
-              <img 
-                src={product.images?.[0] || 'https://placehold.co/400x400/f3f4f6/d1d5db?text=Tire+Image'} 
-                alt={product.name} 
-                className="max-h-full object-contain mix-blend-multiply"
-              />
+              {/* Container flex para imagem e labels lado a lado */}
+              <div className="w-full h-full flex items-center justify-center gap-4 md:gap-6">
+                {/* Imagem do pneu - com padding interno para não sobrepor marca */}
+                <div className="flex-1 h-full flex items-center justify-center pt-8 pl-8">
+                  <img 
+                    src={product.images?.[0] || 'https://placehold.co/400x400/f3f4f6/d1d5db?text=Tire+Image'} 
+                    alt={product.name} 
+                    className="max-w-full max-h-full object-contain mix-blend-multiply"
+                  />
+                </div>
 
-              {/* Labels - sobrepostos à imagem, canto inferior direito */}
-              <div className="absolute bottom-4 right-4 z-10">
-                <div className="flex flex-col gap-1.5">
+                {/* Labels - ao lado da imagem, alinhados verticalmente */}
+                <div className="flex flex-col gap-1.5 justify-center">
                   <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
                   <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
                   <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />

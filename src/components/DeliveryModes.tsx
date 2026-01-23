@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react';
 export default function DeliveryModes() {
   return (
     <section className="pb-12 bg-gray-50">
-      <div className="container mx-auto px-4">
+      <div className="md:container md:mx-auto md:px-4">
         <div className="bg-white rounded-lg shadow-sm overflow-hidden pb-8">
           {/* Header Bar */}
           <div className="bg-[#0066CC] py-3 text-center mb-10">

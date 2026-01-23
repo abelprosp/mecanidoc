@@ -6,13 +6,14 @@ import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { ChevronDown, Filter, Loader2 } from 'lucide-react';
+import { ChevronDown, Filter, Loader2, ChevronUp } from 'lucide-react';
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const supabase = createClient();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false); // Colapsado por padrão no mobile
   
   // Filter States
   const [filters, setFilters] = useState({
@@ -268,16 +269,31 @@ function SearchContent() {
   }, [searchParams]);
 
   return (
-    <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
+    <div className="md:container md:mx-auto md:px-4 py-4 md:py-8 flex flex-col md:flex-row gap-8">
       
       {/* Sidebar Filters */}
       <aside className="w-full md:w-64 flex-shrink-0">
         <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
-          <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Filter size={18} /> Filtres
-          </h2>
+          {/* Header com botão de expandir/colapsar no mobile */}
+          <button
+            onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+            className="w-full flex items-center justify-between md:pointer-events-none mb-4"
+          >
+            <h2 className="font-bold text-gray-800 flex items-center gap-2">
+              <Filter size={18} /> Filtres
+            </h2>
+            {/* Ícone de expandir/colapsar - apenas visível no mobile */}
+            <div className="md:hidden">
+              {isFiltersExpanded ? (
+                <ChevronUp size={20} className="text-gray-600" />
+              ) : (
+                <ChevronDown size={20} className="text-gray-600" />
+              )}
+            </div>
+          </button>
           
-          <div className="space-y-4">
+          {/* Conteúdo dos filtros - colapsado no mobile por padrão */}
+          <div className={`space-y-4 ${isFiltersExpanded ? 'block' : 'hidden md:block'}`}>
             {/* Dimensions Filter (Like Homepage) */}
             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
               <label className="text-xs font-bold text-gray-700 mb-2 block uppercase">Dimensions</label>

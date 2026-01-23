@@ -35,7 +35,7 @@ export default function FAQ({ pageSlug = 'home' }: FAQProps) {
   if (loading) {
     return (
       <section className="py-8 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="md:container md:mx-auto md:px-4">
           <h2 className="text-sm font-bold text-gray-500 mb-8 uppercase tracking-wide">QUESTIONS FRÉQUENTES SUR LES PNEUS</h2>
           <div className="text-center text-gray-400 py-8">Chargement...</div>
         </div>

@@ -30,11 +30,11 @@ export default function CheckoutPage() {
     orderType: 'Personne' // Or Company
   });
 
-  // Extras State
+  // Extras State - sempre marcados por padrão
   const [showExtras, setShowExtras] = useState(false);
   const [extras, setExtras] = useState({
-    fastDelivery: false,
-    warranty: false
+    fastDelivery: true,
+    warranty: true
   });
   
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -54,11 +54,36 @@ export default function CheckoutPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Calculations
+  // Calcular total de pneus no carrinho
+  const totalTires = items.reduce((sum, item) => sum + item.quantity, 0);
+  
+  // Calculations - Frete dinâmico baseado na quantidade
   const subtotal = cartTotal;
-  const deliveryFee = settings.delivery_base_fee || 0;
-  const fastDeliveryFee = extras.fastDelivery ? (settings.fast_delivery_fee || 0) : 0;
-  const warrantyFee = extras.warranty ? (settings.warranty_fee || 0) : 0;
+  
+  // Lógica de frete:
+  // 1-2 pneus: frete rápido €19.90
+  // 3-4 pneus: frete normal grátis, frete rápido €29.90
+  let deliveryFee = 0;
+  let fastDeliveryFee = 0;
+  
+  if (totalTires <= 2) {
+    // 1 a 2 pneus: apenas frete rápido disponível
+    if (extras.fastDelivery) {
+      fastDeliveryFee = 19.90;
+    }
+  } else if (totalTires <= 4) {
+    // 3 a 4 pneus: frete normal grátis, frete rápido €29.90
+    deliveryFee = 0; // Grátis
+    if (extras.fastDelivery) {
+      fastDeliveryFee = 29.90;
+    }
+  } else {
+    // Mais de 4 pneus: usar configuração padrão
+    deliveryFee = extras.fastDelivery ? 0 : (settings.delivery_base_fee || 0);
+    fastDeliveryFee = extras.fastDelivery ? (settings.fast_delivery_fee || 0) : 0;
+  }
+  
+  const warrantyFee = extras.warranty ? (settings.warranty_fee || 5.50) : 0;
   const total = subtotal + deliveryFee + fastDeliveryFee + warrantyFee;
 
   const handlePlaceOrder = async () => {
@@ -253,10 +278,13 @@ export default function CheckoutPage() {
                    <span>Sous-total</span>
                    <span>€{subtotal.toFixed(2)}</span>
                  </div>
-                 <div className="flex justify-between text-gray-600">
-                   <span>Livraison</span>
-                   <span>€{deliveryFee.toFixed(2)}</span>
-                 </div>
+                 {/* Mostrar frete normal apenas se for grátis (3-4 pneus sem frete rápido) ou se tiver valor */}
+                 {((totalTires >= 3 && totalTires <= 4 && !extras.fastDelivery) || (deliveryFee > 0 && !extras.fastDelivery)) && (
+                   <div className="flex justify-between text-gray-600">
+                     <span>Livraison</span>
+                     <span>{deliveryFee === 0 ? 'GRATUITE' : `€${deliveryFee.toFixed(2)}`}</span>
+                   </div>
+                 )}
                  {extras.fastDelivery && (
                    <div className="flex justify-between text-blue-600">
                      <span>Livraison Rapide</span>
@@ -287,6 +315,22 @@ export default function CheckoutPage() {
                  
                  {showExtras && (
                    <div className="p-4 bg-gray-50 space-y-3 animate-in slide-in-from-top-2">
+                     {/* Frete Normal - apenas para 3-4 pneus */}
+                     {totalTires >= 3 && totalTires <= 4 && (
+                       <div className="pb-2 border-b border-gray-200">
+                         <div className="flex items-start gap-3">
+                           <div className="mt-1 w-5 h-5 bg-green-500 rounded flex items-center justify-center">
+                             <span className="text-white text-xs">✓</span>
+                           </div>
+                           <div>
+                             <span className="block font-bold text-sm text-gray-700">Livraison Standard</span>
+                             <span className="text-xs text-green-600 font-semibold">GRATUITE</span>
+                             <span className="text-xs text-gray-500 block mt-1">Livraison standard pour commandes de 3-4 pneus.</span>
+                           </div>
+                         </div>
+                       </div>
+                     )}
+                     
                      <label className="flex items-start gap-3 cursor-pointer">
                         <input 
                           type="checkbox" 
@@ -295,7 +339,9 @@ export default function CheckoutPage() {
                           className="mt-1"
                         />
                         <div>
-                           <span className="block font-bold text-sm text-gray-700">Livraison Rapide (+€{settings.fast_delivery_fee})</span>
+                           <span className="block font-bold text-sm text-gray-700">
+                             Livraison Rapide (+€{totalTires <= 2 ? '19.90' : totalTires <= 4 ? '29.90' : (settings.fast_delivery_fee || '19.90')})
+                           </span>
                            <span className="text-xs text-gray-500">Recevez votre commande en 24h/48h.</span>
                         </div>
                      </label>
@@ -307,7 +353,7 @@ export default function CheckoutPage() {
                           className="mt-1"
                         />
                         <div>
-                           <span className="block font-bold text-sm text-gray-700">Assurance Protection (+€{settings.warranty_fee})</span>
+                           <span className="block font-bold text-sm text-gray-700">Assurance Protection (+€{settings.warranty_fee || '5.50'})</span>
                            <span className="text-xs text-gray-500">Garantie contre les dommages accidentels.</span>
                         </div>
                      </label>

@@ -26,7 +26,12 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
         .limit(12); // Increased limit for carousel
 
       if (category) {
-        query = query.ilike('category', category);
+        // Normalizar categoria para garantir match exato
+        const normalizedCategory = category.trim();
+        // Filtrar por categoria exata - garantir que categorias diferentes não se misturem
+        query = query.or(
+          `category.eq.${normalizedCategory},category.eq.${normalizedCategory.toLowerCase()},category.eq.${normalizedCategory.toUpperCase()}`
+        );
       }
       
       // Se houver paTipo, filtrar produtos por pa_tipo
@@ -39,7 +44,14 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
       if (error) {
         console.error("Error fetching products:", error);
       } else {
-        setProducts(data || []);
+        // Filtro adicional no cliente para garantir match exato (case-insensitive)
+        const normalizedCategory = category?.trim().toLowerCase();
+        const filtered = (data || []).filter((product: any) => {
+          if (!category) return true;
+          const productCategory = (product.category || '').toLowerCase();
+          return productCategory === normalizedCategory;
+        });
+        setProducts(filtered);
       }
       setLoading(false);
     };
@@ -69,7 +81,7 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
 
   return (
     <section className="py-8 bg-transparent relative group">
-      <div className="container mx-auto px-4">
+      <div className="md:container md:mx-auto md:px-4">
         <h2 className="text-sm font-bold text-gray-900 mb-6 uppercase tracking-wide">Les meilleures ventes {category ? `- ${category}` : ''}</h2>
         
         <div className="relative">

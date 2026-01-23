@@ -74,23 +74,25 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <div className="bg-[#FAF9F6] rounded-xl shadow-sm border border-gray-100 p-5 h-full flex flex-col justify-between relative group">
       
-      {/* 1. Header: Brand, Stars, Price */}
-      <div className="flex justify-between items-start mb-2">
+      {/* 1. Header: Brand, Stars, Price - Alinhados horizontalmente */}
+      <div className="flex justify-between items-center mb-2">
+        {/* Brand Logo */}
+        <div className="h-6 flex items-center">
+          {product.brands?.logo_url ? (
+            <img 
+              src={product.brands.logo_url} 
+              alt={product.brands?.name || product.brand || 'Marque'} 
+              className="h-full w-auto object-contain" 
+            />
+          ) : (
+            <span className="text-xs font-bold text-gray-700 uppercase">
+              {product.brands?.name || product.brand || 'Marque'}
+            </span>
+          )}
+        </div>
+
+        {/* Stars and Price - Alinhados horizontalmente */}
         <div className="flex items-center gap-3">
-          {/* Brand Logo */}
-          <div className="h-6 flex items-center">
-            {product.brands?.logo_url ? (
-              <img 
-                src={product.brands.logo_url} 
-                alt={product.brands?.name || product.brand || 'Marque'} 
-                className="h-full w-auto object-contain" 
-              />
-            ) : (
-              <span className="text-xs font-bold text-gray-700 uppercase">
-                {product.brands?.name || product.brand || 'Marque'}
-              </span>
-            )}
-          </div>
           {/* Stars */}
           <div className="flex items-center gap-1">
              <div className="flex text-orange-300 text-[10px]">
@@ -98,13 +100,12 @@ export default function ProductCard({ product }: ProductCardProps) {
              </div>
              <span className="text-[10px] text-gray-400 font-medium">4,3/5</span>
           </div>
+          {/* Price */}
+          <span className="text-2xl font-bold text-[#5c7c9e]">€{finalPrice.toFixed(2)}</span>
         </div>
-
-        {/* Price (Top Right) */}
-        <span className="text-2xl font-bold text-[#5c7c9e]">€{finalPrice.toFixed(2)}</span>
       </div>
 
-      {/* 2. Main Content: Image & Info */}
+      {/* 3. Main Content: Image & Info */}
       <div className="flex gap-6 mb-4">
         {/* Left: Image */}
         <div className="w-32 flex-shrink-0 flex items-center justify-center">
@@ -150,7 +151,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
       </div>
 
-      {/* 3. Footer: Labels & Button */}
+      {/* 4. Footer: Labels & Button */}
       <div className="flex justify-between items-end mt-auto">
         {/* Labels */}
         <div className="flex gap-2 mb-1">

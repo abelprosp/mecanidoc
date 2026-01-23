@@ -21,7 +21,7 @@ export default function Footer() {
 
   return (
     <footer className="bg-gray-100 pt-16 pb-8 text-gray-600 text-sm">
-      <div className="container mx-auto px-4">
+      <div className="md:container md:mx-auto md:px-4">
         
         {/* SEO / Intro Text */}
         <div className="mb-12 max-w-4xl">

@@ -4,7 +4,7 @@ import { Disc, MapPin, CreditCard, Truck, Search, Lightbulb, Car, Building2, Pac
 export default function Steps() {
   return (
     <section className="py-8 bg-white">
-      <div className="container mx-auto px-4">
+      <div className="md:container md:mx-auto md:px-4">
         <div className="bg-[#111111] rounded-lg p-8 md:p-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
