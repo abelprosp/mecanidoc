@@ -107,6 +107,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Specs */}
           <p className="text-gray-500 font-medium text-sm mb-2">
             {specs.width}/{specs.height} R{specs.diameter} {specs.load_index} {specs.speed_index}
+            {specs.autres_categories && specs.autres_categories.length > 0 && (
+              <span className="ml-2 text-gray-400">
+                {specs.autres_categories.join(', ')}
+              </span>
+            )}
           </p>
 
           {/* Season & Category */}

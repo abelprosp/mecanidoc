@@ -205,7 +205,14 @@ export default function ProductPage() {
             </div>
 
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">{product.name}</h1>
-            <p className="text-lg text-gray-600 mb-6">{specs.width}/{specs.height} R{specs.diameter} {specs.load_index}{specs.speed_index}</p>
+            <p className="text-lg text-gray-600 mb-6">
+              {specs.width}/{specs.height} R{specs.diameter} {specs.load_index}{specs.speed_index}
+              {specs.autres_categories && specs.autres_categories.length > 0 && (
+                <span className="ml-2 text-gray-500 text-base">
+                  {specs.autres_categories.join(', ')}
+                </span>
+              )}
+            </p>
 
             <div className="mb-6">
               <span className="text-xs text-gray-500 block mb-1">Prix unitaire</span>
@@ -295,6 +302,12 @@ export default function ProductPage() {
                 <span className="text-gray-500">Catégorie :</span>
                 <span className="font-medium text-gray-800">{product.category || '-'}</span>
               </div>
+              {specs.autres_categories && specs.autres_categories.length > 0 && (
+                <div className="flex justify-between py-2 border-b border-gray-100 col-span-2">
+                  <span className="text-gray-500">Autres catégories :</span>
+                  <span className="font-medium text-gray-800">{specs.autres_categories.join(', ')}</span>
+                </div>
+              )}
             </div>
 
           </div>
@@ -311,6 +324,21 @@ export default function ProductPage() {
             <div className="text-gray-600 text-xs leading-relaxed space-y-4">
               <p>{product.description || "Aucune description disponible pour ce produit."}</p>
             </div>
+            
+            {/* Étiquette iframe */}
+            {product.labels?.label_url && (
+              <div className="mt-6">
+                <h4 className="font-bold text-gray-700 text-sm mb-3">Étiquette du produit</h4>
+                <div className="w-full border border-gray-200 rounded-lg overflow-hidden">
+                  <iframe
+                    src={product.labels.label_url}
+                    className="w-full h-[600px] border-0"
+                    title="Étiquette du produit"
+                    allow="fullscreen"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Reviews */}

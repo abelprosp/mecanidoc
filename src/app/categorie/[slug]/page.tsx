@@ -55,6 +55,8 @@ export default function CategoryPage() {
   const title = pageData?.seo_title || subcategoryData?.name || formatTitle(slug);
   const heroImage = pageData?.hero_image;
   const categoryFilter = pageData?.product_category_filter || subcategoryData?.product_category_filter || getCategoryFilter(slug);
+  // Se for subcategoria do menu, usar o nome como pa_tipo para filtrar produtos
+  const paTipoFilter = subcategoryData?.name || null;
   const promoBanners = pageData?.promo_banners || [];
   const marketingBanner = pageData?.marketing_banner || {};
 
@@ -111,7 +113,7 @@ export default function CategoryPage() {
         </section>
 
         {/* Best Sellers */}
-        <BestSellers category={categoryFilter} />
+        <BestSellers category={categoryFilter} paTipo={paTipoFilter} />
 
         {/* Marketing Banner */}
         <section className="mb-8 mx-4">

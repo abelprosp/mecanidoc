@@ -7,9 +7,10 @@ import ProductCard from './VerticalProductCard';
 
 interface BestSellersProps {
   category?: string;
+  paTipo?: string; // Filtro por pa_tipo (subcategoria do menu)
 }
 
-export default function BestSellers({ category }: BestSellersProps) {
+export default function BestSellers({ category, paTipo }: BestSellersProps) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -28,6 +29,11 @@ export default function BestSellers({ category }: BestSellersProps) {
         query = query.ilike('category', category);
       }
       
+      // Se houver paTipo, filtrar produtos por pa_tipo
+      if (paTipo) {
+        query = query.eq('pa_tipo', paTipo);
+      }
+      
       const { data, error } = await query;
       
       if (error) {
@@ -39,7 +45,7 @@ export default function BestSellers({ category }: BestSellersProps) {
     };
 
     fetchProducts();
-  }, [category]);
+  }, [category, paTipo]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {

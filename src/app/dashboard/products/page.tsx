@@ -122,6 +122,16 @@ export default function ProductUploadPage() {
                 season: row['pa_clima'],
                 runflat: row['autres catégories']?.includes('Runflat') || false,
                 extra_load: row['autres catégories']?.includes('XL') || false,
+                // Armazenar outras categorias como array (ex: ["M+S", "XL", "Runflat"])
+                autres_categories: (() => {
+                  const autresCat = row['autres catégories'] || row['autres categories'] || row['autres_categories'] || '';
+                  if (!autresCat || autresCat.trim() === '') return [];
+                  // Suporta separação por vírgula, ponto e vírgula, ou pipe
+                  return autresCat
+                    .split(/[,;|]/)
+                    .map((cat: string) => cat.trim())
+                    .filter((cat: string) => cat.length > 0);
+                })(),
               },
 
               // Labels JSON

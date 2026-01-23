@@ -121,6 +121,11 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
       {/* Specs - Dimension with load and speed index */}
       <p className="text-gray-800 text-sm font-semibold mb-3">
         {specs.width}/{specs.height}R{specs.diameter} {specs.load_index || ''}{specs.speed_index || ''}
+        {specs.autres_categories && specs.autres_categories.length > 0 && (
+          <span className="ml-2 text-gray-500 text-xs font-normal">
+            {specs.autres_categories.join(', ')}
+          </span>
+        )}
       </p>
 
       {/* Badges (Season/Category) */}
