@@ -325,16 +325,26 @@ export default function ProductPage() {
               <p>{product.description || "Aucune description disponible pour ce produit."}</p>
             </div>
             
-            {/* Étiquette iframe */}
+            {/* Étiquette Image */}
             {product.labels?.label_url && (
               <div className="mt-6">
                 <h4 className="font-bold text-gray-700 text-sm mb-3">Étiquette du produit</h4>
-                <div className="w-full border border-gray-200 rounded-lg overflow-hidden">
-                  <iframe
+                <div className="w-full border border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-4">
+                  <img
                     src={product.labels.label_url}
-                    className="w-full h-[600px] border-0"
-                    title="Étiquette du produit"
-                    allow="fullscreen"
+                    alt="Étiquette du produit"
+                    className="max-w-full h-auto object-contain"
+                    onError={(e) => {
+                      // Se a imagem não carregar, tentar abrir em nova aba
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const link = document.createElement('a');
+                      link.href = product.labels.label_url;
+                      link.target = '_blank';
+                      link.textContent = 'Ouvrir l\'étiquette';
+                      link.className = 'text-blue-600 hover:underline';
+                      target.parentElement?.appendChild(link);
+                    }}
                   />
                 </div>
               </div>
