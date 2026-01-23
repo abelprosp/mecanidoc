@@ -4,6 +4,7 @@ import React from 'react';
 import { Star, Fuel, CloudRain, Volume2, Sun, CloudLightning, CloudSnow } from 'lucide-react';
 import Link from 'next/link';
 import { useProductPrice } from '@/hooks/useProductPrice';
+import CategoryTooltip from './CategoryTooltip';
 
 interface ProductCardProps {
   product: any;
@@ -118,17 +119,22 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="flex-1 flex flex-col justify-center pt-2">
           {/* Title */}
           <h3 className="font-bold text-gray-800 text-base uppercase leading-tight tracking-wide mb-1">
-            {product.brands?.name || product.brand} <br />
-            <span className="text-gray-600">{product.name}</span>
+            {[product.brands?.name || product.brand, product.name].filter(Boolean).join(' ')}
           </h3>
 
           {/* Specs */}
-          <p className="text-gray-500 font-medium text-sm mb-2">
-            {specs.width}/{specs.height} R{specs.diameter} {specs.load_index} {specs.speed_index}
+          <p className="text-gray-900 font-medium text-sm mb-2">
+            <span>{specs.width}/{specs.height} R{specs.diameter} {specs.load_index} {specs.speed_index}</span>
             {specs.autres_categories && specs.autres_categories.length > 0 && (
-              <span className="ml-2 text-gray-400">
-                {specs.autres_categories.join(', ')}
-              </span>
+              <>
+                {' '}
+                {specs.autres_categories.map((cat: string, index: number) => (
+                  <React.Fragment key={index}>
+                    {index > 0 && ', '}
+                    <CategoryTooltip category={cat} />
+                  </React.Fragment>
+                ))}
+              </>
             )}
           </p>
 

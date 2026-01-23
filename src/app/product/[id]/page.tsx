@@ -39,6 +39,7 @@ const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', val
 import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
 import RelatedProducts from '@/components/RelatedProducts';
+import CategoryTooltip from '@/components/CategoryTooltip';
 
 function ProductPriceDisplay({ basePrice, category }: { basePrice: number; category?: string }) {
   const { finalPrice, loading } = useProductPrice(basePrice || 0, category || 'Auto');
@@ -190,30 +191,30 @@ export default function ProductPage() {
           {/* Left Column: Image & Badges */}
           <div className="w-full md:w-5/12 p-8 border-r border-gray-100 flex flex-col items-center">
             
-            {/* Main Image */}
-            <div className="w-full h-80 flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative">
-              {/* Brand Logo Top Left */}
-              <div className="absolute top-4 left-4 z-10 h-12 bg-white p-2 rounded-lg shadow-sm border border-gray-100">
-                {product.brands?.logo_url ? (
-                  <img src={product.brands.logo_url} alt={product.brand} className="h-full w-auto object-contain" />
-                ) : (
-                  <div className="h-full flex items-center justify-center px-2">
-                    <span className="text-xs font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
-                  </div>
-                )}
-              </div>
+            {/* Brand Logo - apenas imagem, sem estilo de botão */}
+            <div className="mb-4">
+              {product.brands?.logo_url ? (
+                <img src={product.brands.logo_url} alt={product.brand} className="h-10 w-auto object-contain" />
+              ) : (
+                <span className="text-sm font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
+              )}
+            </div>
 
+            {/* Main Image */}
+            <div className="w-full h-80 flex items-center justify-center bg-gray-50 rounded-lg mb-6">
               <img 
                 src={product.images?.[0] || 'https://placehold.co/400x400/f3f4f6/d1d5db?text=Tire+Image'} 
                 alt={product.name} 
                 className="max-h-full object-contain mix-blend-multiply"
               />
-              <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow-sm">
-                 <div className="flex flex-col gap-1">
-                    <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
-                    <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
-                    <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />
-                 </div>
+            </div>
+
+            {/* Labels - fora da imagem, abaixo */}
+            <div className="w-full bg-white p-3 rounded-lg shadow-sm mb-6">
+              <div className="flex flex-col gap-2">
+                <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
+                <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
+                <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />
               </div>
             </div>
 
@@ -244,13 +245,21 @@ export default function ProductPage() {
               </div>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">{product.name}</h1>
-            <p className="text-lg text-gray-600 mb-6">
-              {specs.width}/{specs.height} R{specs.diameter} {specs.load_index}{specs.speed_index}
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">
+              {[product.brands?.name || product.brand, product.name].filter(Boolean).join(' ')}
+            </h1>
+            <p className="text-lg text-gray-900 mb-6 font-medium">
+              <span>{specs.width}/{specs.height} R{specs.diameter} {specs.load_index}{specs.speed_index}</span>
               {specs.autres_categories && Array.isArray(specs.autres_categories) && specs.autres_categories.length > 0 && (
-                <span className="ml-2 text-gray-500 text-base font-medium">
-                  {specs.autres_categories.join(', ')}
-                </span>
+                <>
+                  {' '}
+                  {specs.autres_categories.map((cat: string, index: number) => (
+                    <React.Fragment key={index}>
+                      {index > 0 && ', '}
+                      <CategoryTooltip category={cat} />
+                    </React.Fragment>
+                  ))}
+                </>
               )}
             </p>
 
@@ -345,7 +354,14 @@ export default function ProductPage() {
               {specs.autres_categories && Array.isArray(specs.autres_categories) && specs.autres_categories.length > 0 && (
                 <div className="flex justify-between py-2 border-b border-gray-100 col-span-2">
                   <span className="text-gray-500">Autres catégories :</span>
-                  <span className="font-medium text-gray-800">{specs.autres_categories.join(', ')}</span>
+                  <span className="font-medium text-gray-900">
+                    {specs.autres_categories.map((cat: string, index: number) => (
+                      <React.Fragment key={index}>
+                        {index > 0 && ', '}
+                        <CategoryTooltip category={cat} />
+                      </React.Fragment>
+                    ))}
+                  </span>
                 </div>
               )}
             </div>

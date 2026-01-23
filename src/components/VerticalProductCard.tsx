@@ -4,6 +4,7 @@ import React from 'react';
 import { Star, ShoppingCart, Sun, CloudSnow, CloudLightning, Car, Bike, Truck, Tractor, Fuel, CloudRain, Volume2 } from 'lucide-react';
 import Link from 'next/link';
 import { useProductPrice } from '@/hooks/useProductPrice';
+import CategoryTooltip from './CategoryTooltip';
 
 interface ProductCardProps {
   product: any;
@@ -100,7 +101,9 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-gray-600 font-medium line-clamp-1">{product.name}</span>
+            <span className="text-[11px] text-gray-600 font-medium line-clamp-1">
+              {[product.brands?.name || product.brand, product.name].filter(Boolean).join(' ')}
+            </span>
          </div>
 
          {/* Stars (Right) */}
@@ -137,12 +140,18 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Specs - Dimension with load and speed index */}
-      <p className="text-gray-800 text-sm font-semibold mb-3">
-        {specs.width}/{specs.height}R{specs.diameter} {specs.load_index || ''}{specs.speed_index || ''}
+      <p className="text-gray-900 text-sm font-semibold mb-3">
+        <span>{specs.width}/{specs.height}R{specs.diameter} {specs.load_index || ''}{specs.speed_index || ''}</span>
         {specs.autres_categories && specs.autres_categories.length > 0 && (
-          <span className="ml-2 text-gray-500 text-xs font-normal">
-            {specs.autres_categories.join(', ')}
-          </span>
+          <>
+            {' '}
+            {specs.autres_categories.map((cat: string, index: number) => (
+              <React.Fragment key={index}>
+                {index > 0 && ', '}
+                <CategoryTooltip category={cat} />
+              </React.Fragment>
+            ))}
+          </>
         )}
       </p>
 
