@@ -83,7 +83,9 @@ export default function CheckoutPage() {
     fastDeliveryFee = extras.fastDelivery ? (settings.fast_delivery_fee || 0) : 0;
   }
   
-  const warrantyFee = extras.warranty ? (settings.warranty_fee || 5.50) : 0;
+  // Seguro é por unidade (por pneu)
+  const warrantyFeePerUnit = extras.warranty ? (settings.warranty_fee || 5.50) : 0;
+  const warrantyFee = warrantyFeePerUnit * totalTires;
   const total = subtotal + deliveryFee + fastDeliveryFee + warrantyFee;
 
   const handlePlaceOrder = async () => {
@@ -293,7 +295,7 @@ export default function CheckoutPage() {
                  )}
                  {extras.warranty && (
                    <div className="flex justify-between text-blue-600">
-                     <span>Assurance</span>
+                     <span>Assurance ({totalTires} {totalTires > 1 ? 'pneus' : 'pneu'})</span>
                      <span>€{warrantyFee.toFixed(2)}</span>
                    </div>
                  )}
@@ -353,8 +355,12 @@ export default function CheckoutPage() {
                           className="mt-1"
                         />
                         <div>
-                           <span className="block font-bold text-sm text-gray-700">Assurance Protection (+€{settings.warranty_fee || '5.50'})</span>
-                           <span className="text-xs text-gray-500">Garantie contre les dommages accidentels.</span>
+                           <span className="block font-bold text-sm text-gray-700">
+                             Assurance Protection (+€{(settings.warranty_fee || 5.50).toFixed(2)}/unité)
+                           </span>
+                           <span className="text-xs text-gray-500">
+                             Garantie contre les dommages accidentels. {totalTires > 1 && extras.warranty && `Total: €${warrantyFee.toFixed(2)} (${totalTires} pneus)`}
+                           </span>
                         </div>
                      </label>
                    </div>
