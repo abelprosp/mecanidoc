@@ -52,6 +52,9 @@ export default function ProductUploadPage() {
         
         let success = 0;
         let errors = 0;
+        
+        // Coletar valores únicos de pa_tipo agrupados por categoria
+        const subcategoriesMap = new Map<string, Set<string>>(); // Map<parentCategory, Set<pa_tipo>>
 
         for (const row of results.data as any[]) {
           try {
@@ -106,6 +109,9 @@ export default function ProductUploadPage() {
               shipping_cost: parseFloat(row['prix d\'expédition']?.replace(',', '.') || '0'),
               category: row['pa_categoria'] || row['pa_tipo'], // Fallback
               
+              // Armazenar pa_tipo para criar subcategorias do menu
+              pa_tipo: row['pa_tipo'] || null,
+              
               // Specs JSON
               specs: {
                 width: row['pa_largeur'],
@@ -142,11 +148,85 @@ export default function ProductUploadPage() {
 
             if (error) throw error;
             success++;
+            
+            // Coletar pa_tipo para criar subcategorias do menu
+            const paTipo = row['pa_tipo'];
+            const productCategory = productData.category;
+            
+            if (paTipo && productCategory) {
+              // Mapear categoria do produto para categoria pai do menu
+              let parentCategory = 'Auto'; // Default
+              const catLower = productCategory.toLowerCase();
+              if (catLower.includes('moto')) parentCategory = 'Moto';
+              else if (catLower.includes('camion') || catLower.includes('poids lourd')) parentCategory = 'Camion';
+              else if (catLower.includes('tracteur') || catLower.includes('agricol')) parentCategory = 'Tracteur';
+              
+              if (!subcategoriesMap.has(parentCategory)) {
+                subcategoriesMap.set(parentCategory, new Set());
+              }
+              subcategoriesMap.get(parentCategory)!.add(paTipo);
+            }
 
           } catch (err: any) {
             console.error(err);
             errors++;
             setLogs(prev => [...prev, `Erreur ligne: ${row['name']} - ${err.message}`]);
+          }
+        }
+
+        // Criar/atualizar subcategorias do menu baseadas em pa_tipo
+        if (subcategoriesMap.size > 0) {
+          setLogs(prev => [...prev, `Création des sous-catégories du menu...`]);
+          let subcategoriesCreated = 0;
+          
+          for (const [parentCategory, paTipos] of subcategoriesMap.entries()) {
+            for (const paTipo of paTipos) {
+              if (!paTipo || paTipo.trim() === '') continue;
+              
+              try {
+                // Gerar slug a partir do nome
+                const slug = paTipo
+                  .toLowerCase()
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-z0-9\s]/g, '')
+                  .replace(/\s+/g, '-')
+                  .trim();
+                
+                // Verificar se já existe
+                const { data: existing } = await supabase
+                  .from('menu_subcategories')
+                  .select('id')
+                  .eq('parent_category', parentCategory)
+                  .eq('slug', slug)
+                  .single();
+                
+                if (!existing) {
+                  // Criar nova subcategoria
+                  const { error: subError } = await supabase
+                    .from('menu_subcategories')
+                    .insert([{
+                      parent_category: parentCategory,
+                      name: paTipo,
+                      slug: slug,
+                      is_active: true,
+                      sort_order: 0
+                    }]);
+                  
+                  if (subError) {
+                    console.error('Error creating subcategory:', subError);
+                  } else {
+                    subcategoriesCreated++;
+                  }
+                }
+              } catch (err: any) {
+                console.error('Error processing subcategory:', err);
+              }
+            }
+          }
+          
+          if (subcategoriesCreated > 0) {
+            setLogs(prev => [...prev, `${subcategoriesCreated} sous-catégories créées dans le menu.`]);
           }
         }
 

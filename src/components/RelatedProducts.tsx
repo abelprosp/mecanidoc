@@ -3,43 +3,80 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-import ProductCard from './VerticalProductCard';
+import VerticalProductCard from './VerticalProductCard';
 
-interface BestSellersProps {
+interface RelatedProductsProps {
+  productId: string;
   category?: string;
+  brandId?: string;
+  brandName?: string;
+  specs?: {
+    width?: string;
+    height?: string;
+    diameter?: string;
+  };
 }
 
-export default function BestSellers({ category }: BestSellersProps) {
+export default function RelatedProducts({ 
+  productId, 
+  category, 
+  brandId, 
+  brandName,
+  specs 
+}: RelatedProductsProps) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchRelatedProducts = async () => {
+      setLoading(true);
+      
       let query = supabase
         .from('products')
         .select('*, brands(id, name, logo_url)')
         .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(12); // Increased limit for carousel
+        .neq('id', productId) // Excluir o produto atual
+        .limit(12);
 
+      // Filtrar por categoria
       if (category) {
         query = query.ilike('category', category);
       }
-      
+
+      // Filtrar por marca (brand_id ou brand texto)
+      if (brandId) {
+        query = query.eq('brand_id', brandId);
+      } else if (brandName) {
+        query = query.ilike('brand', `%${brandName}%`);
+      }
+
+      // Filtrar por medidas (width, height, diameter)
+      if (specs?.width) {
+        query = query.contains('specs', { width: specs.width });
+      }
+      if (specs?.height) {
+        query = query.contains('specs', { height: specs.height });
+      }
+      if (specs?.diameter) {
+        query = query.contains('specs', { diameter: specs.diameter });
+      }
+
       const { data, error } = await query;
-      
+
       if (error) {
-        console.error("Error fetching products:", error);
+        console.error("Error fetching related products:", error);
       } else {
         setProducts(data || []);
       }
       setLoading(false);
     };
 
-    fetchProducts();
-  }, [category]);
+    if (productId) {
+      fetchRelatedProducts();
+    }
+  }, [productId, category, brandId, brandName, specs]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -64,7 +101,9 @@ export default function BestSellers({ category }: BestSellersProps) {
   return (
     <section className="py-8 bg-transparent relative group">
       <div className="container mx-auto px-4">
-        <h2 className="text-sm font-bold text-gray-900 mb-6 uppercase tracking-wide">Les meilleures ventes {category ? `- ${category}` : ''}</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-6 uppercase tracking-wide">
+          Produits similaires
+        </h2>
         
         <div className="relative">
           {/* Scroll Buttons - Visible on Desktop Hover */}
@@ -82,7 +121,7 @@ export default function BestSellers({ category }: BestSellersProps) {
           >
             {products.map((product) => (
               <div key={product.id} className="min-w-[280px] md:min-w-[300px] snap-center h-full flex-shrink-0">
-                <ProductCard product={product} />
+                <VerticalProductCard product={product} />
               </div>
             ))}
           </div>

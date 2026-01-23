@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShoppingCart, User, ChevronDown, Menu, X,
   CloudSun, Mountain, Truck, Tent, Sun, Snowflake, Car, Zap, Disc,
@@ -10,75 +10,57 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
+import { createClient } from '@/lib/supabase';
 
-const navigationData = [
+// Mapeamento de ícones (fallback se não houver ícone definido)
+const iconMap: { [key: string]: any } = {
+  'CloudSun': CloudSun,
+  'Mountain': Mountain,
+  'Truck': Truck,
+  'Tent': Tent,
+  'Sun': Sun,
+  'Snowflake': Snowflake,
+  'Car': Car,
+  'Zap': Zap,
+  'Disc': Disc,
+  'Bike': Bike,
+  'Flag': Flag,
+  'Star': Star,
+  'Map': Map,
+  'Box': Box,
+  'Navigation': Navigation,
+  'Bus': Bus,
+  'Hammer': Hammer,
+  'MapPin': MapPin,
+  'Tractor': Tractor,
+  'Leaf': Leaf,
+  'Factory': Factory,
+  'Search': Search,
+  'CircleDot': CircleDot,
+  'Warehouse': Warehouse,
+};
+
+// Estrutura base do menu (categorias principais)
+const baseNavigationData: Array<{ title: string; key: string; columns: any[][] }> = [
   {
     title: "Pneus Auto",
-    columns: [
-      [
-        { name: "Pneus 4 Saisons", icon: CloudSun },
-        { name: "Pneus 4x4/SUV", icon: Mountain },
-        { name: "Pneus camionnette", icon: Truck },
-      ],
-      [
-        { name: "Pneus camping", icon: Tent },
-        { name: "Pneus été Auto", icon: Sun },
-        { name: "Pneus Hiver", icon: Snowflake },
-      ],
-      [
-        { name: "Pneus Voiture", icon: Car },
-        { name: "Pneus voiture électrique", icon: Zap },
-        { name: "Type-c", icon: Disc },
-      ]
-    ]
+    key: "Auto",
+    columns: []
   },
   {
     title: "Pneu Moto",
-    columns: [
-      [
-        { name: "Chopper / Cruiser", icon: Bike },
-        { name: "Pneus circuit et piste", icon: Flag },
-        { name: "Pneus cross / enduro / trial", icon: Mountain },
-      ],
-      [
-        { name: "Pneus custom et collection", icon: Star },
-        { name: "Pneus moto sport et route", icon: Disc },
-        { name: "Pneus scooter", icon: CircleDot },
-      ],
-      [
-        { name: "Pneus trail", icon: Map },
-        { name: "Quad / Véhicule tout terrain", icon: Box },
-        { name: "Sport Tourisme diagonal", icon: Navigation },
-      ]
-    ]
+    key: "Moto",
+    columns: []
   },
   {
     title: "Pneus Camion",
-    columns: [
-      [
-        { name: "Pneus autocar - autobus", icon: Bus },
-        { name: "Pneus chantier", icon: Hammer },
-        { name: "Pneus longue distance", icon: Map },
-      ],
-      [
-        { name: "Pneus régionaux", icon: MapPin },
-      ]
-    ]
+    key: "Camion",
+    columns: []
   },
   {
     title: "Pneus Agricoles",
-    columns: [
-      [
-        { name: "Pneus avant tracteur", icon: Tractor },
-        { name: "Pneus espaces verts", icon: Leaf },
-        { name: "Pneus industriel et manutention", icon: Factory },
-      ],
-      [
-        { name: "Pneus remorque agricole", icon: Warehouse }, 
-        { name: "Pneus roue motrice", icon: Disc },
-        { name: "Recherche par dimension", icon: Search }, 
-      ]
-    ]
+    key: "Tracteur",
+    columns: []
   }
 ];
 
@@ -86,6 +68,65 @@ export default function Header() {
   const { cartCount } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeMobileCategory, setActiveMobileCategory] = useState<string | null>(null);
+  const [navigationData, setNavigationData] = useState<Array<{ title: string; key: string; columns: any[][] }>>(baseNavigationData);
+  const supabase = createClient();
+
+  // Buscar subcategorias dinamicamente do banco
+  useEffect(() => {
+    const fetchSubcategories = async () => {
+      try {
+        const { data: subcategories } = await supabase
+          .from('menu_subcategories')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order')
+          .order('name');
+
+        if (subcategories) {
+          // Agrupar subcategorias por parent_category
+          const grouped: Record<string, any[]> = {};
+          
+          subcategories.forEach((sub) => {
+            if (!grouped[sub.parent_category]) {
+              grouped[sub.parent_category] = [];
+            }
+            
+            const icon = sub.icon_name && iconMap[sub.icon_name] 
+              ? iconMap[sub.icon_name] 
+              : Car; // Fallback icon
+            
+            grouped[sub.parent_category].push({
+              name: sub.name,
+              slug: sub.slug,
+              icon: icon
+            });
+          });
+
+          // Atualizar navigationData com subcategorias do banco
+          const updatedNav = baseNavigationData.map((nav) => {
+            const subcats = grouped[nav.key] || [];
+            
+            // Dividir em colunas de 3 itens cada
+            const columns: any[][] = [];
+            for (let i = 0; i < subcats.length; i += 3) {
+              columns.push(subcats.slice(i, i + 3));
+            }
+            
+            return {
+              ...nav,
+              columns: columns.length > 0 ? columns : [[{ name: "Aucune sous-catégorie", icon: Car }]]
+            };
+          });
+
+          setNavigationData(updatedNav);
+        }
+      } catch (error) {
+        console.error('Error fetching subcategories:', error);
+      }
+    };
+
+    fetchSubcategories();
+  }, []);
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -123,7 +164,7 @@ export default function Header() {
                       <ul className="space-y-4">
                         {column.map((subItem) => (
                           <li key={subItem.name}>
-                            <Link href={`/categorie/${subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`} className="flex items-center gap-3 text-gray-600 hover:text-blue-600 transition-colors group/item">
+                            <Link href={`/categorie/${subItem.slug || subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`} className="flex items-center gap-3 text-gray-600 hover:text-blue-600 transition-colors group/item">
                               <subItem.icon size={20} className="text-gray-500 group-hover/item:text-blue-600" />
                               <span className="text-sm font-medium">{subItem.name}</span>
                             </Link>
@@ -176,7 +217,7 @@ export default function Header() {
                     {item.columns.flat().map((subItem) => (
                       <Link 
                         key={subItem.name}
-                        href={`/categorie/${subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}
+                        href={`/categorie/${subItem.slug || subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}
                         className="flex items-center gap-3 py-2 text-sm text-gray-600 hover:text-blue-600"
                         onClick={() => setMobileMenuOpen(false)}
                       >

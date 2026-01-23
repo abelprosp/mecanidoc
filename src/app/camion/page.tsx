@@ -7,17 +7,31 @@ import DeliveryModes from "@/components/DeliveryModes";
 import FAQ from "@/components/FAQ";
 import Steps from "@/components/Steps";
 import Footer from "@/components/Footer";
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
-export default function CamionPage() {
+async function getCategoryFilter() {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from('category_pages')
+    .select('product_category_filter')
+    .eq('slug', 'camion')
+    .maybeSingle();
+  
+  return data?.product_category_filter || 'Camion';
+}
+
+export default async function CamionPage() {
+  const category = await getCategoryFilter();
+  
   return (
     <main className="min-h-screen">
       <Header />
       <HeroCamion />
-      <BrandCarousel category="Camion" />
-      <BestSellers category="Camion" />
+      <BrandCarousel category={category} />
+      <BestSellers category={category} />
       <WarrantyBanner />
       <DeliveryModes />
-      <FAQ />
+      <FAQ pageSlug="camion" />
       <Steps />
       <Footer />
     </main>

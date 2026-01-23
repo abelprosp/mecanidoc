@@ -3,6 +3,7 @@
 import React from 'react';
 import { Star, ShoppingCart, Sun, CloudSnow, CloudLightning, Car, Bike, Truck, Tractor, Fuel, CloudRain, Volume2 } from 'lucide-react';
 import Link from 'next/link';
+import { useProductPrice } from '@/hooks/useProductPrice';
 
 interface ProductCardProps {
   product: any;
@@ -38,6 +39,7 @@ const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', val
 export default function VerticalProductCard({ product }: ProductCardProps) {
   const specs = product.specs || {};
   const labels = product.labels || {};
+  const { finalPrice } = useProductPrice(product.base_price || 0, product.category || 'Auto');
 
   // Label Colors
   const fuelColor = (labels.fuel === 'A' || labels.fuel === 'B') ? 'bg-green-500 border-green-500' : (labels.fuel === 'C' || labels.fuel === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
@@ -64,9 +66,22 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
       
       {/* Header: Brand/Model & Stars */}
       <div className="flex justify-between items-start w-full mb-3">
-         {/* Brand & Model Name (Left) */}
+         {/* Brand Logo & Model Name (Left) */}
          <div className="flex flex-col items-start">
-            <span className="text-xs font-bold text-gray-800 uppercase">{product.brand || 'Marque'}</span>
+            {/* Brand Logo */}
+            <div className="h-5 mb-1 flex items-center">
+              {product.brands?.logo_url ? (
+                <img 
+                  src={product.brands.logo_url} 
+                  alt={product.brands?.name || product.brand || 'Marque'} 
+                  className="h-full w-auto object-contain max-w-[80px]"
+                />
+              ) : (
+                <span className="text-xs font-bold text-gray-800 uppercase">
+                  {product.brands?.name || product.brand || 'Marque'}
+                </span>
+              )}
+            </div>
             <span className="text-[11px] text-gray-600 font-medium line-clamp-1">{product.name}</span>
          </div>
 
@@ -125,7 +140,7 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
 
       {/* Price */}
       <div className="text-center mb-4">
-        <span className="text-2xl font-bold text-gray-900">€{product.base_price.toFixed(2)}</span>
+        <span className="text-2xl font-bold text-gray-900">€{finalPrice.toFixed(2)}</span>
       </div>
 
       {/* Button */}

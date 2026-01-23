@@ -40,11 +40,20 @@ export default function DynamicPage() {
   return (
     <main className="min-h-screen bg-white flex flex-col">
       <Header />
-      <div className="flex-1 container mx-auto px-4 py-12">
-        <article className="prose lg:prose-xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">{page.title}</h1>
-          <div dangerouslySetInnerHTML={{ __html: page.content }} className="text-gray-700 leading-relaxed" />
-        </article>
+      <div className="flex-1">
+        {page.content ? (
+          <div 
+            dangerouslySetInnerHTML={{ __html: page.content }} 
+            className="[&_*]:max-w-none"
+          />
+        ) : (
+          <div className="container mx-auto px-4 py-12 max-w-4xl">
+            <article className="prose prose-lg max-w-none">
+              <h1 className="text-3xl font-bold text-gray-900 mb-8">{page.title}</h1>
+              <p className="text-gray-600">Cette page est en cours de rédaction. Le contenu sera bientôt disponible.</p>
+            </article>
+          </div>
+        )}
       </div>
       <Footer />
     </main>

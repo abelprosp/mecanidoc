@@ -1,25 +1,51 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Minus } from 'lucide-react';
+import { createClient } from '@/lib/supabase';
 
-const faqs = [
-  {
-    question: "Quelles sont les catégories de pneus disponibles ?",
-    answer: "Les pneus se déclinent en plusieurs catégories : été, hiver, toutes saisons, runflat, et spécifiques pour 4x4, SUV, motos et utilitaires. Chaque type de pneu est conçu pour répondre à des conditions de conduite et des besoins spécifiques."
-  },
-  {
-    question: "Quelle est la réglementation sur les pneus ?",
-    answer: "La réglementation impose des normes strictes concernant l'usure (profondeur minimale des sculptures de 1,6 mm), l'adéquation saisonnière (pneus hiver obligatoires dans certaines zones) et l'interdiction de monter des pneus de structures différentes sur un même essieu."
-  },
-  {
-    question: "Comment permuter les pneus ?",
-    answer: "Pour assurer une usure uniforme, il est recommandé de permuter les pneus tous les 10 000 à 12 000 km. La méthode de permutation dépend du type de transmission (traction, propulsion ou 4 roues motrices) et du profil des pneus (directionnel ou asymétrique)."
-  }
-];
+interface FAQProps {
+  pageSlug?: string; // 'home', 'moto', 'camion', 'tracteurs', ou slug de categoria
+}
 
-export default function FAQ() {
+export default function FAQ({ pageSlug = 'home' }: FAQProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchFAQs = async () => {
+      const { data } = await supabase
+        .from('faqs')
+        .select('*')
+        .eq('page_slug', pageSlug)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      
+      if (data) {
+        setFaqs(data);
+      }
+      setLoading(false);
+    };
+
+    fetchFAQs();
+  }, [pageSlug]);
+
+  if (loading) {
+    return (
+      <section className="py-8 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-sm font-bold text-gray-500 mb-8 uppercase tracking-wide">QUESTIONS FRÉQUENTES SUR LES PNEUS</h2>
+          <div className="text-center text-gray-400 py-8">Chargement...</div>
+        </div>
+      </section>
+    );
+  }
+
+  if (faqs.length === 0) {
+    return null; // Não exibe nada se não houver FAQs
+  }
 
   return (
     <section className="py-8 bg-white">
@@ -28,7 +54,7 @@ export default function FAQ() {
         
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <div key={index} className="border-b border-gray-100 pb-4">
+            <div key={faq.id} className="border-b border-gray-100 pb-4">
               <button 
                 className="w-full flex items-center gap-4 text-left py-2 focus:outline-none group"
                 onClick={() => setOpenIndex(openIndex === index ? null : index)}

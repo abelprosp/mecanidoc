@@ -42,7 +42,7 @@ export default function DeliveryModes() {
             </div>
 
             <div className="text-center mt-10">
-              <a href="#" className="text-[#0066CC] hover:text-blue-800 inline-flex items-center gap-1 text-sm font-medium transition-colors">
+              <a href="/page/modes-de-livraison" className="text-[#0066CC] hover:text-blue-800 inline-flex items-center gap-1 text-sm font-medium transition-colors">
                 En savoir plus <ArrowRight size={16} />
               </a>
             </div>

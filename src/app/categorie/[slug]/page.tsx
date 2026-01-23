@@ -29,19 +29,32 @@ export default function CategoryPage() {
   };
 
   const [pageData, setPageData] = useState<any>(null);
+  const [subcategoryData, setSubcategoryData] = useState<any>(null);
   
   useEffect(() => {
     const fetchPageData = async () => {
       const supabase = createClient();
-      const { data } = await supabase.from('category_pages').select('*').eq('slug', slug).single();
-      setPageData(data);
+      
+      // Primeiro, tentar buscar na tabela category_pages
+      const { data: categoryPage } = await supabase.from('category_pages').select('*').eq('slug', slug).maybeSingle();
+      
+      // Se não encontrou, buscar na tabela menu_subcategories
+      if (!categoryPage) {
+        const { data: subcategory } = await supabase.from('menu_subcategories').select('*').eq('slug', slug).maybeSingle();
+        setSubcategoryData(subcategory);
+        setPageData(null);
+      } else {
+        setPageData(categoryPage);
+        setSubcategoryData(null);
+      }
     };
     if (slug) fetchPageData();
   }, [slug]);
 
-  const title = pageData?.seo_title || formatTitle(slug);
+  // Se for subcategoria do menu, usar dados dela; senão usar category_pages
+  const title = pageData?.seo_title || subcategoryData?.name || formatTitle(slug);
   const heroImage = pageData?.hero_image;
-  const categoryFilter = pageData?.product_category_filter || getCategoryFilter(slug);
+  const categoryFilter = pageData?.product_category_filter || subcategoryData?.product_category_filter || getCategoryFilter(slug);
   const promoBanners = pageData?.promo_banners || [];
   const marketingBanner = pageData?.marketing_banner || {};
 
@@ -116,7 +129,7 @@ export default function CategoryPage() {
 
         {/* FAQ */}
         <div className="mx-4">
-           <FAQ />
+           <FAQ pageSlug={slug} />
         </div>
 
         {/* Warranty */}

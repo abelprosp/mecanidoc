@@ -3,6 +3,7 @@
 import React from 'react';
 import { Star, Fuel, CloudRain, Volume2, Sun, CloudLightning, CloudSnow } from 'lucide-react';
 import Link from 'next/link';
+import { useProductPrice } from '@/hooks/useProductPrice';
 
 interface ProductCardProps {
   product: any;
@@ -37,6 +38,7 @@ const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', val
 export default function ProductCard({ product }: ProductCardProps) {
   const specs = product.specs || {};
   const labels = product.labels || {};
+  const { finalPrice } = useProductPrice(product.base_price || 0, product.category || 'Auto');
   
   // Determine Label Colors
   const fuelColor = (labels.fuel === 'A' || labels.fuel === 'B') ? 'bg-green-500 border-green-500' : (labels.fuel === 'C' || labels.fuel === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
@@ -59,9 +61,15 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Brand Logo */}
           <div className="h-6 flex items-center">
             {product.brands?.logo_url ? (
-              <img src={product.brands.logo_url} alt={product.brand} className="h-full w-auto object-contain" />
+              <img 
+                src={product.brands.logo_url} 
+                alt={product.brands?.name || product.brand || 'Marque'} 
+                className="h-full w-auto object-contain" 
+              />
             ) : (
-              <span className="text-xs font-bold text-gray-700 uppercase">{product.brand || 'Marque'}</span>
+              <span className="text-xs font-bold text-gray-700 uppercase">
+                {product.brands?.name || product.brand || 'Marque'}
+              </span>
             )}
           </div>
           {/* Stars */}
@@ -74,7 +82,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Price (Top Right) */}
-        <span className="text-2xl font-bold text-[#5c7c9e]">€{product.base_price}</span>
+        <span className="text-2xl font-bold text-[#5c7c9e]">€{finalPrice.toFixed(2)}</span>
       </div>
 
       {/* 2. Main Content: Image & Info */}
@@ -92,7 +100,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="flex-1 flex flex-col justify-center pt-2">
           {/* Title */}
           <h3 className="font-bold text-gray-800 text-base uppercase leading-tight tracking-wide mb-1">
-            {product.brand} <br />
+            {product.brands?.name || product.brand} <br />
             <span className="text-gray-600">{product.name}</span>
           </h3>
 

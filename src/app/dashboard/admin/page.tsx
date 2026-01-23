@@ -5,11 +5,12 @@ import {
   LayoutDashboard, Package, ShoppingBag, Users, Tag, CreditCard, 
   Settings, Truck, TrendingUp, AlertTriangle, FileText, CheckCircle, 
   Percent, DollarSign, Globe, Shield, Loader2, LogOut, User, Grid, Layout, Trash2,
-  Menu, X
+  Menu, X, List
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import SubcategoriesSectionComponent from './SubcategoriesSection';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -34,6 +35,9 @@ export default function AdminDashboard() {
       case 'brands': return <BrandsSection />;
       case 'pages': return <PagesSection />;
       case 'footer': return <FooterSection />;
+      case 'faqs': return <FAQsSection />;
+      case 'taxes': return <TaxesSection />;
+      case 'subcategories': return <SubcategoriesSectionComponent />;
       case 'settings': return <SettingsSection />;
       case 'approvals': return <ApprovalsSection />;
       case 'profile': return <ProfileSection />;
@@ -46,7 +50,10 @@ export default function AdminDashboard() {
     { id: 'products', icon: Package, label: 'Gestion Produits' },
     { id: 'brands', icon: Grid, label: 'Marques' },
     { id: 'pages', icon: Layout, label: 'Pages Catégories' },
+    { id: 'subcategories', icon: List, label: 'Sous-catégories Menu' },
     { id: 'footer', icon: Globe, label: 'Pied de page' },
+    { id: 'faqs', icon: FileText, label: 'FAQs' },
+    { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },
     { id: 'approvals', icon: CheckCircle, label: 'Approbations' },
   ];
@@ -208,7 +215,10 @@ function ProductsSection() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: productsData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('*, brands(id, name, logo_url)')
+        .order('created_at', { ascending: false });
       const { data: brandsData } = await supabase.from('brands').select('*').order('name', { ascending: true });
       setProducts(productsData || []);
       setBrands(brandsData || []);
@@ -662,6 +672,7 @@ function PagesSection() {
               <div className="flex-1 pr-2">
                 <p className="font-mono text-blue-600 text-sm">{page.slug}</p>
                 <p className="text-gray-800 font-medium mt-1">{page.seo_title}</p>
+                <p className="text-gray-500 text-xs mt-1">Produit: {page.product_category_filter || 'Auto'}</p>
               </div>
               <button onClick={() => setEditingPage(page)} className="text-blue-600 font-bold border px-3 py-1 rounded text-sm shrink-0">
                 Modifier
@@ -674,10 +685,26 @@ function PagesSection() {
       {/* Desktop Table View */}
       <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="px-6 py-4">Slug</th><th className="px-6 py-4">Titre</th><th className="px-6 py-4">Actions</th></tr></thead>
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-6 py-4">Slug</th>
+              <th className="px-6 py-4">Titre</th>
+              <th className="px-6 py-4">Catégorie Produit</th>
+              <th className="px-6 py-4">Actions</th>
+            </tr>
+          </thead>
           <tbody className="divide-y divide-gray-100">
             {pages.map((page) => (
-              <tr key={page.id}><td className="px-6 py-4 font-mono text-blue-600">{page.slug}</td><td className="px-6 py-4">{page.seo_title}</td><td className="px-6 py-4"><button onClick={() => setEditingPage(page)} className="text-blue-600 font-bold border px-3 py-1 rounded">Modifier</button></td></tr>
+              <tr key={page.id}>
+                <td className="px-6 py-4 font-mono text-blue-600">{page.slug}</td>
+                <td className="px-6 py-4">{page.seo_title}</td>
+                <td className="px-6 py-4">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">
+                    {page.product_category_filter || 'Auto'}
+                  </span>
+                </td>
+                <td className="px-6 py-4"><button onClick={() => setEditingPage(page)} className="text-blue-600 font-bold border px-3 py-1 rounded">Modifier</button></td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -708,6 +735,21 @@ function PagesSection() {
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">Texte SEO</label>
                 <textarea placeholder="Texte SEO" value={editingPage.seo_text} onChange={e => setEditingPage({...editingPage, seo_text: e.target.value})} className="w-full border rounded p-2 h-24" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Catégorie Produit *</label>
+                <select
+                  value={editingPage.product_category_filter || 'Auto'}
+                  onChange={e => setEditingPage({...editingPage, product_category_filter: e.target.value})}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  required
+                >
+                  <option value="Auto">Auto</option>
+                  <option value="Moto">Moto</option>
+                  <option value="Camion">Camion</option>
+                  <option value="Tracteurs">Tracteurs</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Tipo de produto a mostrar nesta página</p>
               </div>
               
               <h4 className="font-bold text-sm md:text-base">Bannières Promo</h4>
@@ -1100,7 +1142,8 @@ function FooterSection() {
   const sections = {
     products: 'Produits et Services',
     terms: 'Termes et Conditions',
-    institutional: 'Institutionnel'
+    institutional: 'Institutionnel',
+    legal: 'Légal (Barre inférieure)'
   };
 
   if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
@@ -1114,7 +1157,7 @@ function FooterSection() {
         </button>
       </header>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-8">
         {Object.entries(sections).map(([key, label]) => (
            <div key={key} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
               <h3 className="font-bold text-blue-600 mb-3 md:mb-4 uppercase text-xs tracking-wider">{label}</h3>
@@ -1173,6 +1216,7 @@ function FooterSection() {
                          <option value="products">Produits et Services</option>
                          <option value="terms">Termes et Conditions</option>
                          <option value="institutional">Institutionnel</option>
+                         <option value="legal">Légal (Barre inférieure)</option>
                       </select>
                   </div>
                   <div>
@@ -1182,7 +1226,13 @@ function FooterSection() {
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">Contenu (HTML)</label>
-                    <textarea name="content" defaultValue={editingLink?.content} className="w-full border rounded p-2 h-24" placeholder="<p>Contenu de la page...</p>"></textarea>
+                    <textarea 
+                      name="content" 
+                      defaultValue={editingLink?.content || ''} 
+                      className="w-full border rounded p-2 h-64 font-mono text-xs" 
+                      placeholder="<h1>Titre</h1>&#10;<p>Contenu de la page en HTML...</p>"
+                    ></textarea>
+                    <p className="text-xs text-gray-400 mt-1">Vous pouvez utiliser du HTML pour formater le contenu (h1, h2, p, ul, li, strong, etc.)</p>
                 </div>
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
                    <button type="button" onClick={() => { setEditingLink(null); setIsAdding(false); }} className="px-4 py-2 border rounded font-medium order-2 sm:order-1">Annuler</button>
@@ -1329,6 +1379,557 @@ function ProfileSection() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function FAQsSection() {
+  const supabase = createClient();
+  const [faqs, setFaqs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingFAQ, setEditingFAQ] = useState<any>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [selectedPage, setSelectedPage] = useState<string>('home');
+
+  const pageOptions = [
+    { value: 'home', label: 'Home (Auto)' },
+    { value: 'moto', label: 'Moto' },
+    { value: 'camion', label: 'Camion' },
+    { value: 'tracteurs', label: 'Tracteurs' }
+  ];
+
+  const fetchFAQs = async (pageSlug?: string) => {
+    setLoading(true);
+    const query = supabase.from('faqs').select('*');
+    if (pageSlug) {
+      query.eq('page_slug', pageSlug);
+    }
+    const { data } = await query.order('sort_order', { ascending: true });
+    setFaqs(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchFAQs(selectedPage);
+  }, [selectedPage]);
+
+  const handleSave = async (e: React.FormEvent, faqData: any) => {
+    e.preventDefault();
+    if (faqData.id) {
+      await supabase.from('faqs').update(faqData).eq('id', faqData.id);
+    } else {
+      await supabase.from('faqs').insert([faqData]);
+    }
+    setEditingFAQ(null);
+    setIsAdding(false);
+    fetchFAQs(selectedPage);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Supprimer cette FAQ ?')) return;
+    await supabase.from('faqs').delete().eq('id', id);
+    fetchFAQs(selectedPage);
+  };
+
+  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+
+  return (
+    <div>
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-3">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Gestion des FAQs</h1>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <select
+            value={selectedPage}
+            onChange={(e) => setSelectedPage(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+          >
+            {pageOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              setIsAdding(true);
+              setEditingFAQ({ page_slug: selectedPage, question: '', answer: '', sort_order: (faqs.length + 1) * 10, is_active: true });
+            }}
+            className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base w-full sm:w-auto"
+          >
+            + Nouvelle FAQ
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Cards View */}
+      <div className="md:hidden space-y-3">
+        {faqs.map((faq) => (
+          <div key={faq.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1 pr-2">
+                <p className="font-bold text-gray-800 text-sm mb-1">{faq.question}</p>
+                <p className="text-gray-500 text-xs line-clamp-2">{faq.answer}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditingFAQ(faq)}
+                  className="text-blue-600 p-1.5"
+                >
+                  <Settings size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(faq.id)}
+                  className="text-red-600 p-1.5"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {faqs.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
+            Aucune FAQ pour cette page
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-6 py-4">Question</th>
+              <th className="px-6 py-4">Réponse</th>
+              <th className="px-6 py-4">Ordre</th>
+              <th className="px-6 py-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {faqs.map((faq) => (
+              <tr key={faq.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 font-medium text-gray-800">{faq.question}</td>
+                <td className="px-6 py-4 text-gray-600 max-w-md truncate">{faq.answer}</td>
+                <td className="px-6 py-4 text-gray-500">{faq.sort_order}</td>
+                <td className="px-6 py-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingFAQ(faq)}
+                      className="text-blue-600 hover:text-blue-800 p-1"
+                      title="Modifier"
+                    >
+                      <Settings size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(faq.id)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {faqs.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                  Aucune FAQ pour cette page
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {(editingFAQ || isAdding) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+            <div className="p-4 md:p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
+              <h3 className="font-bold text-lg">{editingFAQ?.id ? 'Modifier' : 'Ajouter'} une FAQ</h3>
+              <button
+                onClick={() => {
+                  setEditingFAQ(null);
+                  setIsAdding(false);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const data = Object.fromEntries(formData.entries());
+                handleSave(e, {
+                  ...editingFAQ,
+                  ...data,
+                  sort_order: parseInt(data.sort_order as string) || 0,
+                  is_active: data.is_active === 'true' || data.is_active === 'on'
+                });
+              }}
+              className="p-4 md:p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Page</label>
+                <select
+                  name="page_slug"
+                  defaultValue={editingFAQ?.page_slug || selectedPage}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  required
+                >
+                  {pageOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Question</label>
+                <input
+                  name="question"
+                  type="text"
+                  defaultValue={editingFAQ?.question || ''}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Réponse</label>
+                <textarea
+                  name="answer"
+                  defaultValue={editingFAQ?.answer || ''}
+                  className="w-full border border-gray-300 rounded px-3 py-2 h-32"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Ordre</label>
+                  <input
+                    name="sort_order"
+                    type="number"
+                    defaultValue={editingFAQ?.sort_order || 0}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Statut</label>
+                  <select
+                    name="is_active"
+                    defaultValue={editingFAQ?.is_active ? 'true' : 'false'}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  >
+                    <option value="true">Actif</option>
+                    <option value="false">Inactif</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingFAQ(null);
+                    setIsAdding(false);
+                  }}
+                  className="px-4 py-2 border rounded font-medium order-2 sm:order-1"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded font-bold order-1 sm:order-2"
+                >
+                  Sauvegarder
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaxesSection() {
+  const supabase = createClient();
+  const [taxes, setTaxes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingTax, setEditingTax] = useState<any>(null);
+  const [isAdding, setIsAdding] = useState(false);
+
+  const fetchTaxes = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('taxes').select('*').order('sort_order', { ascending: true });
+    setTaxes(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTaxes();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent, taxData: any) => {
+    e.preventDefault();
+    const data = {
+      ...taxData,
+      rate: parseFloat(taxData.rate) || 0,
+      is_percentage: taxData.is_percentage === 'true' || taxData.is_percentage === true,
+      is_active: taxData.is_active === 'true' || taxData.is_active === true,
+      sort_order: parseInt(taxData.sort_order) || 0
+    };
+    
+    if (taxData.id) {
+      await supabase.from('taxes').update(data).eq('id', taxData.id);
+    } else {
+      await supabase.from('taxes').insert([data]);
+    }
+    setEditingTax(null);
+    setIsAdding(false);
+    fetchTaxes();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Supprimer cette taxe ?')) return;
+    await supabase.from('taxes').delete().eq('id', id);
+    fetchTaxes();
+  };
+
+  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+
+  return (
+    <div>
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-3">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Gestion des Taxes</h1>
+        <button
+          onClick={() => {
+            setIsAdding(true);
+            setEditingTax({ name: '', description: '', rate: 0, is_percentage: true, applies_to: 'all', sort_order: (taxes.length + 1) * 10, is_active: true });
+          }}
+          className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base w-full sm:w-auto"
+        >
+          + Nouvelle Taxe
+        </button>
+      </header>
+
+      {/* Mobile Cards View */}
+      <div className="md:hidden space-y-3">
+        {taxes.map((tax) => (
+          <div key={tax.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1 pr-2">
+                <p className="font-bold text-gray-800 text-sm mb-1">{tax.name}</p>
+                <p className="text-gray-500 text-xs mb-1">{tax.description || 'Sans description'}</p>
+                <p className="text-blue-600 font-bold text-sm">
+                  {tax.is_percentage ? `${tax.rate}%` : `€${tax.rate}`}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditingTax(tax)}
+                  className="text-blue-600 p-1.5"
+                >
+                  <Settings size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(tax.id)}
+                  className="text-red-600 p-1.5"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {taxes.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
+            Aucune taxe configurée
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-6 py-4">Nom</th>
+              <th className="px-6 py-4">Description</th>
+              <th className="px-6 py-4">Taux</th>
+              <th className="px-6 py-4">Type</th>
+              <th className="px-6 py-4">S'applique à</th>
+              <th className="px-6 py-4">Statut</th>
+              <th className="px-6 py-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {taxes.map((tax) => (
+              <tr key={tax.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 font-medium text-gray-800">{tax.name}</td>
+                <td className="px-6 py-4 text-gray-600 max-w-xs truncate">{tax.description || '-'}</td>
+                <td className="px-6 py-4 font-bold text-blue-600">{tax.is_percentage ? `${tax.rate}%` : `€${tax.rate}`}</td>
+                <td className="px-6 py-4 text-gray-500">{tax.is_percentage ? 'Pourcentage' : 'Fixe'}</td>
+                <td className="px-6 py-4 text-gray-500 capitalize">{tax.applies_to || 'all'}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    tax.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {tax.is_active ? 'Actif' : 'Inactif'}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingTax(tax)}
+                      className="text-blue-600 hover:text-blue-800 p-1"
+                      title="Modifier"
+                    >
+                      <Settings size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(tax.id)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {taxes.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                  Aucune taxe configurée
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {(editingTax || isAdding) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+            <div className="p-4 md:p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
+              <h3 className="font-bold text-lg">{editingTax?.id ? 'Modifier' : 'Ajouter'} une taxe</h3>
+              <button
+                onClick={() => {
+                  setEditingTax(null);
+                  setIsAdding(false);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const data = Object.fromEntries(formData.entries());
+                handleSave(e, { ...editingTax, ...data });
+              }}
+              className="p-4 md:p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Nom de la taxe *</label>
+                <input
+                  name="name"
+                  type="text"
+                  defaultValue={editingTax?.name || ''}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Description</label>
+                <textarea
+                  name="description"
+                  defaultValue={editingTax?.description || ''}
+                  className="w-full border border-gray-300 rounded px-3 py-2 h-20"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Taux/Valeur *</label>
+                  <input
+                    name="rate"
+                    type="number"
+                    step="0.01"
+                    defaultValue={editingTax?.rate || 0}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Type</label>
+                  <select
+                    name="is_percentage"
+                    defaultValue={editingTax?.is_percentage ? 'true' : 'false'}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  >
+                    <option value="true">Pourcentage (%)</option>
+                    <option value="false">Montant fixe (€)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">S'applique à</label>
+                  <select
+                    name="applies_to"
+                    defaultValue={editingTax?.applies_to || 'all'}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  >
+                    <option value="all">Toutes les catégories</option>
+                    <option value="auto">Auto</option>
+                    <option value="moto">Moto</option>
+                    <option value="camion">Camion</option>
+                    <option value="tracteur">Tracteur</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Ordre</label>
+                  <input
+                    name="sort_order"
+                    type="number"
+                    defaultValue={editingTax?.sort_order || 0}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Statut</label>
+                <select
+                  name="is_active"
+                  defaultValue={editingTax?.is_active ? 'true' : 'false'}
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                >
+                  <option value="true">Actif</option>
+                  <option value="false">Inactif</option>
+                </select>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingTax(null);
+                    setIsAdding(false);
+                  }}
+                  className="px-4 py-2 border rounded font-medium order-2 sm:order-1"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded font-bold order-1 sm:order-2"
+                >
+                  Sauvegarder
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

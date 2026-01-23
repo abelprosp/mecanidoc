@@ -1,41 +1,55 @@
+"use client";
+
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function WarrantyBanner() {
   return (
-    <section className="py-8 bg-gray-50">
+    <section className="py-4 bg-[#F1F1F1]">
       <div className="container mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          {/* Header Bar */}
-          <div className="bg-[#0066CC] py-3 text-center">
-            <h2 className="text-white font-bold text-lg">La Garantie MecaniDoc</h2>
-          </div>
+        {/* Card de Garantia */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           
-          {/* Content */}
-          <div className="p-8 md:p-12 flex flex-col md:flex-row items-center justify-center md:justify-between gap-8 max-w-5xl mx-auto">
-            <div className="max-w-xl text-center md:text-left">
-              <h3 className="text-2xl md:text-3xl text-gray-600 mb-4 uppercase tracking-wide font-normal">
-                GARANTIE <span className="font-normal">MecaniDoc</span>
-              </h3>
-              <p className="text-gray-500 mb-6 leading-relaxed text-sm md:text-base">
-                Votre pneu <strong className="text-gray-700 font-bold">remplacé ou remboursé</strong> en toute sérénité<br className="hidden md:block" />
-                en cas de dommage !
-              </p>
-              <a href="#" className="text-[#0066CC] hover:text-blue-800 flex items-center justify-center md:justify-start gap-1 text-sm font-medium transition-colors">
-                En savoir plus <ArrowRight size={16} />
-              </a>
-            </div>
+          {/* Cabeçalho Azul */}
+          <div className="bg-[#0066CC] py-3 px-6">
+            <h2 className="text-white font-bold text-center text-base md:text-lg">
+              La Garantie MecaniDoc
+            </h2>
+          </div>
+
+          {/* Conteúdo Principal */}
+          <div className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
             
-            <div className="flex-shrink-0">
-               {/* 3 Tires Image Placeholder */}
-               <div className="relative w-64 h-40 md:w-80 md:h-48">
-                  <img 
-                    src="https://www.gpservicosautomotivos.com.br/wp-content/uploads/2022/06/pneus.png" 
-                    alt="Garantie Pneus" 
-                    className="w-full h-full object-contain drop-shadow-2xl transform scale-110"
-                  />
-               </div>
+            {/* Lado Esquerdo: Texto */}
+            <div className="flex-1">
+              <h3 className="text-3xl md:text-4xl font-bold text-gray-800 uppercase mb-4 tracking-tight">
+                GARANTIE MECANIDOC
+              </h3>
+              <p className="text-gray-500 text-sm md:text-base mb-4 leading-relaxed">
+                Votre pneu <strong className="text-gray-700 font-bold">remplacé ou remboursé</strong> en toute sérénité en cas de dommage !
+              </p>
+              <Link 
+                href="/page/garantie-mecanidoc" 
+                className="inline-flex items-center gap-2 text-[#0066CC] hover:text-[#004499] font-medium text-sm md:text-base transition-colors"
+              >
+                En savoir plus <ArrowRight size={16} />
+              </Link>
             </div>
+
+            {/* Lado Direito: Imagem dos Pneus */}
+            <div className="flex-shrink-0 w-full md:w-80 lg:w-96">
+              <img 
+                src="/warranty-tires.png" 
+                alt="Pneus MecaniDoc" 
+                className="w-full h-auto object-contain"
+                onError={(e) => {
+                  // Fallback se a imagem não existir
+                  e.currentTarget.src = 'https://www.gpservicosautomotivos.com.br/wp-content/uploads/2022/06/pneus.png';
+                }}
+              />
+            </div>
+
           </div>
         </div>
       </div>

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { MessageCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
+import ChatBot from './ChatBot';
 
 export default function Footer() {
   const [links, setLinks] = useState<any[]>([]);
@@ -105,24 +105,44 @@ export default function Footer() {
       {/* Bottom Footer */}
       <div className="bg-gray-200 py-4 text-[10px] text-gray-500 text-center">
         <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex gap-4">
-            <Link href="/page/cgv" className="hover:underline">Conditions générales de vente</Link>
-            <Link href="/page/mentions-legales" className="hover:underline">Mentions légales</Link>
+          <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+            {getLinks('legal').slice(0, 2).map(link => (
+              <Link 
+                key={link.id} 
+                href={link.url || `/page/${link.slug}`} 
+                className="hover:underline"
+              >
+                {link.title}
+              </Link>
+            ))}
           </div>
-          <div>
-            Politique de gestion des données personnelles
+          <div className="flex justify-center">
+            {getLinks('legal').slice(2, 3).map(link => (
+              <Link 
+                key={link.id} 
+                href={link.url || `/page/${link.slug}`} 
+                className="hover:underline"
+              >
+                {link.title}
+              </Link>
+            ))}
           </div>
-          <div>
-            Paramétrez les cookies
+          <div className="flex justify-center">
+            {getLinks('legal').slice(3, 4).map(link => (
+              <Link 
+                key={link.id} 
+                href={link.url || `/page/${link.slug}`} 
+                className="hover:underline"
+              >
+                {link.title}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Chat Bubble */}
-      <button className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-50">
-        <MessageCircle size={24} />
-        <span className="absolute top-0 right-0 bg-green-500 w-3 h-3 rounded-full border-2 border-white"></span>
-      </button>
+      {/* ChatBot */}
+      <ChatBot />
     </footer>
   );
 }

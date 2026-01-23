@@ -7,6 +7,7 @@ import { Star, ShoppingCart, Fuel, CloudRain, Volume2, ShieldCheck, Truck, Info,
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useParams } from 'next/navigation';
+import { useProductPrice } from '@/hooks/useProductPrice';
 
 // Reusing TireLabel component logic
 const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', value: string | number, color: string }) => {
@@ -37,6 +38,17 @@ const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', val
 
 import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
+import RelatedProducts from '@/components/RelatedProducts';
+
+function ProductPriceDisplay({ basePrice, category }: { basePrice: number; category?: string }) {
+  const { finalPrice, loading } = useProductPrice(basePrice || 0, category || 'Auto');
+  
+  if (loading) {
+    return <span className="text-4xl font-bold text-[#003399]">€{basePrice.toFixed(2)}</span>;
+  }
+  
+  return <span className="text-4xl font-bold text-[#003399]">€{finalPrice.toFixed(2)}</span>;
+}
 
 export default function ProductPage() {
   const params = useParams();
@@ -60,7 +72,7 @@ export default function ProductPage() {
       
       const { data, error } = await supabase
         .from('products')
-        .select('*, brands(logo_url)')
+        .select('*, brands(id, name, logo_url)')
         .eq('id', params.id)
         .single();
 
@@ -197,7 +209,7 @@ export default function ProductPage() {
 
             <div className="mb-6">
               <span className="text-xs text-gray-500 block mb-1">Prix unitaire</span>
-              <span className="text-4xl font-bold text-[#003399]">€{product.base_price}</span>
+              <ProductPriceDisplay basePrice={product.base_price} category={product.category} />
             </div>
 
             <div className="text-xs text-green-600 mb-6 font-medium">Disponibilité: <span className="text-gray-600">En stock</span></div>
@@ -315,6 +327,17 @@ export default function ProductPage() {
            <h3 className="font-bold text-gray-700 text-sm">MecaniDoc.com : Bien Plus Qu'un Service, Votre Partenaire de Confiance</h3>
            <p>Chez MecaniDoc.com, nous ne nous contentons pas de vendre des pneus, nous nous offrons une expérience unique, alliant qualité, fiabilité et sérénité.</p>
         </div>
+
+        {/* Related Products Carousel */}
+        {product && (
+          <RelatedProducts 
+            productId={product.id}
+            category={product.category}
+            brandId={product.brand_id || product.brands?.id}
+            brandName={product.brand || product.brands?.name}
+            specs={specs}
+          />
+        )}
 
       </div>
 
