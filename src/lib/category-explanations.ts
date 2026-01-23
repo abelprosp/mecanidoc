@@ -9,7 +9,7 @@ export const categoryExplanations: Record<string, string> = {
   'ROF': 'Run On Flat - Pneu permettant de rouler à plat après une crevaison.',
   'SSR': 'Self Supporting Runflat - Pneu auto-porteur permettant de rouler sans pression.',
   'FR': 'Flanc Renforcé - Pneu avec flanc renforcé pour une meilleure résistance aux chocs.',
-  'RF': 'Reinforced - Pneu renforcé pour charges plus élevées.',
+  'REINFORCED': 'Reinforced - Pneu renforcé pour charges plus élevées.',
   'C': 'Commercial - Pneu conçu pour véhicules commerciaux et charges lourdes.',
   'LT': 'Light Truck - Pneu pour camionnettes et véhicules utilitaires légers.',
   'ST': 'Special Trailer - Pneu spécialement conçu pour remorques.',
