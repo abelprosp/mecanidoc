@@ -220,7 +220,16 @@ function ProductsSection() {
         .select('*, brands(id, name, logo_url)')
         .order('created_at', { ascending: false });
       const { data: brandsData } = await supabase.from('brands').select('*').order('name', { ascending: true });
-      setProducts(productsData || []);
+      
+      // Transformar products para adicionar image_url a partir de images[0]
+      const transformedProducts = (productsData || []).map((product: any) => ({
+        ...product,
+        image_url: product.images && Array.isArray(product.images) && product.images.length > 0 
+          ? product.images[0] 
+          : product.image_url || null
+      }));
+      
+      setProducts(transformedProducts);
       setBrands(brandsData || []);
       setLoading(false);
     };
@@ -242,19 +251,39 @@ function ProductsSection() {
         .filter((cat: string) => cat.length > 0);
     }
     
-    const updates = { 
-      ...editingProduct,
-      specs: processedSpecs,
-      brand: selectedBrand ? selectedBrand.name : editingProduct.brand,
+    // Criar objeto de atualização apenas com campos válidos da tabela products
+    // Remover campos relacionados (brands) e outros campos que não devem ser atualizados
+    const updates: any = {
+      name: editingProduct.name,
+      description: editingProduct.description || null,
+      brand_id: editingProduct.brand_id || null,
+      brand: selectedBrand ? selectedBrand.name : editingProduct.brand || null,
+      category: editingProduct.category || null,
       base_price: parseFloat(editingProduct.base_price) || 0,
+      sale_price: editingProduct.sale_price ? parseFloat(editingProduct.sale_price) : null,
       stock_quantity: parseInt(editingProduct.stock_quantity) || 0,
+      season: editingProduct.season || null,
+      specs: processedSpecs,
+      labels: editingProduct.labels || null,
+      pa_tipo: editingProduct.pa_tipo || null,
+      ean: editingProduct.ean || null,
+      shipping_cost: editingProduct.shipping_cost ? parseFloat(editingProduct.shipping_cost) : null,
     };
+    
+    // Se image_url foi fornecido, atualizar o array images
+    if (editingProduct.image_url) {
+      updates.images = [editingProduct.image_url];
+    } else if (editingProduct.images && Array.isArray(editingProduct.images)) {
+      updates.images = editingProduct.images;
+    }
     
     const { error } = await supabase.from('products').update(updates).eq('id', editingProduct.id);
     if (error) {
       alert('Erreur: ' + error.message);
     } else {
-      setProducts(products.map(p => p.id === editingProduct.id ? updates : p));
+      // Atualizar a lista de produtos com os dados atualizados
+      const updatedProduct = { ...editingProduct, ...updates };
+      setProducts(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
       setEditingProduct(null);
     }
     setSaving(false);
@@ -322,9 +351,9 @@ function ProductsSection() {
         {filteredProducts.map((product) => (
           <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div className="flex gap-3">
-              {product.image_url && (
+              {(product.image_url || (product.images && product.images[0])) && (
                 <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0">
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-contain rounded" />
+                  <img src={product.image_url || product.images[0]} alt={product.name} className="w-full h-full object-contain rounded" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -339,7 +368,14 @@ function ProductsSection() {
               </div>
             </div>
             <div className="flex gap-2 mt-3">
-              <button onClick={() => setEditingProduct({...product})} className="flex-1 text-blue-600 font-bold border border-blue-200 px-3 py-1.5 rounded text-sm hover:bg-blue-50">
+              <button onClick={() => {
+                // Garantir que image_url seja definido a partir de images[0] se necessário
+                const productToEdit = {
+                  ...product,
+                  image_url: product.image_url || (product.images && product.images[0] ? product.images[0] : '')
+                };
+                setEditingProduct(productToEdit);
+              }} className="flex-1 text-blue-600 font-bold border border-blue-200 px-3 py-1.5 rounded text-sm hover:bg-blue-50">
                 Modifier
               </button>
               <button onClick={() => handleDeleteProduct(product.id)} className="text-red-600 border border-red-200 px-3 py-1.5 rounded text-sm hover:bg-red-50">
@@ -370,8 +406,8 @@ function ProductsSection() {
                 <tr key={product.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-contain rounded" />
+                      {(product.image_url || (product.images && product.images[0])) ? (
+                        <img src={product.image_url || product.images[0]} alt={product.name} className="w-full h-full object-contain rounded" />
                       ) : (
                         <Package size={20} className="text-gray-400" />
                       )}
@@ -397,7 +433,14 @@ function ProductsSection() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      <button onClick={() => setEditingProduct({...product})} className="text-blue-600 font-bold border border-blue-200 px-3 py-1 rounded hover:bg-blue-50">
+                      <button onClick={() => {
+                        // Garantir que image_url seja definido a partir de images[0] se necessário
+                        const productToEdit = {
+                          ...product,
+                          image_url: product.image_url || (product.images && product.images[0] ? product.images[0] : '')
+                        };
+                        setEditingProduct(productToEdit);
+                      }} className="text-blue-600 font-bold border border-blue-200 px-3 py-1 rounded hover:bg-blue-50">
                         Modifier
                       </button>
                       <button onClick={() => handleDeleteProduct(product.id)} className="text-red-600 border border-red-200 p-1 rounded hover:bg-red-50">
