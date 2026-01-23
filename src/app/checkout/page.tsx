@@ -60,22 +60,22 @@ export default function CheckoutPage() {
   // Calculations - Frete dinâmico baseado na quantidade
   const subtotal = cartTotal;
   
-  // Lógica de frete:
-  // 1-2 pneus: frete rápido €19.90
-  // 3-4 pneus: frete normal grátis, frete rápido €29.90
+  // Lógica de frete rápido:
+  // 1 pneu: frete rápido €10.00
+  // 2-4 pneus: frete rápido GRATUITO
+  // Mais de 4 pneus: usar configuração padrão
   let deliveryFee = 0;
   let fastDeliveryFee = 0;
   
-  if (totalTires <= 2) {
-    // 1 a 2 pneus: apenas frete rápido disponível
+  if (totalTires === 1) {
+    // 1 pneu: frete rápido €10.00
     if (extras.fastDelivery) {
-      fastDeliveryFee = 19.90;
+      fastDeliveryFee = 10.00;
     }
-  } else if (totalTires <= 4) {
-    // 3 a 4 pneus: frete normal grátis, frete rápido €29.90
-    deliveryFee = 0; // Grátis
+  } else if (totalTires >= 2 && totalTires <= 4) {
+    // 2 a 4 pneus: frete rápido GRATUITO
     if (extras.fastDelivery) {
-      fastDeliveryFee = 29.90;
+      fastDeliveryFee = 0; // Grátis
     }
   } else {
     // Mais de 4 pneus: usar configuração padrão
@@ -280,17 +280,10 @@ export default function CheckoutPage() {
                    <span>Sous-total</span>
                    <span>€{subtotal.toFixed(2)}</span>
                  </div>
-                 {/* Mostrar frete normal apenas se for grátis (3-4 pneus sem frete rápido) ou se tiver valor */}
-                 {((totalTires >= 3 && totalTires <= 4 && !extras.fastDelivery) || (deliveryFee > 0 && !extras.fastDelivery)) && (
-                   <div className="flex justify-between text-gray-600">
-                     <span>Livraison</span>
-                     <span>{deliveryFee === 0 ? 'GRATUITE' : `€${deliveryFee.toFixed(2)}`}</span>
-                   </div>
-                 )}
                  {extras.fastDelivery && (
                    <div className="flex justify-between text-blue-600">
                      <span>Livraison Rapide</span>
-                     <span>€{fastDeliveryFee.toFixed(2)}</span>
+                     <span>{fastDeliveryFee === 0 ? 'GRATUITE' : `€${fastDeliveryFee.toFixed(2)}`}</span>
                    </div>
                  )}
                  {extras.warranty && (
@@ -317,22 +310,6 @@ export default function CheckoutPage() {
                  
                  {showExtras && (
                    <div className="p-4 bg-gray-50 space-y-3 animate-in slide-in-from-top-2">
-                     {/* Frete Normal - apenas para 3-4 pneus */}
-                     {totalTires >= 3 && totalTires <= 4 && (
-                       <div className="pb-2 border-b border-gray-200">
-                         <div className="flex items-start gap-3">
-                           <div className="mt-1 w-5 h-5 bg-green-500 rounded flex items-center justify-center">
-                             <span className="text-white text-xs">✓</span>
-                           </div>
-                           <div>
-                             <span className="block font-bold text-sm text-gray-700">Livraison Standard</span>
-                             <span className="text-xs text-green-600 font-semibold">GRATUITE</span>
-                             <span className="text-xs text-gray-500 block mt-1">Livraison standard pour commandes de 3-4 pneus.</span>
-                           </div>
-                         </div>
-                       </div>
-                     )}
-                     
                      <label className="flex items-start gap-3 cursor-pointer">
                         <input 
                           type="checkbox" 
@@ -342,9 +319,14 @@ export default function CheckoutPage() {
                         />
                         <div>
                            <span className="block font-bold text-sm text-gray-700">
-                             Livraison Rapide (+€{totalTires <= 2 ? '19.90' : totalTires <= 4 ? '29.90' : (settings.fast_delivery_fee || '19.90')})
+                             Livraison Rapide {totalTires === 1 ? `(+€10.00)` : totalTires >= 2 && totalTires <= 4 ? `(GRATUITE)` : `(+€${(settings.fast_delivery_fee || 19.90).toFixed(2)})`}
                            </span>
-                           <span className="text-xs text-gray-500">Recevez votre commande en 24h/48h.</span>
+                           <span className="text-xs text-gray-500">
+                             Recevez votre commande en 24h/48h.
+                             {totalTires >= 2 && totalTires <= 4 && extras.fastDelivery && (
+                               <span className="text-green-600 font-semibold block mt-1">✓ Gratuite à partir de 2 pneus</span>
+                             )}
+                           </span>
                         </div>
                      </label>
                      <label className="flex items-start gap-3 cursor-pointer">
