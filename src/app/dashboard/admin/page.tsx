@@ -232,8 +232,19 @@ function ProductsSection() {
     setSaving(true);
     
     const selectedBrand = brands.find(b => b.id === editingProduct.brand_id);
+    
+    // Processar autres_categories se for string
+    let processedSpecs = { ...(editingProduct.specs || {}) };
+    if (processedSpecs.autres_categories && typeof processedSpecs.autres_categories === 'string') {
+      processedSpecs.autres_categories = processedSpecs.autres_categories
+        .split(/[,;|]/)
+        .map((cat: string) => cat.trim())
+        .filter((cat: string) => cat.length > 0);
+    }
+    
     const updates = { 
-      ...editingProduct, 
+      ...editingProduct,
+      specs: processedSpecs,
       brand: selectedBrand ? selectedBrand.name : editingProduct.brand,
       base_price: parseFloat(editingProduct.base_price) || 0,
       stock_quantity: parseInt(editingProduct.stock_quantity) || 0,
@@ -591,6 +602,42 @@ function ProductsSection() {
                       placeholder="V"
                     />
                   </div>
+                </div>
+
+                {/* Autres catégories */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Autres catégories</label>
+                  <input 
+                    type="text" 
+                    value={(() => {
+                      const autresCat = editingProduct.specs?.autres_categories;
+                      if (Array.isArray(autresCat)) {
+                        return autresCat.join(', ');
+                      }
+                      return autresCat || '';
+                    })()} 
+                    onChange={e => {
+                      const value = e.target.value;
+                      // Converter string para array ao salvar
+                      const autresCategories = value
+                        .split(/[,;|]/)
+                        .map(cat => cat.trim())
+                        .filter(cat => cat.length > 0);
+                      
+                      setEditingProduct({
+                        ...editingProduct, 
+                        specs: {
+                          ...(editingProduct.specs || {}), 
+                          autres_categories: autresCategories
+                        }
+                      });
+                    }} 
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="Ex: XL, M+S, Runflat (séparés par virgule)"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Séparez les catégories par virgule (ex: XL, M+S, Runflat)
+                  </p>
                 </div>
               </div>
 

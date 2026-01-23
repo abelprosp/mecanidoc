@@ -37,7 +37,25 @@ const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', val
 };
 
 export default function VerticalProductCard({ product }: ProductCardProps) {
-  const specs = product.specs || {};
+  // Garantir que specs seja um objeto e autres_categories seja array
+  let specs: any = {};
+  try {
+    if (typeof product.specs === 'string') {
+      specs = JSON.parse(product.specs);
+    } else {
+      specs = product.specs || {};
+    }
+  } catch (e) {
+    specs = {};
+  }
+  
+  // Garantir que autres_categories seja array
+  if (specs.autres_categories && typeof specs.autres_categories === 'string') {
+    specs.autres_categories = specs.autres_categories.split(/[,;|]/).map((c: string) => c.trim()).filter((c: string) => c.length > 0);
+  } else if (!Array.isArray(specs.autres_categories)) {
+    specs.autres_categories = [];
+  }
+  
   const labels = product.labels || {};
   const { finalPrice } = useProductPrice(product.base_price || 0, product.category || 'Auto');
 

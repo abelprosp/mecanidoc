@@ -171,6 +171,9 @@ export default function ProductPage() {
       // Se não for array nem string, tentar converter
       specs.autres_categories = [];
     }
+  } else {
+    // Se não existir, inicializar como array vazio
+    specs.autres_categories = [];
   }
   const fuelColor = (labels.fuel === 'A' || labels.fuel === 'B') ? 'bg-green-500 border-green-500' : (labels.fuel === 'C' || labels.fuel === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
   const wetColor = (labels.wet === 'A' || labels.wet === 'B') ? 'bg-green-500 border-green-500' : (labels.wet === 'C' || labels.wet === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
@@ -244,31 +247,11 @@ export default function ProductPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">{product.name}</h1>
             <p className="text-lg text-gray-600 mb-6">
               {specs.width}/{specs.height} R{specs.diameter} {specs.load_index}{specs.speed_index}
-              {(() => {
-                const autresCat = specs.autres_categories;
-                console.log('🔍 Debug autres_categories:', autresCat, 'Tipo:', typeof autresCat, 'É array?', Array.isArray(autresCat));
-                
-                if (autresCat) {
-                  let categories: string[] = [];
-                  
-                  if (Array.isArray(autresCat)) {
-                    categories = autresCat.filter(c => c && c.trim().length > 0);
-                  } else if (typeof autresCat === 'string') {
-                    categories = autresCat.split(/[,;|]/).map(c => c.trim()).filter(c => c.length > 0);
-                  }
-                  
-                  console.log('📋 Categories processadas:', categories);
-                  
-                  if (categories.length > 0) {
-                    return (
-                      <span className="ml-2 text-gray-500 text-base font-medium">
-                        {categories.join(', ')}
-                      </span>
-                    );
-                  }
-                }
-                return null;
-              })()}
+              {specs.autres_categories && Array.isArray(specs.autres_categories) && specs.autres_categories.length > 0 && (
+                <span className="ml-2 text-gray-500 text-base font-medium">
+                  {specs.autres_categories.join(', ')}
+                </span>
+              )}
             </p>
 
             <div className="mb-6">
@@ -359,24 +342,12 @@ export default function ProductPage() {
                 <span className="text-gray-500">Catégorie :</span>
                 <span className="font-medium text-gray-800">{product.category || '-'}</span>
               </div>
-              {(() => {
-                const autresCat = specs.autres_categories;
-                if (autresCat) {
-                  // Se for array, usar diretamente; se for string, tentar parsear
-                  const categories = Array.isArray(autresCat) 
-                    ? autresCat 
-                    : (typeof autresCat === 'string' ? autresCat.split(',').map(c => c.trim()).filter(c => c.length > 0) : []);
-                  if (categories.length > 0) {
-                    return (
-                      <div className="flex justify-between py-2 border-b border-gray-100 col-span-2">
-                        <span className="text-gray-500">Autres catégories :</span>
-                        <span className="font-medium text-gray-800">{categories.join(', ')}</span>
-                      </div>
-                    );
-                  }
-                }
-                return null;
-              })()}
+              {specs.autres_categories && Array.isArray(specs.autres_categories) && specs.autres_categories.length > 0 && (
+                <div className="flex justify-between py-2 border-b border-gray-100 col-span-2">
+                  <span className="text-gray-500">Autres catégories :</span>
+                  <span className="font-medium text-gray-800">{specs.autres_categories.join(', ')}</span>
+                </div>
+              )}
             </div>
 
           </div>
