@@ -69,7 +69,7 @@ export default function CategoryPage() {
         <CategoryHero title={title} subtitle="Trouvez le pneu parfait pour votre véhicule" image={heroImage} category={categoryFilter} paTipo={paTipoFilter} />
         
         {/* Brand Carousel */}
-        <BrandCarousel category={categoryFilter} />
+        <BrandCarousel category={categoryFilter} paTipo={paTipoFilter} />
         
         {/* SEO Text Block */}
         <section className="bg-white rounded-xl p-4 md:p-6 mb-4 md:mb-6 md:mx-4 shadow-sm text-gray-600 text-sm leading-relaxed">

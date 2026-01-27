@@ -45,7 +45,13 @@ export default function AdminDashboard() {
     }
   };
 
-  const menuItems = [
+  const menuItems: Array<{
+    id: string;
+    icon: any;
+    label: string;
+    isLink?: boolean;
+    href?: string;
+  }> = [
     { id: 'overview', icon: LayoutDashboard, label: "Vue d'ensemble" },
     { id: 'products', icon: Package, label: 'Gestion Produits' },
     { id: 'brands', icon: Grid, label: 'Marques' },
@@ -56,6 +62,7 @@ export default function AdminDashboard() {
     { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },
     { id: 'approvals', icon: CheckCircle, label: 'Approbations' },
+    { id: 'sales', icon: DollarSign, label: 'Ventes', isLink: true, href: '/dashboard/admin/sales' },
   ];
 
   return (
@@ -96,15 +103,28 @@ export default function AdminDashboard() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          {menuItems.map(item => (
-            <button 
-              key={item.id}
-              onClick={() => handleTabChange(item.id)} 
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === item.id ? 'bg-blue-50 text-[#0066CC]' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <item.icon size={20} /> {item.label}
-            </button>
-          ))}
+          {menuItems.map(item => {
+            if (item.isLink && item.href) {
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors text-gray-600 hover:bg-gray-50`}
+                >
+                  <item.icon size={20} /> {item.label}
+                </Link>
+              );
+            }
+            return (
+              <button 
+                key={item.id}
+                onClick={() => handleTabChange(item.id)} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === item.id ? 'bg-blue-50 text-[#0066CC]' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <item.icon size={20} /> {item.label}
+              </button>
+            );
+          })}
         </nav>
         <div className="p-4 border-t space-y-1">
           <button onClick={() => handleTabChange('profile')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-blue-50 text-[#0066CC]' : 'text-gray-600 hover:bg-gray-50'}`}>
@@ -123,15 +143,28 @@ export default function AdminDashboard() {
           <span className="text-xs block text-gray-400 mt-1">MASTER ADMIN</span>
         </div>
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          {menuItems.map(item => (
-            <button 
-              key={item.id}
-              onClick={() => setActiveTab(item.id)} 
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === item.id ? 'bg-blue-50 text-[#0066CC]' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <item.icon size={20} /> {item.label}
-            </button>
-          ))}
+          {menuItems.map(item => {
+            if (item.isLink && item.href) {
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors text-gray-600 hover:bg-gray-50`}
+                >
+                  <item.icon size={20} /> {item.label}
+                </Link>
+              );
+            }
+            return (
+              <button 
+                key={item.id}
+                onClick={() => setActiveTab(item.id)} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === item.id ? 'bg-blue-50 text-[#0066CC]' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <item.icon size={20} /> {item.label}
+              </button>
+            );
+          })}
         </nav>
         <div className="p-4 border-t space-y-1">
           <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-blue-50 text-[#0066CC]' : 'text-gray-600 hover:bg-gray-50'}`}>

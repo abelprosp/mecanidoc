@@ -40,6 +40,8 @@ export default function CheckoutPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
+  const [paymentIntentClientSecret, setPaymentIntentClientSecret] = useState<string | null>(null);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -99,36 +101,49 @@ export default function CheckoutPage() {
       alert("Veuillez accepter les termes et conditions.");
       return;
     }
+
+    // Validação básica
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.address || !formData.city || !formData.zip) {
+      alert("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+
     setPlacingOrder(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // For Guest Checkout, we might need to handle user creation or allowing null user_id.
-    // Assuming for now user must be logged in or we link to guest flow.
-    // If no user, we can prompt login or create a guest user.
-    // For this demo, let's assume we proceed. If RLS blocks, we need to handle it.
-    
-    // Create Order Payload
-    const orderPayload = {
-      user_id: user?.id,
-      total_amount: total,
-      status: 'pending',
-      contact_name: `${formData.firstName} ${formData.lastName}`,
-      contact_phone: formData.phone,
-      contact_email: formData.email,
-      shipping_address: `${formData.address} ${formData.apartment || ''}`,
-      shipping_city: formData.city,
-      shipping_zip: formData.zip,
-      shipping_country: formData.country,
-      notes: formData.notes
-    };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert("Veuillez vous connecter pour passer une commande.");
+        setPlacingOrder(false);
+        return;
+      }
+      
+      // Create Order Payload
+      const orderPayload = {
+        user_id: user.id,
+        total_amount: total,
+        status: 'pending',
+        payment_status: 'pending',
+        contact_name: `${formData.firstName} ${formData.lastName}`,
+        contact_phone: formData.phone,
+        contact_email: formData.email,
+        shipping_address: `${formData.address} ${formData.apartment || ''}`,
+        shipping_city: formData.city,
+        shipping_zip: formData.zip,
+        shipping_country: formData.country,
+        notes: formData.notes
+      };
 
-    const { data: order, error } = await supabase.from('orders').insert([orderPayload]).select().single();
+      const { data: order, error } = await supabase.from('orders').insert([orderPayload]).select().single();
 
-    if (error) {
-      console.error(error);
-      alert("Erreur lors de la création de la commande. Veuillez vous connecter.");
-    } else {
+      if (error) {
+        console.error(error);
+        alert("Erreur lors de la création de la commande. Veuillez réessayer.");
+        setPlacingOrder(false);
+        return;
+      }
+
       // Create Order Items
       const orderItems = items.map(item => ({
         order_id: order.id,
@@ -140,13 +155,56 @@ export default function CheckoutPage() {
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) {
-         console.error("Error creating order items:", itemsError);
+        console.error("Error creating order items:", itemsError);
+        alert("Erreur lors de l'ajout des articles. Veuillez réessayer.");
+        setPlacingOrder(false);
+        return;
       }
 
+      // Criar PaymentIntent no Stripe
+      const response = await fetch('/api/stripe/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: total,
+          orderId: order.id,
+          customerEmail: formData.email,
+          customerName: `${formData.firstName} ${formData.lastName}`,
+        }),
+      });
+
+      const paymentData = await response.json();
+
+      if (!response.ok || !paymentData.clientSecret) {
+        console.error('Error creating payment intent:', paymentData);
+        alert("Erreur lors de l'initialisation du paiement. Veuillez réessayer.");
+        setPlacingOrder(false);
+        return;
+      }
+
+      // Salvar clientSecret e orderId para processar pagamento
+      setPaymentIntentClientSecret(paymentData.clientSecret);
+      setCurrentOrderId(order.id);
+
+      // Redirecionar para página de pagamento ou processar inline
+      // Por enquanto, vamos processar o pagamento inline
+      // Em produção, você pode usar Stripe Elements aqui
+      
+      // Simular sucesso por enquanto - em produção, usar Stripe Elements
+      alert("Redirection vers le paiement... (À implémenter avec Stripe Elements)");
+      
+      // Por enquanto, marcar como completo após criar o pedido
+      // Em produção, isso só deve acontecer após confirmação do pagamento via webhook
       setOrderComplete(true);
       clearCart();
+    } catch (error: any) {
+      console.error('Error placing order:', error);
+      alert("Une erreur est survenue. Veuillez réessayer.");
+    } finally {
+      setPlacingOrder(false);
     }
-    setPlacingOrder(false);
   };
 
   if (loading) return <div className="min-h-screen bg-[#F1F1F1] flex items-center justify-center"><Loader2 className="animate-spin" /></div>;

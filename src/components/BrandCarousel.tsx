@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase';
 
 interface BrandCarouselProps {
   category?: string;
+  paTipo?: string | null; // Filtro por pa_tipo (subcategoria do menu)
 }
 
-export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps) {
+export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarouselProps) {
   const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
@@ -36,25 +37,37 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
         const normalizedCategoryUpper = normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1);
         
         // Query 1: Buscar por categoria exata (lowercase)
-        const { data: productsData1 } = await supabase
+        let query1 = supabase
           .from('products')
-          .select('brand_id, brand, category, brands(id, name, logo_url)')
+          .select('brand_id, brand, category, pa_tipo, brands(id, name, logo_url)')
           .eq('is_active', true)
           .eq('category', normalizedCategory);
+        if (paTipo?.trim()) {
+          query1 = query1.eq('pa_tipo', paTipo.trim());
+        }
+        const { data: productsData1 } = await query1;
         
         // Query 2: Buscar por categoria exata (uppercase)
-        const { data: productsData2 } = await supabase
+        let query2 = supabase
           .from('products')
-          .select('brand_id, brand, category, brands(id, name, logo_url)')
+          .select('brand_id, brand, category, pa_tipo, brands(id, name, logo_url)')
           .eq('is_active', true)
           .eq('category', normalizedCategoryUpper);
+        if (paTipo?.trim()) {
+          query2 = query2.eq('pa_tipo', paTipo.trim());
+        }
+        const { data: productsData2 } = await query2;
         
         // Query 3: Buscar por categoria case-insensitive
-        const { data: productsData3 } = await supabase
+        let query3 = supabase
           .from('products')
-          .select('brand_id, brand, category, brands(id, name, logo_url)')
+          .select('brand_id, brand, category, pa_tipo, brands(id, name, logo_url)')
           .eq('is_active', true)
           .ilike('category', normalizedCategory);
+        if (paTipo?.trim()) {
+          query3 = query3.eq('pa_tipo', paTipo.trim());
+        }
+        const { data: productsData3 } = await query3;
         
         // Combinar todos os resultados e remover duplicatas
         const allProductsMap = new Map<string, any>();
@@ -81,9 +94,14 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
         
         (productsData || []).forEach((product: any) => {
           const productCategory = (product.category || '').toLowerCase();
+          const productPaTipo = (product.pa_tipo || '').trim();
           
           // Verificar se o produto pertence à categoria
           if (productCategory === normalizedCategory) {
+            // Se paTipo foi especificado, verificar se o produto corresponde
+            if (paTipo?.trim() && productPaTipo !== paTipo.trim()) {
+              return; // Pular este produto se não corresponder ao paTipo
+            }
             // Priorizar brand_id se existir
             if (product.brand_id && product.brands) {
               if (!brandMap.has(product.brand_id)) {
@@ -129,8 +147,8 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
       setLoading(false);
     };
 
-    fetchBrands();
-  }, [category]);
+      fetchBrands();
+    }, [category, paTipo]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -164,7 +182,7 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
       <div className="md:container md:mx-auto md:px-4">
         {/* Title - horizontal like BestSellers */}
         <h2 className="text-sm font-bold text-gray-900 mb-2 md:mb-4 uppercase tracking-wide">
-          Marques Pneus {categoryTitles[category] || category}
+          Marques Pneus {paTipo ? paTipo : (categoryTitles[category] || category)}
         </h2>
         
         {/* Carousel */}
