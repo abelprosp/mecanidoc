@@ -1,16 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { stripe, isStripeConfigured } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
+
+// Tipo Stripe opcional
+type StripeEvent = {
+  type: string;
+  data: {
+    object: any;
+  };
+};
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
+  if (!isStripeConfigured() || !stripe || !webhookSecret) {
+    return NextResponse.json(
+      { error: 'Stripe webhook is not configured. Please set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in environment variables.' },
+      { status: 503 }
+    );
+  }
   const body = await request.text();
   const signature = request.headers.get('stripe-signature');
 
@@ -21,10 +34,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let event: Stripe.Event;
+  let event: StripeEvent;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    // stripe já foi verificado acima, então não é null aqui
+    event = stripe!.webhooks.constructEvent(body, signature, webhookSecret) as StripeEvent;
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return NextResponse.json(
@@ -36,7 +50,7 @@ export async function POST(request: NextRequest) {
   try {
     switch (event.type) {
       case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const paymentIntent = event.data.object as { id: string; metadata: { order_id?: string } };
         const orderId = paymentIntent.metadata.order_id;
 
         if (orderId) {
@@ -52,7 +66,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const paymentIntent = event.data.object as { id: string; metadata: { order_id?: string } };
         const orderId = paymentIntent.metadata.order_id;
 
         if (orderId) {
@@ -67,7 +81,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'charge.refunded': {
-        const charge = event.data.object as Stripe.Charge;
+        const charge = event.data.object as { payment_intent?: string };
         const paymentIntentId = charge.payment_intent as string;
 
         if (paymentIntentId) {

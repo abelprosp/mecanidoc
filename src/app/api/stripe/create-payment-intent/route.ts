@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { stripe, isStripeConfigured } from '@/lib/stripe';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
+  if (!isStripeConfigured() || !stripe) {
+    return NextResponse.json(
+      { error: 'Stripe is not configured. Please set STRIPE_SECRET_KEY in environment variables.' },
+      { status: 503 }
+    );
+  }
+
   try {
     const { amount, orderId, customerEmail, customerName } = await request.json();
 
