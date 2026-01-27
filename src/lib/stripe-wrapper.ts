@@ -13,20 +13,25 @@ export const getStripe = async (): Promise<any> => {
   }
 
   try {
-    // Usar importação dinâmica com string construída em runtime
-    // O Next.js/Turbopack não consegue resolver isso durante o build
-    // porque o nome do módulo é construído dinamicamente
-    const s = 's';
-    const t = 't';
-    const r = 'r';
-    const i = 'i';
-    const p = 'p';
-    const e = 'e';
-    const moduleName = s + t + r + i + p + e;
+    // Usar require em runtime (Node.js) - não é analisado pelo bundler durante o build
+    // require.resolve verifica se o módulo existe sem carregá-lo
+    if (typeof require === 'undefined' || typeof require.resolve !== 'function') {
+      throw new Error('MODULE_NOT_FOUND - require not available');
+    }
     
-    // Usar import dinâmico com comentário especial para o bundler ignorar
-    const stripeModule = await import(/* @vite-ignore */ /* webpackIgnore: true */ moduleName);
-    const Stripe = stripeModule.default || stripeModule;
+    // Verificar se o módulo existe - isso não quebra o build
+    // require.resolve é executado apenas em runtime
+    try {
+      require.resolve('stripe');
+    } catch (resolveError: any) {
+      // Módulo não encontrado
+      throw new Error('MODULE_NOT_FOUND');
+    }
+    
+    // Carregar o módulo apenas em runtime usando require
+    // require() não é analisado estaticamente pelo Next.js/Turbopack
+    const StripeModule = require('stripe');
+    const Stripe = StripeModule.default || StripeModule;
     
     stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: '2024-12-18.acacia',
