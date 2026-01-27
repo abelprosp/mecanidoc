@@ -131,10 +131,10 @@ export default function Hero() {
               {/* Active Tab: Auto */}
               <div className="flex-shrink-0 relative z-40 -mr-4">
                 <Link href="/">
-                  <div className="bg-white text-gray-800 px-2 py-2 md:px-10 md:py-3 rounded-t-md flex items-center gap-1 md:gap-2 font-bold transform skew-x-[20deg] shadow-[2px_-2px_5px_rgba(0,0,0,0.1)]">
-                    <div className="transform -skew-x-[20deg] flex items-center gap-1 md:gap-2">
-                      <Car className="w-3.5 h-3.5 md:w-5 md:h-5" />
-                      <span className="text-[10px] md:text-base">Auto</span>
+                  <div className="bg-white text-gray-800 px-4 py-3 md:px-10 md:py-3 rounded-t-md flex items-center gap-2 md:gap-2 font-bold transform skew-x-[20deg] shadow-[2px_-2px_5px_rgba(0,0,0,0.1)] min-h-[48px] md:min-h-0">
+                    <div className="transform -skew-x-[20deg] flex items-center gap-2 md:gap-2">
+                      <Car className="w-5 h-5 md:w-5 md:h-5" />
+                      <span className="text-sm md:text-base">Auto</span>
                     </div>
                   </div>
                 </Link>
@@ -143,10 +143,10 @@ export default function Hero() {
               {/* Inactive Tab: Moto */}
               <div className="flex-shrink-0 relative z-30 -mr-4">
                 <Link href="/moto">
-                  <div className="bg-[#E5E7EB] text-gray-600 px-2 py-2 md:px-8 md:py-3 rounded-t-md flex items-center gap-1 md:gap-2 font-medium transform skew-x-[20deg] hover:bg-gray-300 transition-colors cursor-pointer border-r border-gray-300 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.05)]">
-                    <div className="transform -skew-x-[20deg] flex items-center gap-1 md:gap-2">
-                      <Bike className="w-3.5 h-3.5 md:w-5 md:h-5" />
-                      <span className="text-[10px] md:text-base">Moto</span>
+                  <div className="bg-[#E5E7EB] text-gray-600 px-4 py-3 md:px-8 md:py-3 rounded-t-md flex items-center gap-2 md:gap-2 font-medium transform skew-x-[20deg] hover:bg-gray-300 transition-colors cursor-pointer border-r border-gray-300 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.05)] min-h-[48px] md:min-h-0">
+                    <div className="transform -skew-x-[20deg] flex items-center gap-2 md:gap-2">
+                      <Bike className="w-5 h-5 md:w-5 md:h-5" />
+                      <span className="text-sm md:text-base">Moto</span>
                     </div>
                   </div>
                 </Link>
@@ -155,10 +155,10 @@ export default function Hero() {
                {/* Inactive Tab: Camion */}
                <div className="flex-shrink-0 relative z-20 -mr-4">
                 <Link href="/camion">
-                  <div className="bg-[#E5E7EB] text-gray-600 px-2 py-2 md:px-8 md:py-3 rounded-t-md flex items-center gap-1 md:gap-2 font-medium transform skew-x-[20deg] hover:bg-gray-300 transition-colors cursor-pointer border-r border-gray-300 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.05)]">
-                    <div className="transform -skew-x-[20deg] flex items-center gap-1 md:gap-2">
-                      <Truck className="w-3.5 h-3.5 md:w-5 md:h-5" />
-                      <span className="text-[10px] md:text-base">Camion</span>
+                  <div className="bg-[#E5E7EB] text-gray-600 px-4 py-3 md:px-8 md:py-3 rounded-t-md flex items-center gap-2 md:gap-2 font-medium transform skew-x-[20deg] hover:bg-gray-300 transition-colors cursor-pointer border-r border-gray-300 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.05)] min-h-[48px] md:min-h-0">
+                    <div className="transform -skew-x-[20deg] flex items-center gap-2 md:gap-2">
+                      <Truck className="w-5 h-5 md:w-5 md:h-5" />
+                      <span className="text-sm md:text-base">Camion</span>
                     </div>
                   </div>
                 </Link>
@@ -167,10 +167,10 @@ export default function Hero() {
               {/* Inactive Tab: Tracteurs */}
               <div className="flex-shrink-0 relative z-10">
                 <Link href="/tracteurs">
-                  <div className="bg-[#E5E7EB] text-gray-600 px-2 py-2 md:px-8 md:py-3 rounded-t-md flex items-center gap-1 md:gap-2 font-medium transform skew-x-[20deg] hover:bg-gray-300 transition-colors cursor-pointer shadow-[inset_0_-2px_4px_rgba(0,0,0,0.05)]">
-                    <div className="transform -skew-x-[20deg] flex items-center gap-1 md:gap-2">
-                      <Tractor className="w-3.5 h-3.5 md:w-5 md:h-5" />
-                      <span className="text-[10px] md:text-base">Tracteurs</span>
+                  <div className="bg-[#E5E7EB] text-gray-600 px-4 py-3 md:px-8 md:py-3 rounded-t-md flex items-center gap-2 md:gap-2 font-medium transform skew-x-[20deg] hover:bg-gray-300 transition-colors cursor-pointer shadow-[inset_0_-2px_4px_rgba(0,0,0,0.05)] min-h-[48px] md:min-h-0">
+                    <div className="transform -skew-x-[20deg] flex items-center gap-2 md:gap-2">
+                      <Tractor className="w-5 h-5 md:w-5 md:h-5" />
+                      <span className="text-sm md:text-base">Tracteurs</span>
                     </div>
                   </div>
                 </Link>
