@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, isStripeConfigured } from '@/lib/stripe';
+import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
 import { createClient } from '@supabase/supabase-js';
 
 // Tipo Stripe opcional
@@ -18,9 +18,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
-  if (!isStripeConfigured() || !stripe || !webhookSecret) {
+  if (!isStripeConfigured() || !webhookSecret) {
     return NextResponse.json(
       { error: 'Stripe webhook is not configured. Please set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in environment variables.' },
+      { status: 503 }
+    );
+  }
+
+  // Inicializar Stripe dinamicamente
+  const stripe = await getStripe();
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Stripe is not available. Please install the stripe package.' },
       { status: 503 }
     );
   }

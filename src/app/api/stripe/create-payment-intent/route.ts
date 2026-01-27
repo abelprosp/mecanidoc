@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, isStripeConfigured } from '@/lib/stripe';
+import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
-  if (!isStripeConfigured() || !stripe) {
+  if (!isStripeConfigured()) {
     return NextResponse.json(
       { error: 'Stripe is not configured. Please set STRIPE_SECRET_KEY in environment variables.' },
+      { status: 503 }
+    );
+  }
+
+  // Inicializar Stripe dinamicamente
+  const stripe = await getStripe();
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Stripe is not available. Please install the stripe package.' },
       { status: 503 }
     );
   }

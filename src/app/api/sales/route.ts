@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { stripe, isStripeConfigured } from '@/lib/stripe';
+import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,9 +71,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar informações adicionais do Stripe para pedidos pagos (apenas se Stripe estiver configurado)
+    const stripe = isStripeConfigured() ? await getStripe() : null;
     const ordersWithStripeData = await Promise.all(
       (orders || []).map(async (order) => {
-        if (isStripeConfigured() && stripe && order.stripe_payment_intent_id && order.payment_status === 'paid') {
+        if (stripe && order.stripe_payment_intent_id && order.payment_status === 'paid') {
           try {
             const paymentIntent = await stripe.paymentIntents.retrieve(
               order.stripe_payment_intent_id
