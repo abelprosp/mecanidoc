@@ -69,7 +69,7 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
 
   if (loading) {
     return (
-      <section className="py-8 bg-transparent">
+      <section className="py-4 md:py-6 bg-transparent">
         <div className="container mx-auto px-4 flex justify-center">
           <Loader2 className="animate-spin text-gray-400" />
         </div>
@@ -80,9 +80,9 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
   if (products.length === 0) return null;
 
   return (
-    <section className="py-8 bg-transparent relative group">
+    <section className="py-4 md:py-6 bg-transparent relative group">
       <div className="md:container md:mx-auto md:px-4">
-        <h2 className="text-sm font-bold text-gray-900 mb-6 uppercase tracking-wide">Les meilleures ventes {category ? `- ${category}` : ''}</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-3 md:mb-5 uppercase tracking-wide">Les meilleures ventes {category ? `- ${category}` : ''}</h2>
         
         <div className="relative">
           {/* Scroll Buttons - Visible on Desktop Hover */}
@@ -96,7 +96,7 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
 
           <div 
             ref={scrollRef}
-            className="flex overflow-x-auto gap-4 md:gap-6 pb-4 scrollbar-hide snap-x scroll-smooth"
+            className="flex overflow-x-auto gap-3 md:gap-5 pb-2 md:pb-4 scrollbar-hide snap-x scroll-smooth"
           >
             {products.map((product) => (
               <div key={product.id} className="min-w-[280px] md:min-w-[300px] snap-center h-full flex-shrink-0">

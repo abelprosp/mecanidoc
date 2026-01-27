@@ -1,83 +1,114 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 
 interface CategoryHeroProps {
   title: string;
   subtitle?: string;
   image?: string;
+  category?: string;
+  paTipo?: string | null;
 }
 
-export default function CategoryHero({ title, subtitle, image }: CategoryHeroProps) {
-  const [dimensions, setDimensions] = useState({
-    widths: [] as string[],
-    heights: [] as string[],
-    diameters: [] as string[],
-    loads: [] as string[],
-    speeds: [] as string[]
-  });
-  
+export default function CategoryHero({ title, subtitle, image, category, paTipo }: CategoryHeroProps) {
+  const [allSpecs, setAllSpecs] = useState<any[]>([]);
   const [selected, setSelected] = useState({
     width: '',
     height: '',
     diameter: '',
     load: '',
-    speed: ''
+    speed: '',
+    brand: ''
   });
+  const [brandList, setBrandList] = useState<{ id: string | null; name: string }[]>([]);
 
   const supabase = createClient();
 
   useEffect(() => {
     const fetchDimensions = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('products')
-        .select('specs')
-        .not('specs', 'is', null);
+        .select('specs, category, pa_tipo, brand_id, brand, brands(id, name)')
+        .not('specs', 'is', null)
+        .eq('is_active', true);
+
+      if (category?.trim()) query = query.ilike('category', category.trim());
+      if (paTipo?.trim()) query = query.ilike('pa_tipo', paTipo.trim());
+
+      const { data } = await query;
 
       if (data) {
-        const widths = new Set<string>();
-        const heights = new Set<string>();
-        const diameters = new Set<string>();
-        const loads = new Set<string>();
-        const speeds = new Set<string>();
-
-        data.forEach((item: any) => {
-          if (item.specs) {
-            if (item.specs.width) widths.add(item.specs.width);
-            if (item.specs.height) heights.add(item.specs.height);
-            if (item.specs.diameter) diameters.add(item.specs.diameter);
-            if (item.specs.load_index) loads.add(item.specs.load_index);
-            if (item.specs.speed_index) speeds.add(item.specs.speed_index);
-          }
+        const validSpecs = data
+          .map((item: any) => item.specs)
+          .filter((spec: any) => spec && spec.width);
+        setAllSpecs(validSpecs);
+        const seen = new Set<string>();
+        const list: { id: string | null; name: string }[] = [];
+        data.forEach((p: any) => {
+          const name = (p.brands?.name || p.brand || '').trim();
+          if (!name) return;
+          const key = p.brand_id || name;
+          if (seen.has(key)) return;
+          seen.add(key);
+          list.push({ id: p.brands?.id || p.brand_id || null, name });
         });
-
-        setDimensions({
-          widths: Array.from(widths).sort((a, b) => Number(a) - Number(b)),
-          heights: Array.from(heights).sort((a, b) => Number(a) - Number(b)),
-          diameters: Array.from(diameters).sort((a, b) => Number(a) - Number(b)),
-          loads: Array.from(loads).sort(),
-          speeds: Array.from(speeds).sort()
-        });
+        list.sort((a, b) => a.name.localeCompare(b.name));
+        setBrandList(list);
       }
     };
 
     fetchDimensions();
-  }, []);
+  }, [category, paTipo]);
+
+  useEffect(() => {
+    setSelected({ width: '', height: '', diameter: '', load: '', speed: '', brand: '' });
+  }, [category, paTipo]);
+
+  const availableWidths = useMemo(() => {
+    const widths = new Set(allSpecs.map(s => s.width).filter(Boolean));
+    return Array.from(widths).sort((a, b) => Number(a) - Number(b));
+  }, [allSpecs]);
+
+  const availableHeights = useMemo(() => {
+    if (!selected.width) return [];
+    const heights = new Set(allSpecs.filter(s => s.width === selected.width).map(s => s.height).filter(Boolean));
+    return Array.from(heights).sort((a, b) => Number(a) - Number(b));
+  }, [allSpecs, selected.width]);
+
+  const availableDiameters = useMemo(() => {
+    if (!selected.width || !selected.height) return [];
+    const diameters = new Set(allSpecs.filter(s => s.width === selected.width && s.height === selected.height).map(s => s.diameter).filter(Boolean));
+    return Array.from(diameters).sort((a, b) => Number(a) - Number(b));
+  }, [allSpecs, selected.width, selected.height]);
+
+  const availableLoads = useMemo(() => {
+    if (!selected.width || !selected.height || !selected.diameter) return [];
+    const loads = new Set(allSpecs.filter(s => s.width === selected.width && s.height === selected.height && s.diameter === selected.diameter).map(s => s.load_index).filter(Boolean));
+    return Array.from(loads).sort((a, b) => (String(a)).localeCompare(String(b)));
+  }, [allSpecs, selected.width, selected.height, selected.diameter]);
+
+  const availableSpeeds = useMemo(() => {
+    if (!selected.width || !selected.height || !selected.diameter) return [];
+    const speeds = new Set(allSpecs.filter(s => s.width === selected.width && s.height === selected.height && s.diameter === selected.diameter && (!selected.load || s.load_index === selected.load)).map(s => s.speed_index).filter(Boolean));
+    return Array.from(speeds).sort();
+  }, [allSpecs, selected.width, selected.height, selected.diameter, selected.load]);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (selected.width) params.set('width', selected.width);
     if (selected.height) params.set('height', selected.height);
     if (selected.diameter) params.set('diameter', selected.diameter);
-    
+    if (selected.load) params.set('load_index', selected.load);
+    if (selected.speed) params.set('speed_index', selected.speed);
+    if (selected.brand) params.set('brand', selected.brand);
+    if (category) params.set('category', category);
     window.location.href = `/search?${params.toString()}`;
   };
 
   return (
-    <section className="relative bg-gray-900 text-white py-8 md:py-16 mb-4 md:mb-8 md:rounded-2xl overflow-hidden shadow-sm md:mx-4">
+    <section className="relative bg-gray-900 text-white py-5 md:py-10 mt-4 md:mt-6 mb-3 md:mb-6 md:rounded-2xl overflow-hidden shadow-sm md:mx-4">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
@@ -93,22 +124,22 @@ export default function CategoryHero({ title, subtitle, image }: CategoryHeroPro
           <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-tight mb-2">
             {title}
           </h1>
-          {subtitle && <p className="text-lg text-gray-300 mb-8">{subtitle}</p>}
+          {subtitle && <p className="text-lg text-gray-300 mb-4 md:mb-6">{subtitle}</p>}
 
           {/* Search Box */}
-          <div className="bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20 mt-8">
-            <h3 className="text-sm font-bold uppercase mb-4 tracking-wide text-gray-200">Recherchez des pneus</h3>
+          <div className="bg-white/10 backdrop-blur-md p-4 md:p-6 rounded-xl border border-white/20 mt-4 md:mt-6">
+            <h3 className="text-sm font-bold uppercase mb-3 md:mb-4 tracking-wide text-gray-200">Recherchez des pneus</h3>
             
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
               <div className="flex flex-col">
                 <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Largeur</label>
                 <select 
                   className="bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
                   value={selected.width}
-                  onChange={(e) => setSelected({...selected, width: e.target.value})}
+                  onChange={(e) => setSelected({...selected, width: e.target.value, height: '', diameter: '', load: '', speed: ''})}
                 >
                   <option value="">Largeur</option>
-                  {dimensions.widths.map(w => <option key={w} value={w}>{w}</option>)}
+                  {availableWidths.map(w => <option key={w} value={w}>{w}</option>)}
                 </select>
               </div>
               <div className="flex flex-col">
@@ -116,10 +147,10 @@ export default function CategoryHero({ title, subtitle, image }: CategoryHeroPro
                 <select 
                   className="bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
                   value={selected.height}
-                  onChange={(e) => setSelected({...selected, height: e.target.value})}
+                  onChange={(e) => setSelected({...selected, height: e.target.value, diameter: '', load: '', speed: ''})}
                 >
                   <option value="">Hauteur</option>
-                  {dimensions.heights.map(h => <option key={h} value={h}>{h}</option>)}
+                  {availableHeights.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
               </div>
               <div className="flex flex-col">
@@ -127,10 +158,10 @@ export default function CategoryHero({ title, subtitle, image }: CategoryHeroPro
                 <select 
                   className="bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
                   value={selected.diameter}
-                  onChange={(e) => setSelected({...selected, diameter: e.target.value})}
+                  onChange={(e) => setSelected({...selected, diameter: e.target.value, load: '', speed: ''})}
                 >
                   <option value="">Diamètre</option>
-                  {dimensions.diameters.map(d => <option key={d} value={d}>{d}</option>)}
+                  {availableDiameters.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div className="flex flex-col">
@@ -138,10 +169,10 @@ export default function CategoryHero({ title, subtitle, image }: CategoryHeroPro
                 <select 
                   className="bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
                   value={selected.load}
-                  onChange={(e) => setSelected({...selected, load: e.target.value})}
+                  onChange={(e) => setSelected({...selected, load: e.target.value, speed: ''})}
                 >
                   <option value="">Charge</option>
-                  {dimensions.loads.map(l => <option key={l} value={l}>{l}</option>)}
+                  {availableLoads.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div className="flex flex-col">
@@ -152,7 +183,20 @@ export default function CategoryHero({ title, subtitle, image }: CategoryHeroPro
                   onChange={(e) => setSelected({...selected, speed: e.target.value})}
                 >
                   <option value="">Vitesse</option>
-                  {dimensions.speeds.map(s => <option key={s} value={s}>{s}</option>)}
+                  {availableSpeeds.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Marque</label>
+                <select 
+                  className="bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
+                  value={selected.brand}
+                  onChange={(e) => setSelected({...selected, brand: e.target.value})}
+                >
+                  <option value="">Marque</option>
+                  {brandList.map((b) => (
+                    <option key={b.id || b.name} value={b.name}>{b.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

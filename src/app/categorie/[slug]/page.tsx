@@ -66,19 +66,19 @@ export default function CategoryPage() {
       <Header />
       
       <div className="md:container md:mx-auto">
-        <CategoryHero title={title} subtitle="Trouvez le pneu parfait pour votre véhicule" image={heroImage} />
+        <CategoryHero title={title} subtitle="Trouvez le pneu parfait pour votre véhicule" image={heroImage} category={categoryFilter} paTipo={paTipoFilter} />
         
         {/* Brand Carousel */}
         <BrandCarousel category={categoryFilter} />
         
         {/* SEO Text Block */}
-        <section className="bg-white rounded-xl p-8 mb-8 md:mx-4 shadow-sm text-gray-600 text-sm leading-relaxed">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Tout savoir sur {title}</h2>
-          <p className="mb-4 whitespace-pre-wrap">{pageData?.seo_text || `Découvrez notre large gamme de ${title.toLowerCase()}. Que vous cherchiez la performance, la sécurité ou la durabilité, Mecanidoc vous propose les meilleures références du marché.`}</p>
+        <section className="bg-white rounded-xl p-4 md:p-6 mb-4 md:mb-6 md:mx-4 shadow-sm text-gray-600 text-sm leading-relaxed">
+          <h2 className="text-lg font-bold text-gray-800 mb-3 md:mb-4">Tout savoir sur {title}</h2>
+          <p className="mb-3 md:mb-4 whitespace-pre-wrap">{pageData?.seo_text || `Découvrez notre large gamme de ${title.toLowerCase()}. Que vous cherchiez la performance, la sécurité ou la durabilité, Mecanidoc vous propose les meilleures références du marché.`}</p>
         </section>
 
         {/* Promo Banners */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 md:mx-4">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6 md:mx-4">
            {promoBanners.length > 0 ? promoBanners.map((banner: any, idx: number) => (
              <div key={idx} className="bg-gray-900 rounded-xl p-6 text-white flex flex-col justify-center h-32 relative overflow-hidden">
                 <div className="relative z-10">
@@ -120,11 +120,11 @@ export default function CategoryPage() {
         <BestSellers category={categoryFilter} paTipo={paTipoFilter} />
 
         {/* Marketing Banner */}
-        <section className="mb-8 md:mx-4">
-           <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-xl p-8 text-white flex flex-col md:flex-row items-center justify-between shadow-lg relative overflow-hidden">
+        <section className="mb-4 md:mb-6 md:mx-4">
+           <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-xl p-4 md:p-6 text-white flex flex-col md:flex-row items-center justify-between shadow-lg relative overflow-hidden">
               {marketingBanner.image && <img src={marketingBanner.image} className="absolute inset-0 w-full h-full object-cover opacity-20" />}
-              <div className="mb-6 md:mb-0 relative z-10">
-                 <h2 className="text-3xl font-extrabold uppercase mb-2">{marketingBanner.title || `Nouveauté ${title}`}</h2>
+              <div className="mb-4 md:mb-0 relative z-10">
+                 <h2 className="text-2xl md:text-3xl font-extrabold uppercase mb-1 md:mb-2">{marketingBanner.title || `Nouveauté ${title}`}</h2>
                  <p className="text-red-100 max-w-xl">{marketingBanner.text || "Découvrez la dernière génération de pneus conçus pour une adhérence optimale dans toutes les conditions."}</p>
               </div>
               <button className="bg-white text-red-700 px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors uppercase tracking-wide shadow-md relative z-10">

@@ -94,7 +94,7 @@ export default function HeroTractor() {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    params.set('category', 'Tracteur');
+    params.set('category', 'Tracteurs');
     if (selected.width) params.set('width', selected.width);
     if (selected.height) params.set('height', selected.height);
     if (selected.diameter) params.set('diameter', selected.diameter);
@@ -106,8 +106,8 @@ export default function HeroTractor() {
   };
 
   return (
-    <div className="md:container md:mx-auto md:px-4 py-4 md:py-8">
-      <div className="relative bg-gray-900 h-auto md:h-[550px] md:rounded-[2.5rem] flex flex-col items-center justify-center text-white overflow-hidden shadow-2xl py-12 md:py-0">
+    <div className="md:container md:mx-auto md:px-4 py-3 md:py-5">
+      <div className="relative bg-gray-900 h-auto md:h-[550px] md:rounded-[2.5rem] flex flex-col items-center justify-center text-white overflow-hidden shadow-2xl py-8 md:py-0">
         {/* Background Image - Tractor specific */}
         <div className="absolute inset-0 z-0">
           <img 
@@ -119,7 +119,7 @@ export default function HeroTractor() {
         </div>
 
         <div className="relative z-10 w-full max-w-4xl px-4 flex flex-col items-center">
-          <h1 className="text-2xl md:text-3xl font-bold text-center mb-10 drop-shadow-lg leading-tight">
+          <h1 className="text-2xl md:text-3xl font-bold text-center mb-6 md:mb-8 drop-shadow-lg leading-tight">
             Roulez en toute sécurité avec mecanidoc.com : parce que votre<br />
             sécurité est notre priorité
           </h1>

@@ -144,7 +144,7 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
 
   if (loading) {
     return (
-      <section className="py-2 md:py-6 bg-white">
+      <section className="py-2 md:py-4 bg-white">
         <div className="md:container md:mx-auto md:px-4 flex justify-center">
           <Loader2 className="animate-spin text-gray-400" />
         </div>
@@ -160,10 +160,10 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
   console.log('✅ BrandCarousel - Renderizando com', brands.length, 'marcas');
 
   return (
-    <section className="py-2 md:py-6 bg-white">
+    <section className="py-2 md:py-4 bg-white">
       <div className="md:container md:mx-auto md:px-4">
         {/* Title - horizontal like BestSellers */}
-        <h2 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+        <h2 className="text-sm font-bold text-gray-900 mb-2 md:mb-4 uppercase tracking-wide">
           Marques Pneus {categoryTitles[category] || category}
         </h2>
         
@@ -180,7 +180,7 @@ export default function BrandCarousel({ category = 'Auto' }: BrandCarouselProps)
           {/* Cards Container */}
           <div 
             ref={scrollRef}
-            className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x"
+            className="flex gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x"
           >
             {brands.map((brand) => (
               <div 

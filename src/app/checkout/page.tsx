@@ -62,31 +62,29 @@ export default function CheckoutPage() {
   
   // Lógica de frete:
   // Entrega Normal (5 dias úteis):
-  //   - 1 pneu: €10.00
-  //   - 2-4 pneus: GRATUITA
+  //   - 1 pneu: €10.00 (obrigatório)
+  //   - 2+ pneus: GRATUITA (sempre grátis)
   // Entrega Rápida (24-72h):
   //   - 1 pneu: €19.90
   //   - 2 pneus: €19.90
-  //   - 3 pneus: €29.90
-  //   - 4 pneus: €29.90
-  //   - 5+ pneus: €29.90
+  //   - 3 pneus: €19.90
+  //   - 4+ pneus: €29.90
   let deliveryFee = 0;
   
   if (extras.deliveryType === 'normal') {
     // Entrega Normal (5 dias úteis)
     if (totalTires === 1) {
-      deliveryFee = 10.00;
-    } else if (totalTires >= 2 && totalTires <= 4) {
-      deliveryFee = 0; // Grátis
+      deliveryFee = 10.00; // Obrigatório para 1 pneu
     } else {
-      deliveryFee = settings.delivery_base_fee || 0;
+      // 2+ pneus: sempre grátis
+      deliveryFee = 0;
     }
   } else if (extras.deliveryType === 'fast') {
     // Entrega Rápida (24-72h)
-    if (totalTires === 1 || totalTires === 2) {
+    if (totalTires >= 1 && totalTires <= 3) {
       deliveryFee = 19.90;
     } else {
-      // 3+ pneus
+      // 4+ pneus
       deliveryFee = 29.90;
     }
   }
@@ -335,11 +333,11 @@ export default function CheckoutPage() {
                         />
                         <div className="flex-1">
                            <span className="block font-bold text-sm text-gray-700">
-                             Livraison Standard {totalTires === 1 ? `(+€10.00)` : totalTires >= 2 && totalTires <= 4 ? `(GRATUITE)` : `(+€${(settings.delivery_base_fee || 10).toFixed(2)})`}
+                             Livraison Standard {totalTires === 1 ? `(+€10.00)` : `(GRATUITE)`}
                            </span>
                            <span className="text-xs text-gray-500 block mt-1">
                              Livraison en 5 jours ouvrés.
-                             {totalTires >= 2 && totalTires <= 4 && (
+                             {totalTires >= 2 && (
                                <span className="text-green-600 font-semibold block mt-1">✓ Gratuite à partir de 2 pneus</span>
                              )}
                            </span>
@@ -357,7 +355,7 @@ export default function CheckoutPage() {
                         />
                         <div className="flex-1">
                            <span className="block font-bold text-sm text-gray-700">
-                             Livraison Rapide (+€{totalTires === 1 || totalTires === 2 ? '19.90' : '29.90'})
+                             Livraison Rapide (+€{totalTires >= 1 && totalTires <= 3 ? '19.90' : '29.90'})
                            </span>
                            <span className="text-xs text-gray-500 block mt-1">
                              Livraison entre 24h et 72h.

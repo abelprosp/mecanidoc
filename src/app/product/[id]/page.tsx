@@ -272,8 +272,6 @@ export default function ProductPage() {
               <ProductPriceDisplay basePrice={product.base_price} category={product.category} />
             </div>
 
-            <div className="text-xs text-green-600 mb-6 font-medium">Disponibilité: <span className="text-gray-600">En stock</span></div>
-
             <div className="flex items-center gap-4 mb-8">
                <div className="w-16">
                  <input 
