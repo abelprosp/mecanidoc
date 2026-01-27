@@ -418,11 +418,6 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* Bottom Text */}
-        <div className="text-center text-gray-500 text-xs max-w-4xl mx-auto space-y-4 mb-12">
-           <h3 className="font-bold text-gray-700 text-sm">MecaniDoc.com : Bien Plus Qu'un Service, Votre Partenaire de Confiance</h3>
-           <p>Chez MecaniDoc.com, nous ne nous contentons pas de vendre des pneus, nous nous offrons une expérience unique, alliant qualité, fiabilité et sérénité.</p>
-        </div>
 
         {/* Related Products Carousel */}
         {product && (

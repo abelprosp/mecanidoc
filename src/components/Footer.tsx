@@ -57,10 +57,6 @@ export default function Footer() {
         
         {/* SEO / Intro Text */}
         <div className="mb-6 md:mb-10 max-w-4xl">
-          <h2 className="text-lg font-bold text-gray-800 mb-3 md:mb-4">MecaniDoc.com : Bien Plus Qu'un Service, Votre Partenaire de Confiance</h2>
-          <p className="mb-3 md:mb-4 leading-relaxed">
-            Chez <strong className="text-gray-800">MecaniDoc.com</strong>, nous ne nous contentons pas de vendre des pneus, nous vous offrons <strong className="text-gray-800">une expérience unique</strong>, alliant <strong className="text-gray-800">qualité, fiabilité et sérénité</strong>.
-          </p>
           <p className="mb-4 md:mb-6 leading-relaxed italic">
             Engagement de Notre part ? Nous ne vous offrons pas seulement un simple achat, mais une véritable solution adaptée à vos besoins, avec :
           </p>

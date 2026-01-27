@@ -29,12 +29,6 @@ export default function QuiSommesNousPage() {
           </p>
 
           <div className="bg-gray-100 rounded-xl p-6 md:p-8 mt-8">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
-              MecaniDoc.com : Bien plus qu&apos;un service, votre partenaire de confiance
-            </h2>
-            <p className="text-gray-700 mb-6">
-              Chez MecaniDoc.com, nous ne nous contentons pas de vendre des pneus : nous vous offrons une <strong className="text-gray-900">expérience unique</strong>, alliant <strong className="text-gray-900">qualité, fiabilité et sérénité</strong>.
-            </p>
             <ul className="space-y-2 text-gray-700 mb-6">
               <li className="flex items-center gap-2">✓ Des prix compétitifs toute l&apos;année</li>
               <li className="flex items-center gap-2">✓ Un large choix de pneus pour tous les véhicules</li>

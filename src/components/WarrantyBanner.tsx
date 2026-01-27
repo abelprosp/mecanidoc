@@ -30,7 +30,7 @@ export default function WarrantyBanner() {
                 Votre pneu <strong className="text-gray-700 font-bold">remplacé ou remboursé</strong> en toute sérénité en cas de dommage !
               </p>
               <Link 
-                href="/page/garantie-mecanidoc" 
+                href="/page/garantie-pneus" 
                 className="inline-flex items-center gap-2 text-[#0066CC] hover:text-[#004499] font-medium text-sm md:text-base transition-colors"
               >
                 En savoir plus <ArrowRight size={16} />

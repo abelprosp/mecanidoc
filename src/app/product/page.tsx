@@ -263,22 +263,6 @@ export default function ProductPage() {
            </div>
         </div>
 
-        {/* Bottom Text */}
-        <div className="text-center text-gray-500 text-xs max-w-4xl mx-auto space-y-4 mb-12">
-           <h3 className="font-bold text-gray-700 text-sm">MecaniDoc.com : Bien Plus Qu'un Service, Votre Partenaire de Confiance</h3>
-           <p>Chez MecaniDoc.com, nous ne nous contentons pas de vendre des pneus, nous nous offrons une expérience unique, alliant qualité, fiabilité et sérénité.</p>
-           <p className="text-left md:text-center">
-             Engagement de Notre part ? Nous ne vous offrons pas seulement un simple achat, mais une véritable solution adaptée à vos besoins, avec : <br/>
-             ✓ Des prix compétitifs toute l'année 💰 <br/>
-             ✓ Un large choix de pneus pour tous les véhicules 🚗 <br/>
-             ✓ Une livraison rapide et flexible 📦 <br/>
-             ✓ Des options de montage simplifiées chez nos partenaires 🔧 <br/>
-             ✓ Un service client à votre écoute Pour nous accompagner à chaque étape 📞
-           </p>
-           <p className="italic">
-             🚀 Faites le choix de la tranquillité et découvrez la différence MecaniDoc. Parce que votre sécurité et votre satisfaction sont notre priorité, nous sommes là pour vous équiper en toute confiance et vous accompagner sur la route de la performance.
-           </p>
-        </div>
 
       </div>
 

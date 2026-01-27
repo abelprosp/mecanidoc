@@ -111,7 +111,7 @@ export default function RelatedProducts({
 
   return (
     <section className="py-8 bg-transparent relative group">
-      <div className="md:container md:mx-auto md:px-4">
+      <div className="px-2 md:container md:mx-auto md:px-4">
         <h2 className="text-sm font-bold text-gray-900 mb-6 uppercase tracking-wide">
           Produits similaires
         </h2>

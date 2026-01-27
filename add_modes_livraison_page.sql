@@ -1,113 +1,87 @@
--- Adicionar página de destino dos Modes de Livraison
+-- Criar/Atualizar página de Conditions de Livraison (Modes de Livraison)
 -- Esta página pode ser editada pelo dashboard master
 
-insert into public.footer_links (title, slug, section, sort_order, content, is_active) 
-values
-  ('Modes de Livraison', 'modes-de-livraison', 'products', 15,
-   '<div class="bg-gradient-to-r from-[#0066CC] to-[#004499] text-white py-12 px-4 mb-8 rounded-xl">
-     <div class="container mx-auto text-center">
-       <h1 class="text-4xl md:text-5xl font-bold mb-4 uppercase tracking-wide">Modes de Livraison</h1>
-     </div>
-   </div>
-
-   <div class="container mx-auto px-4 py-8">
-     <!-- Cards de Métodos de Entrega -->
-     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-       <!-- Card STANDARD -->
-       <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-shadow">
-         <h3 class="text-2xl font-bold text-gray-900 mb-4 uppercase">STANDARD</h3>
-         <p class="text-blue-600 font-bold mb-3 underline">GRATUITE</p>
-         <p class="text-gray-600 text-sm leading-relaxed">
-           Livraison gratuite pour toute commande de deux pneus ou plus.
-         </p>
-       </div>
-
-       <!-- Card EXPRESS -->
-       <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-shadow">
-         <h3 class="text-2xl font-bold text-gray-900 mb-4 uppercase">EXPRESS</h3>
-         <p class="text-blue-600 font-bold mb-3 underline">Livraison prioritaire</p>
-         <p class="text-gray-600 text-sm leading-relaxed">
-           Vos pneus livrés rapidement et en toute sécurité.
-         </p>
-       </div>
-
-       <!-- Card POINT DE RETRAIT -->
-       <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-shadow">
-         <h3 class="text-2xl font-bold text-gray-900 mb-4 uppercase">POINT DE RETRAIT</h3>
-         <p class="text-blue-600 font-bold mb-3 underline">Retrait dans un point partenaire</p>
-         <p class="text-gray-600 text-sm leading-relaxed">
-           Choisissez le point de livraison le plus pratique pour vous et recevez vos pneus en toute simplicité.
-         </p>
-       </div>
-     </div>
-
-     <!-- Call to Action removido - já está no componente DeliveryModes -->
-
-     <!-- Informações Adicionais -->
-     <div class="bg-gray-50 rounded-xl p-8 mb-8">
-       <h2 class="text-2xl font-bold text-gray-800 mb-6">Détails des modes de livraison</h2>
+INSERT INTO public.footer_links (title, slug, section, sort_order, content, is_active) 
+VALUES
+  ('Conditions de Livraison', 'modes-de-livraison', 'products', 15,
+   '<div class="container mx-auto px-4 py-8">
+     <div class="max-w-4xl mx-auto">
+       <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6 uppercase tracking-tight">Conditions de Livraison</h1>
        
-       <div class="space-y-6">
-         <div>
-           <h3 class="text-xl font-bold text-gray-800 mb-3">Livraison STANDARD (Gratuite)</h3>
-           <ul class="list-disc list-inside space-y-2 text-gray-700 ml-4">
-             <li>Livraison gratuite pour les commandes de 2 pneus ou plus</li>
-             <li>Délai de livraison : 3 à 5 jours ouvrés</li>
-             <li>Suivi de commande disponible</li>
-             <li>Livraison à domicile ou en point relais</li>
-           </ul>
+       <p class="text-gray-700 text-base md:text-lg mb-8 leading-relaxed">
+         Nous proposons plusieurs options de livraison afin de répondre au mieux à vos besoins :
+       </p>
+
+       <div class="space-y-8 mb-12">
+         <!-- Livraison STANDARD -->
+         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+           <div class="flex items-start gap-4 mb-4">
+             <span class="text-3xl flex-shrink-0">🚛</span>
+             <div class="flex-1">
+               <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">Livraison STANDARD – GRATUITE</h2>
+               <p class="text-gray-700 text-base md:text-lg leading-relaxed">
+                 La livraison standard est gratuite pour toute commande de <strong class="text-gray-900 font-bold">2 pneus ou plus</strong>.<br/>
+                 Les pneus sont livrés à domicile ou à l''adresse indiquée lors de la commande, sans frais supplémentaires.
+               </p>
+             </div>
+           </div>
          </div>
 
-         <div>
-           <h3 class="text-xl font-bold text-gray-800 mb-3">Livraison EXPRESS</h3>
-           <ul class="list-disc list-inside space-y-2 text-gray-700 ml-4">
-             <li>Livraison prioritaire en 24-48h</li>
-             <li>Frais de livraison : selon la destination</li>
-             <li>Suivi en temps réel de votre colis</li>
-             <li>Livraison garantie avant 18h</li>
-           </ul>
+         <!-- Livraison EXPRESS -->
+         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+           <div class="flex items-start gap-4 mb-4">
+             <span class="text-3xl flex-shrink-0">⚡</span>
+             <div class="flex-1">
+               <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">Livraison EXPRESS</h2>
+               <p class="text-gray-700 text-base md:text-lg leading-relaxed">
+                 Les commandes en livraison express sont traitées en priorité.<br/>
+                 Cette option garantit une expédition accélérée pour une réception rapide.
+               </p>
+             </div>
+           </div>
          </div>
 
-         <div>
-           <h3 class="text-xl font-bold text-gray-800 mb-3">Point de Retrait Partenaire</h3>
-           <ul class="list-disc list-inside space-y-2 text-gray-700 ml-4">
-             <li>Récupération dans un de nos points partenaires</li>
-             <li>Gratuit pour toutes les commandes</li>
-             <li>Horaires d''ouverture flexibles</li>
-             <li>Plus de 500 points disponibles en France</li>
-             <li>Possibilité de montage sur place (selon le partenaire)</li>
-           </ul>
+         <!-- Point de Retrait -->
+         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+           <div class="flex items-start gap-4 mb-4">
+             <span class="text-3xl flex-shrink-0">📍</span>
+             <div class="flex-1">
+               <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">Livraison en POINT DE RETRAIT</h2>
+               <p class="text-gray-700 text-base md:text-lg leading-relaxed mb-4">
+                 Vous avez la possibilité de faire livrer vos pneus dans un garage partenaire ou un point de retrait de votre choix.
+               </p>
+               <p class="text-gray-700 text-sm md:text-base leading-relaxed bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                 <strong class="font-bold text-gray-900">Important :</strong> Il est de votre responsabilité de contacter le garage partenaire ou le point de retrait afin de l''informer de la réception de votre commande et d''organiser l''installation si nécessaire.
+               </p>
+             </div>
+           </div>
          </div>
        </div>
-     </div>
 
-     <!-- Zone de Couverture -->
-     <div class="bg-white border-2 border-blue-200 rounded-xl p-8 mb-8">
-       <h2 class="text-2xl font-bold text-gray-800 mb-4">Zone de livraison</h2>
-       <p class="text-gray-700 mb-4">
-         Nous livrons dans toute la France métropolitaine. Pour les DOM-TOM et l''international, 
-         veuillez nous contacter pour connaître les conditions et tarifs spécifiques.
-       </p>
-       <p class="text-gray-600 text-sm">
-         Les délais de livraison peuvent varier selon la disponibilité des produits et la période de l''année.
-       </p>
-     </div>
-
-     <!-- Contact -->
-     <div class="bg-blue-50 rounded-xl p-8 text-center">
-       <h3 class="text-2xl font-bold text-gray-800 mb-4">Des questions sur la livraison ?</h3>
-       <p class="text-gray-700 mb-6">
-         Notre équipe est à votre disposition pour répondre à toutes vos questions concernant nos modes de livraison.
-       </p>
-       <a href="/auth/login" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">
-         Contactez-nous
-       </a>
+       <!-- Dispositions générales -->
+       <div class="bg-gray-50 rounded-xl p-6 md:p-8 border border-gray-200">
+         <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Dispositions générales</h2>
+         <ul class="space-y-4 text-gray-700 text-base md:text-lg leading-relaxed">
+           <li class="flex items-start gap-3">
+             <span class="text-blue-600 font-bold mt-1 flex-shrink-0">•</span>
+             <span>Les délais de livraison sont donnés à titre indicatif et peuvent varier en fonction de la disponibilité des produits et des contraintes logistiques.</span>
+           </li>
+           <li class="flex items-start gap-3">
+             <span class="text-blue-600 font-bold mt-1 flex-shrink-0">•</span>
+             <span>En cas d''absence lors de la livraison à domicile, un avis de passage pourra être laissé par le transporteur avec les instructions pour reprogrammer la livraison ou récupérer le colis.</span>
+           </li>
+           <li class="flex items-start gap-3">
+             <span class="text-blue-600 font-bold mt-1 flex-shrink-0">•</span>
+             <span>Nous nous engageons à assurer un service de livraison rapide et efficace afin de garantir votre satisfaction.</span>
+           </li>
+         </ul>
+       </div>
      </div>
    </div>',
    true)
-on conflict (slug) do update 
-set content = excluded.content,
-    title = excluded.title,
-    section = excluded.section,
-    sort_order = excluded.sort_order,
-    is_active = excluded.is_active;
+ON CONFLICT (slug) DO UPDATE 
+SET content = EXCLUDED.content,
+    title = EXCLUDED.title,
+    section = EXCLUDED.section,
+    sort_order = EXCLUDED.sort_order,
+    is_active = EXCLUDED.is_active;

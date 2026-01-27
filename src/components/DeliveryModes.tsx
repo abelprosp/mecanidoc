@@ -6,7 +6,7 @@ export default function DeliveryModes() {
   return (
     <section className="py-2 md:py-4 pb-6 md:pb-8 bg-gray-50">
       <div className="md:container md:mx-auto md:px-4">
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden pb-4 md:pb-6">
+        <Link href="/page/modes-de-livraison" className="block bg-white rounded-lg shadow-sm overflow-hidden pb-4 md:pb-6 hover:shadow-md transition-shadow">
           {/* Header Bar */}
           <div className="bg-[#0066CC] py-2 md:py-3 text-center mb-4 md:mb-6">
             <h2 className="text-white font-bold text-base md:text-lg">Modes de Livraison</h2>
@@ -43,12 +43,12 @@ export default function DeliveryModes() {
             </div>
 
             <div className="text-center mt-4 md:mt-6">
-              <Link href="/page/modes-de-livraison" className="text-[#0066CC] hover:text-blue-800 inline-flex items-center gap-1 text-sm font-medium transition-colors">
+              <span className="text-[#0066CC] hover:text-blue-800 inline-flex items-center gap-1 text-sm font-medium transition-colors">
                 En savoir plus <ArrowRight size={16} />
-              </Link>
+              </span>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
     </section>
   );
