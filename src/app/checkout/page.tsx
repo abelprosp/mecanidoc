@@ -406,9 +406,9 @@ export default function CheckoutPage() {
                      onChange={(e) => setTermsAccepted(e.target.checked)}
                      className="mt-1"
                    />
-                   <span className="text-xs text-gray-600">
-                     J'accepte les <a href="#" className="text-blue-600 underline">termes de sécurité, d'assurance et de confidentialité</a> de Mecanidoc. <span className="text-red-500">*</span>
-                   </span>
+                  <span className="text-xs text-gray-600">
+                    J'accepte les <Link href="/mentions-legales" className="text-blue-600 underline hover:text-blue-800">termes de sécurité</Link>, <Link href="/assurance-crevaison" className="text-blue-600 underline hover:text-blue-800">d'assurance</Link> et de <Link href="/politique-donnees-personnelles" className="text-blue-600 underline hover:text-blue-800">confidentialité</Link> de Mecanidoc. <span className="text-red-500">*</span>
+                  </span>
                  </label>
                </div>
 

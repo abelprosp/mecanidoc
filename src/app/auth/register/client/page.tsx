@@ -189,7 +189,7 @@ export default function RegisterClientPage() {
               </div>
 
               <div className="text-center text-xs text-gray-500 mt-4">
-                En créant un compte, vous acceptez nos <a href="#" className="text-blue-600 hover:underline">Conditions Générales de Vente</a> et notre <a href="#" className="text-blue-600 hover:underline">Politique de Confidentialité</a>.
+                En créant un compte, vous acceptez nos <Link href="/conditions-generales-vente" className="text-blue-600 hover:underline">Conditions Générales de Vente</Link> et notre <Link href="/politique-donnees-personnelles" className="text-blue-600 hover:underline">Politique de Confidentialité</Link>.
               </div>
 
             </form>

@@ -12,23 +12,23 @@ import { useProductPrice } from '@/hooks/useProductPrice';
 // Reusing TireLabel component logic
 const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', value: string | number, color: string }) => {
   const icons = {
-    fuel: <Fuel size={14} className="text-gray-700" />,
-    wet: <CloudRain size={14} className="text-gray-700" />,
-    noise: <Volume2 size={14} className="text-gray-700" />
+    fuel: <Fuel size={20} className="text-gray-700" />,
+    wet: <CloudRain size={20} className="text-gray-700" />,
+    noise: <Volume2 size={20} className="text-gray-700" />
   };
 
   return (
     <div className="flex items-center gap-2 mb-1">
-      <div className="w-4 flex justify-center">{icons[type]}</div>
+      <div className="w-6 flex justify-center">{icons[type]}</div>
       {type === 'noise' ? (
-        <div className="flex items-center bg-gray-800 text-white text-[10px] font-bold px-1 h-5 rounded-r-sm relative ml-4 w-12 justify-between">
-           <div className="absolute -left-2 top-0 w-0 h-0 border-t-[10px] border-t-transparent border-r-[8px] border-r-gray-800 border-b-[10px] border-b-transparent"></div>
+        <div className="flex items-center bg-gray-800 text-white text-xs font-bold px-2 h-6 rounded-r-sm relative ml-4 w-14 justify-between">
+           <div className="absolute -left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[8px] border-r-gray-800 border-b-[12px] border-b-transparent"></div>
            <span className="ml-1">{value}</span>
-           <span className="text-[8px] scale-75">dB</span>
+           <span className="text-[9px] scale-75">dB</span>
         </div>
       ) : (
-        <div className={`flex items-center text-white text-[10px] font-bold px-2 h-5 rounded-r-sm relative ml-4 w-12 justify-center ${color}`}>
-           <div className={`absolute -left-2 top-0 w-0 h-0 border-t-[10px] border-t-transparent border-r-[8px] border-b-[10px] border-b-transparent`} style={{ borderRightColor: 'inherit' }}></div>
+        <div className={`flex items-center text-white text-xs font-bold px-2 h-6 rounded-r-sm relative ml-4 w-14 justify-center ${color}`}>
+           <div className={`absolute -left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[8px] border-b-[12px] border-b-transparent`} style={{ borderRightColor: 'inherit' }}></div>
            {value}
         </div>
       )}
@@ -192,13 +192,13 @@ export default function ProductPage() {
           <div className="w-full md:w-5/12 p-8 border-r border-gray-100 flex flex-col items-center">
             
             {/* Main Image com Labels e Marca - com padding para evitar sobreposição */}
-            <div className="w-full h-80 flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative p-8 md:p-12">
+            <div className="w-full h-96 md:h-[500px] flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative p-8 md:p-12">
               {/* Brand Logo - posicionado fora da área da imagem */}
               <div className="absolute top-2 left-2 md:top-4 md:left-4 z-10">
                 {product.brands?.logo_url ? (
-                  <img src={product.brands.logo_url} alt={product.brand} className="h-8 md:h-10 w-auto object-contain" />
+                  <img src={product.brands.logo_url} alt={product.brand} className="h-12 md:h-16 w-auto object-contain" />
                 ) : (
-                  <span className="text-xs md:text-sm font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
+                  <span className="text-sm md:text-base font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
                 )}
               </div>
 
@@ -214,7 +214,7 @@ export default function ProductPage() {
                 </div>
 
                 {/* Labels - ao lado da imagem, alinhados verticalmente */}
-                <div className="flex flex-col gap-1.5 justify-center">
+                <div className="flex flex-col gap-2 justify-center">
                   <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
                   <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
                   <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />
