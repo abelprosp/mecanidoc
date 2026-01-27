@@ -130,11 +130,11 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
           <div className="bg-white/10 backdrop-blur-md p-4 md:p-6 rounded-xl border border-white/20 mt-4 md:mt-6">
             <h3 className="text-sm font-bold uppercase mb-3 md:mb-4 tracking-wide text-gray-200">Recherchez des pneus</h3>
             
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-3 mb-4">
               <div className="flex flex-col w-full">
-                <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Largeur</label>
+                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Largeur</label>
                 <select 
-                  className="w-full bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white text-gray-900 text-base md:text-sm p-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[44px] md:min-h-0"
                   value={selected.width}
                   onChange={(e) => setSelected({...selected, width: e.target.value, height: '', diameter: '', load: '', speed: ''})}
                 >
@@ -143,9 +143,9 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
                 </select>
               </div>
               <div className="flex flex-col w-full">
-                <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Hauteur</label>
+                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Hauteur</label>
                 <select 
-                  className="w-full bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white text-gray-900 text-base md:text-sm p-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[44px] md:min-h-0"
                   value={selected.height}
                   onChange={(e) => setSelected({...selected, height: e.target.value, diameter: '', load: '', speed: ''})}
                 >
@@ -154,9 +154,9 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
                 </select>
               </div>
               <div className="flex flex-col w-full">
-                <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Diamètre</label>
+                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Diamètre</label>
                 <select 
-                  className="w-full bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white text-gray-900 text-base md:text-sm p-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[44px] md:min-h-0"
                   value={selected.diameter}
                   onChange={(e) => setSelected({...selected, diameter: e.target.value, load: '', speed: ''})}
                 >
@@ -165,9 +165,9 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
                 </select>
               </div>
               <div className="flex flex-col w-full">
-                <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Charge</label>
+                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Charge</label>
                 <select 
-                  className="w-full bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white text-gray-900 text-base md:text-sm p-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[44px] md:min-h-0"
                   value={selected.load}
                   onChange={(e) => setSelected({...selected, load: e.target.value, speed: ''})}
                 >
@@ -176,9 +176,9 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
                 </select>
               </div>
               <div className="flex flex-col w-full">
-                <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Vitesse</label>
+                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Vitesse</label>
                 <select 
-                  className="w-full bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white text-gray-900 text-base md:text-sm p-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[44px] md:min-h-0"
                   value={selected.speed}
                   onChange={(e) => setSelected({...selected, speed: e.target.value})}
                 >
@@ -187,9 +187,9 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
                 </select>
               </div>
               <div className="flex flex-col w-full">
-                <label className="text-[10px] text-gray-400 mb-1 uppercase font-bold">Marque</label>
+                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Marque</label>
                 <select 
-                  className="w-full bg-white text-gray-900 text-sm p-2 rounded border-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white text-gray-900 text-base md:text-sm p-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[44px] md:min-h-0"
                   value={selected.brand}
                   onChange={(e) => setSelected({...selected, brand: e.target.value})}
                 >
