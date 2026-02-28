@@ -5,7 +5,7 @@ import { useCart } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { ChevronDown, ChevronUp, CreditCard, Shield, Truck, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CheckoutPage() {
@@ -39,9 +39,7 @@ export default function CheckoutPage() {
   
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [orderComplete, setOrderComplete] = useState(false);
-  const [paymentIntentClientSecret, setPaymentIntentClientSecret] = useState<string | null>(null);
-  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [paymentCanceled, setPaymentCanceled] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -109,6 +107,7 @@ export default function CheckoutPage() {
     }
 
     setPlacingOrder(true);
+    setPaymentCanceled(false);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -161,44 +160,26 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Criar PaymentIntent no Stripe
-      const response = await fetch('/api/stripe/create-payment-intent', {
+      // Redirecionar para o Stripe Checkout (página de pagamento hospedada pelo Stripe)
+      const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: total,
-          orderId: order.id,
-          customerEmail: formData.email,
-          customerName: `${formData.firstName} ${formData.lastName}`,
-        }),
+        body: JSON.stringify({ orderId: order.id }),
       });
 
       const paymentData = await response.json();
 
-      if (!response.ok || !paymentData.clientSecret) {
-        console.error('Error creating payment intent:', paymentData);
-        alert("Erreur lors de l'initialisation du paiement. Veuillez réessayer.");
+      if (!response.ok || !paymentData.url) {
+        console.error('Error creating checkout session:', paymentData);
+        alert(paymentData.error || "Erreur lors de l'initialisation du paiement. Veuillez réessayer.");
         setPlacingOrder(false);
         return;
       }
 
-      // Salvar clientSecret e orderId para processar pagamento
-      setPaymentIntentClientSecret(paymentData.clientSecret);
-      setCurrentOrderId(order.id);
-
-      // Redirecionar para página de pagamento ou processar inline
-      // Por enquanto, vamos processar o pagamento inline
-      // Em produção, você pode usar Stripe Elements aqui
-      
-      // Simular sucesso por enquanto - em produção, usar Stripe Elements
-      alert("Redirection vers le paiement... (À implémenter avec Stripe Elements)");
-      
-      // Por enquanto, marcar como completo após criar o pedido
-      // Em produção, isso só deve acontecer após confirmação do pagamento via webhook
-      setOrderComplete(true);
-      clearCart();
+      // Redirecionar para a página de pagamento do Stripe
+      window.location.href = paymentData.url;
     } catch (error: any) {
       console.error('Error placing order:', error);
       alert("Une erreur est survenue. Veuillez réessayer.");
@@ -207,30 +188,19 @@ export default function CheckoutPage() {
     }
   };
 
+  // Detectar se o usuário voltou após cancelar o pagamento no Stripe
+  useEffect(() => {
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    if (params.get('canceled') === '1') {
+      setPaymentCanceled(true);
+      // Limpar o parâmetro da URL sem recarregar
+      window.history.replaceState({}, '', '/checkout');
+    }
+  }, []);
+
   if (loading) return <div className="min-h-screen bg-[#F1F1F1] flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
-  if (orderComplete) {
-    return (
-      <main className="min-h-screen bg-[#F1F1F1]">
-        <Header />
-        <div className="container mx-auto px-4 py-20 text-center">
-          <div className="bg-white rounded-xl shadow-sm p-12 max-w-2xl mx-auto">
-             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Shield className="text-green-600" size={32} />
-             </div>
-             <h1 className="text-3xl font-bold text-gray-800 mb-4">Commande Confirmée !</h1>
-             <p className="text-gray-600 mb-8">Merci pour votre commande. Vous recevrez un email de confirmation sous peu.</p>
-             <Link href="/" className="bg-[#0066CC] text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700">
-               Retour à la boutique
-             </Link>
-          </div>
-        </div>
-        <Footer />
-      </main>
-    );
-  }
-
-  if (items.length === 0) {
+  if (items.length === 0 && !paymentCanceled) {
     return (
         <main className="min-h-screen bg-[#F1F1F1]">
           <Header />
@@ -240,7 +210,7 @@ export default function CheckoutPage() {
           </div>
           <Footer />
         </main>
-    )
+    );
   }
 
   return (
@@ -248,6 +218,12 @@ export default function CheckoutPage() {
       <Header />
       
       <div className="container mx-auto px-4 py-8">
+        {paymentCanceled && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800">
+            <AlertCircle size={20} />
+            <span>Paiement annulé. Vous pouvez modifier votre commande et réessayer.</span>
+          </div>
+        )}
         <h1 className="text-2xl font-bold text-gray-800 mb-8">Validation de la commande</h1>
         
         <div className="flex flex-col lg:flex-row gap-8">

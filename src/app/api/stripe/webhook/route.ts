@@ -58,6 +58,26 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as { id: string; payment_intent?: string; metadata?: { order_id?: string } };
+        const orderId = session.metadata?.order_id;
+
+        if (orderId) {
+          const updatePayload: Record<string, unknown> = {
+            payment_status: 'paid',
+            status: 'paid',
+          };
+          if (session.payment_intent) {
+            updatePayload.stripe_payment_intent_id = session.payment_intent;
+          }
+          await supabase
+            .from('orders')
+            .update(updatePayload)
+            .eq('id', orderId);
+        }
+        break;
+      }
+
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as { id: string; metadata: { order_id?: string } };
         const orderId = paymentIntent.metadata.order_id;

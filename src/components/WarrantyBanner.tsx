@@ -40,13 +40,9 @@ export default function WarrantyBanner() {
             {/* Lado Direito: Imagem dos Pneus */}
             <div className="flex-shrink-0 w-full md:w-80 lg:w-96">
               <img 
-                src="/warranty-tires.png" 
+                src="https://www.gpservicosautomotivos.com.br/wp-content/uploads/2022/06/pneus.png" 
                 alt="Pneus MecaniDoc" 
                 className="w-full h-auto object-contain"
-                onError={(e) => {
-                  // Fallback se a imagem não existir
-                  e.currentTarget.src = 'https://www.gpservicosautomotivos.com.br/wp-content/uploads/2022/06/pneus.png';
-                }}
               />
             </div>
 
