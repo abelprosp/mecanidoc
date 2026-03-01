@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/run-next.js dev",
+    "build": "node scripts/run-next.js build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -24,6 +24,7 @@
     "stripe": "^17.7.0"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

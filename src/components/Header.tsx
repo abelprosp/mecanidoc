@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
+import PromoBanner from './PromoBanner';
 
 // Mapeamento de ícones (fallback se não houver ícone definido)
 const iconMap: { [key: string]: any } = {
@@ -41,6 +42,17 @@ const iconMap: { [key: string]: any } = {
   'CircleDot': CircleDot,
   'Warehouse': Warehouse,
 };
+
+// Encurtar rótulos longos no menu (ex.: "Pneus 4x4/SUV, Pneus 4 Saisons, ..." → "4x4/SUV – 4 Saisons")
+function shortenMenuLabel(name: string, maxLen = 28): string {
+  if (!name) return name;
+  if (!name.includes(',') && name.length <= maxLen) return name;
+  const first = name.split(',')[0].trim().replace(/^Pneus\s+/i, '');
+  const rest = name.split(',').slice(1).map(s => s.trim().replace(/^Pneus\s+/i, '')).filter(Boolean);
+  const short = rest.length ? `${first} – ${rest[0]}` : first;
+  if (short.length <= maxLen) return short;
+  return short.slice(0, maxLen - 1) + '…';
+}
 
 // Estrutura base do menu (categorias principais)
 const baseNavigationData: Array<{ title: string; key: string; columns: any[][] }> = [
@@ -90,6 +102,16 @@ export default function Header() {
           .order('name');
 
         if (subcategories) {
+          // Termos que indicam categoria de carro/SUV/camionnette – excluir do menu Moto
+          const carTerms = /\b(voiture|4x4|suv|camionnette|type-c|camping|été auto|hiver|4 saisons)\b/i;
+          const isMotoSubcategory = (name: string, slug: string) => {
+            const n = (name || '').toLowerCase();
+            const s = (slug || '').toLowerCase();
+            const motoTerms = /\b(moto|scooter|trail|trall|quad|tout terrain)\b/;
+            if (carTerms.test(n) || carTerms.test(s)) return false;
+            return motoTerms.test(n) || motoTerms.test(s);
+          };
+
           // Agrupar subcategorias por parent_category
           const grouped: Record<string, any[]> = {};
           
@@ -97,10 +119,10 @@ export default function Header() {
             if (!grouped[sub.parent_category]) {
               grouped[sub.parent_category] = [];
             }
-            
+            const fallbackIcon = sub.parent_category === 'Moto' ? Bike : Car;
             const icon = sub.icon_name && iconMap[sub.icon_name] 
               ? iconMap[sub.icon_name] 
-              : Car; // Fallback icon
+              : fallbackIcon;
             
             grouped[sub.parent_category].push({
               name: sub.name,
@@ -111,17 +133,30 @@ export default function Header() {
 
           // Atualizar navigationData com subcategorias do banco
           const updatedNav = baseNavigationData.map((nav) => {
-            const subcats = grouped[nav.key] || [];
-            
-            // Dividir em colunas de 3 itens cada
-            const columns: any[][] = [];
-            for (let i = 0; i < subcats.length; i += 3) {
-              columns.push(subcats.slice(i, i + 3));
+            let subcats = grouped[nav.key] || [];
+            // No menu Moto: mostrar apenas subcategorias realmente de moto
+            if (nav.key === 'Moto') {
+              subcats = subcats.filter((s) => isMotoSubcategory(s.name, s.slug));
             }
-            
+            // Remover duplicados: mesmo rótulo encurtado = mostrar só o primeiro (evita "4x4/SUV – 4 Saisons" repetido)
+            const seen = new Set<string>();
+            subcats = subcats.filter((s) => {
+              const key = shortenMenuLabel(s.name);
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            // Máx. 4 colunas, 5 itens por coluna
+            const maxColumns = 4;
+            const itemsPerColumn = 5;
+            const columns: any[][] = [];
+            for (let i = 0; i < Math.min(subcats.length, maxColumns * itemsPerColumn); i += itemsPerColumn) {
+              columns.push(subcats.slice(i, i + itemsPerColumn));
+            }
+            const emptyIcon = nav.key === 'Moto' ? Bike : Car;
             return {
               ...nav,
-              columns: columns.length > 0 ? columns : [[{ name: "Aucune sous-catégorie", icon: Car }]]
+              columns: columns.length > 0 ? columns : [[{ name: "Aucune sous-catégorie", icon: emptyIcon }]]
             };
           });
 
@@ -245,6 +280,7 @@ export default function Header() {
   };
 
   return (
+    <>
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="md:container md:mx-auto md:px-4 px-4 h-20 flex items-center justify-between relative">
         {/* Mobile Menu Button */}
@@ -272,26 +308,25 @@ export default function Header() {
                 {item.title} <ChevronDown size={14} />
               </button>
               
-              {/* Mega Menu */}
-              <div className="absolute left-0 top-full w-full bg-white border border-gray-800 shadow-xl hidden group-hover:block z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="flex w-full">
-                  {item.columns.map((column, colIndex) => (
-                    <div key={colIndex} className={`flex-1 p-6 ${colIndex !== item.columns.length - 1 ? 'border-r border-gray-800' : ''}`}>
-                      <ul className="space-y-4">
+              {/* Mega Menu - largura limitada e mais compacto */}
+              <div className="absolute left-0 top-full w-full flex justify-center z-50 hidden group-hover:block">
+                <div className="bg-white border border-gray-200 shadow-xl rounded-b-lg max-w-3xl mx-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="flex">
+                    {item.columns.map((column, colIndex) => (
+                      <div key={colIndex} className={`min-w-[140px] py-4 px-4 ${colIndex !== item.columns.length - 1 ? 'border-r border-gray-100' : ''}`}>
+                        <ul className="space-y-2">
                         {column.map((subItem) => (
                           <li key={subItem.name}>
                             <Link href={`/categorie/${subItem.slug || subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`} className="flex items-center gap-3 text-gray-600 hover:text-blue-600 transition-colors group/item">
-                              <subItem.icon size={20} className="text-gray-500 group-hover/item:text-blue-600" />
+                              <subItem.icon size={20} className="text-gray-500 group-hover/item:text-blue-600 shrink-0" />
                               <span className="text-sm font-medium">{subItem.name}</span>
                             </Link>
                           </li>
                         ))}
-                      </ul>
-                    </div>
-                  ))}
-                  {item.columns.length < 3 && (
-                     <div className="flex-[2]"></div> 
-                  )}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -344,7 +379,7 @@ export default function Header() {
                         className="flex items-center gap-3 py-2 text-sm text-gray-600 hover:text-blue-600"
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        <subItem.icon size={16} />
+                        <subItem.icon size={16} className="shrink-0" />
                         {subItem.name}
                       </Link>
                     ))}
@@ -496,5 +531,7 @@ export default function Header() {
         </div>
       )}
     </header>
+    <PromoBanner />
+    </>
   );
 }

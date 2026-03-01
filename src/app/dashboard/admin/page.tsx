@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import SubcategoriesSectionComponent from './SubcategoriesSection';
+import PromotionsSection from './PromotionsSection';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -38,6 +39,7 @@ export default function AdminDashboard() {
       case 'faqs': return <FAQsSection />;
       case 'taxes': return <TaxesSection />;
       case 'subcategories': return <SubcategoriesSectionComponent />;
+      case 'promotions': return <PromotionsSection />;
       case 'settings': return <SettingsSection />;
       case 'approvals': return <ApprovalsSection />;
       case 'profile': return <ProfileSection />;
@@ -58,6 +60,7 @@ export default function AdminDashboard() {
     { id: 'pages', icon: Layout, label: 'Pages Catégories' },
     { id: 'subcategories', icon: List, label: 'Sous-catégories Menu' },
     { id: 'footer', icon: Globe, label: 'Pied de page' },
+    { id: 'promotions', icon: Tag, label: 'Promoções' },
     { id: 'faqs', icon: FileText, label: 'FAQs' },
     { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },

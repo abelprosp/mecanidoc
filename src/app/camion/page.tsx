@@ -24,7 +24,7 @@ export default async function CamionPage() {
   const category = await getCategoryFilter();
   
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
       <HeroCamion />
       <BrandCarousel category={category} />

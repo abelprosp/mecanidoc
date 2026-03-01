@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*.local
+
+# Large SQL dumps (exportações de BD - não fazer commit)
+u493808082_gTZuP.sql

@@ -25,6 +25,8 @@ export default function Footer() {
     'Pneus auto': '/categorie/pneus-auto',
     'Pneus moto': '/categorie/pneus-moto',
     'Pneus camion': '/categorie/pneus-camion',
+    'Pneus agricoles': '/tracteurs',
+    'Tracteurs': '/tracteurs',
     'Assurance crevaison': '/page/garantie-pneus',
     'Guide des pneus': '/guide-des-pneus',
     'Besoin d\'aide': '/besoin-aide',
@@ -50,6 +52,7 @@ export default function Footer() {
     { title: 'Pneus auto', href: '/categorie/pneus-auto' },
     { title: 'Pneus moto', href: '/categorie/pneus-moto' },
     { title: 'Pneus camion', href: '/categorie/pneus-camion' },
+    { title: 'Pneus agricoles', href: '/tracteurs' },
     { title: 'Assurance crevaison', href: '/page/garantie-pneus' },
     { title: 'Guide des pneus', href: '/guide-des-pneus' },
   ];
