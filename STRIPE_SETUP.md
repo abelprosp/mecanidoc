@@ -34,6 +34,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 2. Clique em **Add endpoint**
 3. URL do endpoint: `https://seu-dominio.com/api/stripe/webhook`
 4. Selecione os eventos:
+   - **`checkout.session.completed`** (obrigatório para Stripe Checkout)
    - `payment_intent.succeeded`
    - `payment_intent.payment_failed`
    - `charge.refunded`
@@ -81,7 +82,31 @@ Para uma experiência completa, considere implementar:
 3. **Notificações por email** - Enviar confirmação após pagamento
 4. **Reembolsos** - Interface para processar reembolsos
 
-## Teste
+## Testar localmente
+
+1. **No `.env`**, use chaves de **teste** (`sk_test_...` e `pk_test_...`) e defina:
+   ```env
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   ```
+
+2. **Terminal 1** – subir o app:
+   ```bash
+   npm run dev
+   ```
+
+3. **Terminal 2** – encaminhar webhooks do Stripe para o seu localhost (obrigatório para o pedido ser marcado como pago):
+   - Instale o [Stripe CLI](https://stripe.com/docs/stripe-cli) e faça `stripe login` uma vez.
+   - Depois execute:
+   ```bash
+   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   ```
+   - O CLI vai mostrar um **Signing secret** (ex.: `whsec_...`). Copie e coloque no `.env` como `STRIPE_WEBHOOK_SECRET=` e reinicie o `npm run dev`.
+
+4. Acesse **http://localhost:3000**, adicione um produto ao carrinho, faça o checkout (com login) e pague com um cartão de teste. Ao concluir, você deve ser redirecionado para `/checkout/success` e o webhook deve atualizar o pedido para "pago".
+
+---
+
+## Teste (cartões)
 
 Use os cartões de teste do Stripe:
 - **Sucesso**: `4242 4242 4242 4242`

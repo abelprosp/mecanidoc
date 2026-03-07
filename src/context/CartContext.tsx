@@ -26,15 +26,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [taxes, setTaxes] = useState<any[]>([]);
   const supabase = createClient();
 
-  // Load taxes
+  // Load taxes (se a tabela não existir, usa array vazio)
   useEffect(() => {
     const fetchTaxes = async () => {
-      const { data } = await supabase
-        .from('taxes')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-      if (data) setTaxes(data);
+      try {
+        const { data, error } = await supabase
+          .from('taxes')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+        if (!error && data) setTaxes(data);
+      } catch {
+        setTaxes([]);
+      }
     };
     fetchTaxes();
   }, []);

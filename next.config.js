@@ -7,6 +7,11 @@ const projectRoot = __dirname;
 const nextConfig = {
   turbopack: {},
   outputFileTracingRoot: projectRoot,
+  // Garante que as variáveis de ambiente são lidas e expostas ao client (NEXT_PUBLIC_*)
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  },
   webpack: (config) => {
     config.context = projectRoot;
     config.resolve = config.resolve || {};

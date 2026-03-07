@@ -14,15 +14,19 @@ export function useProductPrice(basePrice: number, category: string = 'Auto') {
 
   useEffect(() => {
     const fetchTaxesAndCalculate = async () => {
-      const { data: taxes } = await supabase
-        .from('taxes')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+      try {
+        const { data: taxes, error } = await supabase
+          .from('taxes')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
 
-      if (taxes) {
-        const calculatedPrice = calculateFinalPrice(basePrice, category, taxes);
-        setFinalPrice(calculatedPrice);
+        if (!error && taxes?.length) {
+          const calculatedPrice = calculateFinalPrice(basePrice, category, taxes);
+          setFinalPrice(calculatedPrice);
+        }
+      } catch {
+        // Tabela taxes pode não existir ainda
       }
       setLoading(false);
     };
@@ -43,14 +47,16 @@ export function useTaxes() {
 
   useEffect(() => {
     const fetchTaxes = async () => {
-      const { data } = await supabase
-        .from('taxes')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from('taxes')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
 
-      if (data) {
-        setTaxes(data);
+        if (!error && data) setTaxes(data);
+      } catch {
+        setTaxes([]);
       }
       setLoading(false);
     };

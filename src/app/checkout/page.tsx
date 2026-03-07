@@ -43,8 +43,12 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const { data } = await supabase.from('global_settings').select('*').single();
-      setSettings(data || { delivery_base_fee: 10, fast_delivery_fee: 19.90, warranty_fee: 5.50 });
+      try {
+        const { data } = await supabase.from('global_settings').select('*').single();
+        setSettings(data || { delivery_base_fee: 10, fast_delivery_fee: 19.90, warranty_fee: 5.50 });
+      } catch {
+        setSettings({ delivery_base_fee: 10, fast_delivery_fee: 19.90, warranty_fee: 5.50 });
+      }
       setLoading(false);
     };
     fetchSettings();
@@ -118,58 +122,69 @@ export default function CheckoutPage() {
         return;
       }
       
-      // Create Order Payload
+      // Create Order Payload (omitir payment_status para evitar PGRST204 se o schema cache estiver desatualizado; a tabela usa default 'pending')
       const orderPayload = {
         user_id: user.id,
         total_amount: total,
         status: 'pending',
-        payment_status: 'pending',
-        contact_name: `${formData.firstName} ${formData.lastName}`,
-        contact_phone: formData.phone,
-        contact_email: formData.email,
-        shipping_address: `${formData.address} ${formData.apartment || ''}`,
-        shipping_city: formData.city,
-        shipping_zip: formData.zip,
-        shipping_country: formData.country,
-        notes: formData.notes
+        contact_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        contact_phone: formData.phone?.trim() ?? '',
+        contact_email: formData.email?.trim() ?? '',
+        shipping_address: `${formData.address || ''} ${formData.apartment || ''}`.trim(),
+        shipping_city: formData.city?.trim() ?? '',
+        shipping_zip: formData.zip?.trim() ?? '',
+        shipping_country: formData.country?.trim() ?? 'France',
+        notes: formData.notes?.trim() ?? '',
       };
 
       const { data: order, error } = await supabase.from('orders').insert([orderPayload]).select().single();
 
       if (error) {
-        console.error(error);
-        alert("Erreur lors de la création de la commande. Veuillez réessayer.");
+        console.error('Orders insert error:', error);
+        const msg = error.message?.includes('column') ? 'A tabela orders pode estar sem colunas (execute run_all_migrations.sql no Supabase).' : error.message;
+        alert(`Erreur lors de la création de la commande: ${msg}`);
         setPlacingOrder(false);
         return;
       }
 
-      // Create Order Items
+      // Inserir itens via API (conexão direta à DB; contorna schema cache do Supabase)
       const orderItems = items.map(item => ({
         order_id: order.id,
         product_id: item.product.id,
         quantity: item.quantity,
-        price: item.product.base_price,
-        garage_id: item.garage?.id || null
+        price: Number(item.product.base_price) || 0,
+        garage_id: item.garage?.id ?? null,
       }));
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-      if (itemsError) {
-        console.error("Error creating order items:", itemsError);
-        alert("Erreur lors de l'ajout des articles. Veuillez réessayer.");
+      const itemsRes = await fetch('/api/checkout/order-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, items: orderItems }),
+      });
+      const itemsData = await itemsRes.json().catch(() => ({}));
+      if (!itemsRes.ok) {
+        console.error('Order items insert error:', itemsData);
+        alert(itemsData.error || `Erreur articles: ${itemsRes.status}`);
         setPlacingOrder(false);
         return;
       }
 
-      // Redirecionar para o Stripe Checkout (página de pagamento hospedada pelo Stripe)
+      // Redirecionar para o Stripe Checkout
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ orderId: order.id }),
       });
 
-      const paymentData = await response.json();
+      let paymentData: { url?: string; error?: string } = {};
+      try {
+        paymentData = await response.json();
+      } catch {
+        paymentData = { error: `Erreur serveur (${response.status}). Vérifiez que o Stripe está configurado no .env.` };
+      }
 
       if (!response.ok || !paymentData.url) {
         console.error('Error creating checkout session:', paymentData);

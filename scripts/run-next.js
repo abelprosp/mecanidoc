@@ -3,7 +3,7 @@
  * Fixes "Can't resolve 'tailwindcss' in '...\clientes'" when the workspace or cwd is a parent folder.
  */
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 
 const projectRoot = path.resolve(path.join(__dirname, '..'));
 const nodeModules = path.join(projectRoot, 'node_modules');
@@ -12,10 +12,14 @@ process.chdir(projectRoot);
 process.env.NODE_PATH = nodeModules;
 
 const cmd = process.argv[2] || 'dev';
-const result = spawnSync('npx', ['next', cmd], {
+const isWin = process.platform === 'win32';
+const child = spawn('npx', ['next', cmd], {
   stdio: 'inherit',
   env: { ...process.env, NODE_PATH: nodeModules },
   cwd: projectRoot,
+  shell: isWin,
 });
 
-process.exit(result.status || 0);
+child.on('close', (code) => {
+  process.exit(code ?? 0);
+});

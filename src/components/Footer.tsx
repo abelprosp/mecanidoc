@@ -132,25 +132,25 @@ export default function Footer() {
               <h3 className="font-bold text-blue-900 mb-4 uppercase text-xs tracking-wider">Paiement sécurisé</h3>
               <div className="flex flex-wrap gap-2 mb-4">
                 <Link href="/methodes-de-paiement" className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded hover:ring-2 ring-blue-500 overflow-hidden" title="Visa">
-                  <Image src="/visa.png" alt="Visa" width={40} height={24} className="object-contain" />
+                  <Image src="/visa.png" alt="Visa" width={40} height={24} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
                 </Link>
                 <Link href="/methodes-de-paiement" className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded hover:ring-2 ring-blue-500 overflow-hidden" title="Mastercard">
-                  <Image src="/master.svg" alt="Mastercard" width={40} height={24} className="object-contain" />
+                  <Image src="/master.svg" alt="Mastercard" width={40} height={24} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
                 </Link>
                 <Link href="/methodes-de-paiement" className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded hover:ring-2 ring-blue-500 overflow-hidden" title="PayPal">
-                  <Image src="/paypal.png" alt="PayPal" width={40} height={24} className="object-contain" />
+                  <Image src="/paypal.png" alt="PayPal" width={40} height={24} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
                 </Link>
                 <Link href="/methodes-de-paiement" className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded hover:ring-2 ring-blue-500 overflow-hidden" title="Apple Pay">
-                  <Image src="/apple.png" alt="Apple Pay" width={40} height={24} className="object-contain" />
+                  <Image src="/apple.png" alt="Apple Pay" width={40} height={24} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
                 </Link>
                 <Link href="/methodes-de-paiement" className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded hover:ring-2 ring-blue-500 overflow-hidden" title="American Express">
-                  <Image src="/amex.png" alt="American Express" width={40} height={24} className="object-contain" />
+                  <Image src="/amex.png" alt="American Express" width={40} height={24} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
                 </Link>
                 <Link href="/methodes-de-paiement" className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded hover:ring-2 ring-blue-500 overflow-hidden" title="Google Pay">
-                  <Image src="/gpay.png" alt="Google Pay" width={40} height={24} className="object-contain" />
+                  <Image src="/gpay.png" alt="Google Pay" width={40} height={24} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
                 </Link>
                 <Link href="/methodes-de-paiement" className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded hover:ring-2 ring-blue-500 overflow-hidden" title="Cofidis">
-                  <Image src="/cofidis.png" alt="Cofidis" width={40} height={24} className="object-contain" />
+                  <Image src="/cofidis.png" alt="Cofidis" width={40} height={24} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
                 </Link>
               </div>
               <div className="space-y-3">

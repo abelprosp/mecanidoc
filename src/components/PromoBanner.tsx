@@ -11,20 +11,25 @@ export default function PromoBanner() {
 
   useEffect(() => {
     const fetchPromotions = async () => {
-      const { data } = await supabase
-        .from('promotions')
-        .select('id, title, discount_text, description, link_url, start_date, end_date')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-        .limit(10);
-      const list = data || [];
-      const now = new Date();
-      const active = list.filter((p) => {
-        if (p.start_date && new Date(p.start_date) > now) return false;
-        if (p.end_date && new Date(p.end_date) < now) return false;
-        return true;
-      });
-      setPromotions(active.slice(0, 5));
+      try {
+        const { data, error } = await supabase
+          .from('promotions')
+          .select('id, title, discount_text, description, link_url, start_date, end_date')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+          .limit(10);
+        if (error) return;
+        const list = data || [];
+        const now = new Date();
+        const active = list.filter((p) => {
+          if (p.start_date && new Date(p.start_date) > now) return false;
+          if (p.end_date && new Date(p.end_date) < now) return false;
+          return true;
+        });
+        setPromotions(active.slice(0, 5));
+      } catch {
+        setPromotions([]);
+      }
     };
     fetchPromotions();
   }, []);

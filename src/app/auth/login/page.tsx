@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
-import Image from 'next/image';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,12 +20,23 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      const emailTrimmed = email.trim().toLowerCase();
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailTrimmed,
         password,
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        // Mensagens mais claras para erros comuns do Supabase (400)
+        const msg = signInError.message;
+        if (msg?.toLowerCase().includes('invalid login credentials')) {
+          throw new Error('Email ou mot de passe incorrect.');
+        }
+        if (msg?.toLowerCase().includes('email not confirmed')) {
+          throw new Error('Veuillez confirmer votre email (vérifiez votre boîte de réception).');
+        }
+        throw signInError;
+      }
 
       if (data.user) {
         // Fetch user role
@@ -56,7 +67,9 @@ export default function LoginPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la connexion');
+      const message = err?.message || err?.error_description || 'Erreur lors de la connexion';
+      setError(message);
+      if (process.env.NODE_ENV === 'development') console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -66,7 +79,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#F1F1F1] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="flex justify-center mb-8">
-          <Image src="/logo.png" alt="MecaniDoc" width={200} height={50} className="object-contain" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="MecaniDoc" className="h-12 w-auto object-contain" />
         </div>
 
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">Bon retour !</h2>
@@ -123,8 +137,14 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <a href="#" className="text-sm text-blue-600 hover:text-blue-800">
+        <div className="mt-6 space-y-2 text-center">
+          <p className="text-sm text-gray-600">
+            Pas encore de compte ?{' '}
+            <Link href="/auth/register/client" className="font-medium text-blue-600 hover:text-blue-800">
+              Créer un compte
+            </Link>
+          </p>
+          <a href="#" className="block text-sm text-blue-600 hover:text-blue-800">
             Mot de passe oublié ?
           </a>
         </div>

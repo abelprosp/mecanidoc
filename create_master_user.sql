@@ -32,7 +32,7 @@ BEGIN
       'authenticated',
       'authenticated',
       'redobrai@gmail.com',
-      crypt('Amocarro487@', gen_salt('bf')), -- Senha criptografada
+      crypt('Amocarro4587@', gen_salt('bf')), -- Senha criptografada
       now(), -- Email confirmado automaticamente
       '{"provider": "email", "providers": ["email"]}',
       '{"full_name": "Master Admin"}',
