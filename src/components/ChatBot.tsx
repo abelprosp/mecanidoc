@@ -1,210 +1,178 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Loader2, MessageCircle, Send, UserRound, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
-interface Message {
+type Message = {
   id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
+  sender_type: 'customer' | 'admin' | 'system';
+  sender_name: string | null;
+  body: string;
+  created_at: string;
+};
+
+const GUEST_TOKEN_KEY = 'mecanidoc_support_guest_token';
+
+function getGuestToken() {
+  if (typeof window === 'undefined') return null;
+  let token = localStorage.getItem(GUEST_TOKEN_KEY);
+  if (!token) {
+    token = crypto.randomUUID();
+    localStorage.setItem(GUEST_TOKEN_KEY, token);
+  }
+  return token;
 }
 
 export default function ChatBot() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Bonjour ! Je suis l\'assistant virtuel de MecaniDoc. Comment puis-je vous aider aujourd\'hui ?',
-      isUser: false,
-      timestamp: new Date()
-    }
-  ]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [inputMessage, setInputMessage] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [guestToken, setGuestToken] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const syncSession = async (token: string | null) => {
+    setLoading(true);
+    const response = await fetch('/api/support/chat/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guestToken: token }),
+    });
+    const data = await response.json();
+    if (response.ok) {
+      setConversationId(data.conversation?.id || null);
+      setMessages(data.messages || []);
+    }
+    setLoading(false);
+  };
+
+  const loadMessages = async (id: string, token: string | null) => {
+    const params = new URLSearchParams({ conversationId: id });
+    if (token) params.set('guestToken', token);
+    const response = await fetch(`/api/support/chat/messages?${params.toString()}`);
+    const data = await response.json();
+    if (response.ok) setMessages(data.messages || []);
+  };
 
   useEffect(() => {
-    // Verificar se usuário está logado
-    const checkUser = async () => {
+    const init = async () => {
+      const token = getGuestToken();
+      setGuestToken(token);
       const { data: { user } } = await supabase.auth.getUser();
       setUserId(user?.id || null);
+      await syncSession(token);
     };
-    checkUser();
+    init();
   }, []);
 
   useEffect(() => {
-    // Scroll para última mensagem
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !conversationId) return;
+    const interval = setInterval(() => loadMessages(conversationId, guestToken), 4000);
+    return () => clearInterval(interval);
+  }, [isOpen, conversationId, guestToken]);
 
   const handleSend = async () => {
-    if (!inputMessage.trim() || loading) return;
+    if (!conversationId || !inputMessage.trim() || sending) return;
+    setSending(true);
+    const response = await fetch('/api/support/chat/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversationId,
+        guestToken,
+        senderType: 'customer',
+        text: inputMessage,
+      }),
+    });
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: inputMessage,
-      isUser: true,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: inputMessage,
-          userId: userId
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.error && !data.message) {
-        throw new Error(data.error);
-      }
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: data.message || 'Desculpe, não consegui processar sua mensagem.',
-        isUser: false,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('Chat error:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'Desculpe, ocorreu um erro. Por favor, tente novamente ou entre em contato com nosso suporte.',
-        isUser: false,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
+    if (response.ok) {
+      setInputMessage('');
+      await loadMessages(conversationId, guestToken);
     }
+    setSending(false);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       handleSend();
     }
   };
 
   return (
     <>
-      {/* Chat Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 bg-blue-600 text-white p-3 md:p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-50 flex items-center justify-center min-w-[56px] min-h-[56px] md:min-w-[64px] md:min-h-[64px]"
+        onClick={() => setIsOpen((value) => !value)}
+        className="fixed bottom-4 right-4 z-50 flex min-h-[56px] min-w-[56px] items-center justify-center rounded-full bg-blue-600 p-4 text-white shadow-lg transition-colors hover:bg-blue-700"
         aria-label="Ouvrir le chat"
         style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
       >
-        <MessageCircle size={20} className="md:w-6 md:h-6" />
-        <span className="absolute top-0 right-0 bg-green-500 w-2.5 h-2.5 md:w-3 md:h-3 rounded-full border-2 border-white"></span>
+        <MessageCircle size={20} />
+        <span className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
       </button>
 
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 md:w-96 md:h-[600px] md:rounded-lg bg-white md:shadow-2xl z-50 flex flex-col border-0 md:border border-gray-200">
-          {/* Header */}
-          <div 
-            className="bg-gradient-to-r from-[#0066CC] to-[#004499] text-white p-3 md:p-4 rounded-t-lg md:rounded-t-lg flex justify-between items-center flex-shrink-0"
-            style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
-          >
+      {isOpen ? (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white md:inset-auto md:bottom-24 md:right-6 md:h-[620px] md:w-96 md:rounded-xl md:border md:shadow-2xl">
+          <div className="flex items-center justify-between bg-gradient-to-r from-[#0066CC] to-[#004499] p-4 text-white">
             <div>
-              <h3 className="font-bold text-base md:text-lg">Assistance MecaniDoc</h3>
-              <p className="text-xs text-white/80">
-                {userId ? 'Connecté' : 'Non connecté'}
-              </p>
+              <h3 className="font-bold">Support MecaniDoc</h3>
+              <p className="text-xs text-white/80">{userId ? 'Connecte' : 'Visiteur'} • Reponse humaine</p>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-white hover:text-gray-200 transition-colors p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="Fermer le chat"
-            >
-              <X size={20} className="md:w-5 md:h-5" />
+            <button onClick={() => setIsOpen(false)} className="rounded p-1 hover:bg-white/10" aria-label="Fermer le chat">
+              <X size={20} />
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 bg-gray-50">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-lg p-2.5 md:p-3 ${
-                    message.isUser
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-800 border border-gray-200'
-                  }`}
-                >
-                  <p className="text-sm md:text-sm whitespace-pre-wrap break-words">{message.text}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.isUser ? 'text-blue-100' : 'text-gray-400'
-                  }`}>
-                    {message.timestamp.toLocaleTimeString('fr-FR', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
+          <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
+            {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div> : null}
+            <div className="space-y-3">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.sender_type === 'customer' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[82%] rounded-xl px-4 py-3 text-sm ${message.sender_type === 'customer' ? 'bg-blue-600 text-white' : message.sender_type === 'admin' ? 'border bg-white text-gray-800' : 'bg-amber-100 text-amber-900'}`}>
+                    <div className="mb-1 flex items-center gap-2 text-xs opacity-70">
+                      <UserRound size={12} /> {message.sender_name || message.sender_type}
+                    </div>
+                    <div className="whitespace-pre-wrap">{message.body}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 rounded-lg p-3">
-                  <Loader2 className="animate-spin text-blue-600" size={16} />
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="border-t border-gray-200 p-3 md:p-4 bg-white rounded-b-lg md:rounded-b-lg flex-shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <div className="border-t bg-white p-4">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Tapez votre message..."
-                className="flex-1 border border-gray-300 rounded-lg px-3 md:px-4 py-2.5 md:py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
+                onChange={(event) => setInputMessage(event.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Envoyez votre message a l'admin..."
+                className="flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={sending || loading}
               />
               <button
                 onClick={handleSend}
-                disabled={loading || !inputMessage.trim()}
-                className="bg-blue-600 text-white p-2.5 md:p-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[44px]"
-                aria-label="Envoyer le message"
+                disabled={sending || loading || !inputMessage.trim()}
+                className="inline-flex min-w-[44px] items-center justify-center rounded-lg bg-blue-600 px-3 text-white hover:bg-blue-700 disabled:opacity-50"
               >
-                {loading ? (
-                  <Loader2 className="animate-spin w-[18px] h-[18px] md:w-5 md:h-5" />
-                ) : (
-                  <Send className="w-[18px] h-[18px] md:w-5 md:h-5" />
-                )}
+                {sending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-2 text-center">
-              Powered by ChatGPT
-            </p>
+            <p className="mt-2 text-center text-xs text-gray-400">Conversa atendida pelo admin no painel.</p>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }
+

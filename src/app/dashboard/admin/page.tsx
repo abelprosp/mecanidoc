@@ -5,13 +5,15 @@ import {
   LayoutDashboard, Package, ShoppingBag, Users, Tag, CreditCard, 
   Settings, Truck, TrendingUp, AlertTriangle, FileText, CheckCircle, 
   Percent, DollarSign, Globe, Shield, Loader2, LogOut, User, Grid, Layout, Trash2,
-  Menu, X, List
+  Menu, X, List, MessageSquare, Inbox
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import SubcategoriesSectionComponent from './SubcategoriesSection';
 import PromotionsSection from './PromotionsSection';
+import SupportChatSection from './SupportChatSection';
+import SupportInboxSection from './SupportInboxSection';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -42,6 +44,8 @@ export default function AdminDashboard() {
       case 'promotions': return <PromotionsSection />;
       case 'settings': return <SettingsSection />;
       case 'approvals': return <ApprovalsSection />;
+      case 'support-chat': return <SupportChatSection />;
+      case 'support-inbox': return <SupportInboxSection />;
       case 'profile': return <ProfileSection />;
       default: return <OverviewSection />;
     }
@@ -65,6 +69,8 @@ export default function AdminDashboard() {
     { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },
     { id: 'approvals', icon: CheckCircle, label: 'Approbations' },
+    { id: 'support-chat', icon: MessageSquare, label: 'Support Chat' },
+    { id: 'support-inbox', icon: Inbox, label: 'Inbox Email' },
     { id: 'sales', icon: DollarSign, label: 'Ventes', isLink: true, href: '/dashboard/admin/sales' },
   ];
 
