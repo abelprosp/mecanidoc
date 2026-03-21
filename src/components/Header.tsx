@@ -264,9 +264,11 @@ export default function Header() {
 
   return (
     <>
-    <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
-      <div className="layout-container h-16 md:h-20 flex items-center justify-between md:justify-center md:gap-4 lg:gap-5 gap-2 relative">
-        <div className="flex items-center gap-1 min-w-0 shrink-0">
+    <header className="sticky top-0 z-50 w-full">
+      <div className="layout-container pt-2 md:pt-3">
+        <div className="relative">
+          <div className="relative bg-white shadow-sm rounded-b-2xl md:rounded-b-[2.5rem] h-16 md:h-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 md:gap-x-3">
+        <div className="flex items-center gap-1 min-w-0 justify-self-start">
           <button 
             className="md:hidden text-gray-700 p-2 shrink-0"
             type="button"
@@ -284,7 +286,7 @@ export default function Header() {
         </div>
 
         {/* Desktop Navigation — coluna central para alinhar ao centro da barra */}
-        <nav className="hidden md:flex items-center gap-2 lg:gap-3 text-sm font-medium text-gray-700 h-full min-w-0 shrink-0">
+        <nav className="hidden md:flex items-center justify-center gap-2 lg:gap-3 text-sm font-medium text-gray-700 h-full min-w-0 justify-self-center">
           {navigationDataStatic.map((item) => (
             <div key={item.title} className="group h-full flex items-center">
               <Link
@@ -321,7 +323,7 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center justify-end gap-1.5 md:gap-2 shrink-0 min-w-0">
+        <div className="flex items-center justify-end gap-1.5 md:gap-2 shrink-0 min-w-0 justify-self-end w-full">
           <button 
             onClick={() => setSearchOpen(true)}
             className="text-gray-600 hover:text-blue-600 transition-colors p-1"
@@ -341,11 +343,11 @@ export default function Header() {
             )}
           </Link>
         </div>
-      </div>
+          </div>
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-16 left-0 right-0 w-full bg-white border-t border-gray-100 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="md:hidden absolute top-full left-0 right-0 z-40 mt-0 w-full bg-white border border-gray-200 border-t-0 rounded-b-2xl shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
           <div className="p-4 space-y-2">
             {navigationDataStatic.map((item) => (
               <div key={item.title} className="border-b border-gray-100 last:border-0">
@@ -391,6 +393,8 @@ export default function Header() {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       {/* Search Modal */}
       {searchOpen && (
