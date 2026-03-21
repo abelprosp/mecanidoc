@@ -25,6 +25,23 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Mesma largura máxima e padding horizontal que o header — evita desalinhamento em ecrãs grandes */
+.layout-container {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 80rem; /* 1280px, alinhado a max-w-7xl */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 640px) {
+  .layout-container {
+    padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+  }
+}
+
 /* Safe area support for mobile devices */
 @supports (padding: max(0px)) {
   .safe-area-inset-bottom {

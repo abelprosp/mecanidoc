@@ -155,7 +155,7 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
   };
 
   return (
-    <section className="relative bg-gray-900 text-white py-5 md:py-10 mt-4 md:mt-6 mb-3 md:mb-6 md:rounded-2xl overflow-hidden shadow-sm md:mx-4">
+    <section className="relative bg-gray-900 text-white py-5 md:py-10 mt-4 md:mt-6 mb-3 md:mb-6 rounded-2xl overflow-hidden shadow-sm w-full">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
@@ -166,7 +166,7 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent"></div>
       </div>
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="relative z-10 px-0">
         <div className="max-w-3xl">
           <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-tight mb-2">
             {title}

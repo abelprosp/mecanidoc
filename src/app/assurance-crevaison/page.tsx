@@ -12,7 +12,7 @@ export default function AssuranceCrevaisonPage() {
     <main className="min-h-screen bg-[#F1F1F1] flex flex-col">
       <Header />
       <div className="flex-1">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mx-4 md:mx-auto md:container md:px-4 mt-4 md:mt-8 mb-12 p-6 md:p-12 max-w-4xl">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mx-auto w-full max-w-4xl px-4 sm:px-6 mt-4 md:mt-8 mb-12 p-6 md:p-12">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
             Assurance Crevaison Mecanidoc
           </h1>

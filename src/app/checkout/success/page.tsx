@@ -21,7 +21,7 @@ export default function CheckoutSuccessPage() {
   return (
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
-      <div className="container mx-auto px-4 py-20 text-center">
+      <div className="layout-container py-20 text-center">
         <div className="bg-white rounded-xl shadow-sm p-12 max-w-2xl mx-auto">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Shield className="text-green-600" size={32} />

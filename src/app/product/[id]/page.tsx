@@ -99,22 +99,30 @@ export default function ProductPage() {
   const handleOpenGarageModal = async () => {
     setShowGarageModal(true);
     if (garages.length === 0) {
-        setLoadingGarages(true);
-        const { data, error } = await supabase
-            .from('garages')
-            .select('*');
-            // .eq('is_approved', true); // Removed for dev/demo purposes so new garages show up
-        
-        if (data) setGarages(data);
-        setLoadingGarages(false);
+      setLoadingGarages(true);
+      const { data, error } = await supabase
+        .from('garages')
+        .select('*')
+        .eq('is_approved', true)
+        .order('name');
+
+      if (error) {
+        console.error('Garages fetch error:', error);
+      }
+      setGarages(data || []);
+      setLoadingGarages(false);
     }
   };
 
-  const filteredGarages = garages.filter(g => 
-    (g.name?.toLowerCase() || '').includes(garageSearch.toLowerCase()) || 
-    (g.city?.toLowerCase() || '').includes(garageSearch.toLowerCase()) ||
-    (g.postal_code || '').includes(garageSearch)
-  );
+  const filteredGarages = garages.filter((g) => {
+    const q = garageSearch.trim().toLowerCase();
+    if (!q) return true;
+    const zip = String(g.zip_code ?? g.postal_code ?? '').toLowerCase();
+    const name = (g.name || '').toLowerCase();
+    const city = (g.city || '').toLowerCase();
+    const addr = (g.address || '').toLowerCase();
+    return name.includes(q) || city.includes(q) || zip.includes(q) || addr.includes(q);
+  });
 
   if (loading) {
     return (
@@ -128,7 +136,7 @@ export default function ProductPage() {
     return (
       <main className="min-h-screen bg-[#F1F1F1]">
         <Header />
-        <div className="container mx-auto px-4 py-20 text-center">
+        <div className="layout-container py-20 text-center">
           <h1 className="text-2xl font-bold text-gray-800">Produit non trouvé</h1>
           <Link href="/" className="text-blue-600 hover:underline mt-4 block">Retour à l'accueil</Link>
         </div>
@@ -183,7 +191,7 @@ export default function ProductPage() {
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
       
-      <div className="md:container md:mx-auto md:px-4 py-4 md:py-8">
+      <div className="layout-container py-4 md:py-8">
         
         {/* Top Section: Product Main */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row mb-6">
@@ -457,12 +465,16 @@ export default function ProductPage() {
              <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {loadingGarages ? (
                    <div className="flex justify-center py-8"><Loader2 className="animate-spin text-gray-400" /></div>
+                ) : garages.length === 0 ? (
+                   <p className="text-center text-gray-500 py-8 text-sm px-2">
+                     Aucun centre de montage partenaire disponible pour le moment. Les garages doivent être approuvés dans l&apos;admin avant d&apos;apparaître ici.
+                   </p>
                 ) : filteredGarages.length > 0 ? (
                    filteredGarages.map(garage => (
                      <div key={garage.id} onClick={() => { setSelectedGarage(garage); setShowGarageModal(false); }} className="border border-gray-200 rounded-lg p-3 hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors flex justify-between items-center group">
                         <div>
                            <p className="font-bold text-gray-800 text-sm">{garage.name}</p>
-                           <p className="text-xs text-gray-500">{garage.address}, {garage.postal_code} {garage.city}</p>
+                           <p className="text-xs text-gray-500">{garage.address}, {garage.zip_code || garage.postal_code || ''} {garage.city}</p>
                         </div>
                         <button className="text-blue-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">CHOISIR</button>
                      </div>

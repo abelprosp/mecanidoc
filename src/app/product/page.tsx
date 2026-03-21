@@ -36,7 +36,7 @@ export default function ProductPage() {
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="layout-container py-8">
         
         {/* Top Section: Product Main */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row mb-6">

@@ -35,7 +35,7 @@ export default function FAQ({ pageSlug = 'home' }: FAQProps) {
   if (loading) {
     return (
       <section className="py-4 md:py-6 bg-white">
-        <div className="md:container md:mx-auto md:px-4">
+        <div className="layout-container">
           <h2 className="text-sm font-bold text-gray-500 mb-4 md:mb-6 uppercase tracking-wide">QUESTIONS FRÉQUENTES SUR LES PNEUS</h2>
           <div className="text-center text-gray-400 py-4 md:py-6">Chargement...</div>
         </div>
@@ -49,7 +49,7 @@ export default function FAQ({ pageSlug = 'home' }: FAQProps) {
 
   return (
     <section className="py-4 md:py-6 bg-white">
-      <div className="container mx-auto px-4">
+      <div className="layout-container">
         <h2 className="text-sm font-bold text-gray-500 mb-4 md:mb-6 uppercase tracking-wide">QUESTIONS FRÉQUENTES SUR LES PNEUS</h2>
         
         <div className="space-y-2 md:space-y-4">

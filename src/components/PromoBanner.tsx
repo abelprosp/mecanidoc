@@ -38,7 +38,7 @@ export default function PromoBanner() {
 
   return (
     <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-      <div className="container mx-auto px-4 py-2">
+      <div className="layout-container py-2">
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm font-medium">
           {promotions.map((p) => {
             const content = (

@@ -326,7 +326,7 @@ function SearchContent() {
   }, [searchParams]);
 
   return (
-    <div className="md:container md:mx-auto md:px-4 py-4 md:py-8 flex flex-col md:flex-row gap-8">
+    <div className="layout-container py-4 md:py-8 flex flex-col md:flex-row gap-8">
       
       {/* Sidebar Filters */}
       <aside className="w-full md:w-64 flex-shrink-0">

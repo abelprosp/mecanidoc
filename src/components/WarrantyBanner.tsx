@@ -7,7 +7,7 @@ import Link from 'next/link';
 export default function WarrantyBanner() {
   return (
     <section className="py-2 md:py-3 bg-[#F1F1F1]">
-      <div className="md:container md:mx-auto md:px-4">
+      <div className="layout-container">
         {/* Card de Garantia */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           

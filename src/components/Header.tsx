@@ -43,131 +43,115 @@ const iconMap: { [key: string]: any } = {
   'Warehouse': Warehouse,
 };
 
-// Texto visível no mega-menu: só o 2.º nome (após a 1.ª vírgula); sem vírgula, após " / " (ex. Quad / TT)
-function getMenuDisplayLabel(name: string): string {
-  if (!name) return name;
-  const commaParts = name.split(',').map((s) => s.trim()).filter(Boolean);
-  if (commaParts.length >= 2) return commaParts[1];
-  const slashParts = name.split(/\s*\/\s*/).map((s) => s.trim()).filter(Boolean);
-  if (slashParts.length >= 2) return slashParts.slice(1).join(' / ');
-  return name.trim();
+type StaticMenuItem = {
+  label: string;
+  slug: string;
+  iconKey: keyof typeof iconMap;
+  /** Se definido, não usa /categorie/[slug] (ex. landing tracteurs). */
+  href?: string;
+};
+
+function chunkColumns<T>(items: T[], perColumn: number): T[][] {
+  const cols: T[][] = [];
+  for (let i = 0; i < items.length; i += perColumn) {
+    cols.push(items.slice(i, i + perColumn));
+  }
+  return cols;
 }
 
-// Estrutura base do menu (categorias principais)
-const baseNavigationData: Array<{ title: string; key: string; columns: any[][] }> = [
-  {
-    title: "Pneus Auto",
-    key: "Auto",
-    columns: []
-  },
-  {
-    title: "Pneu Moto",
-    key: "Moto",
-    columns: []
-  },
-  {
-    title: "Pneus Camion",
-    key: "Camion",
-    columns: []
-  },
-  {
-    title: "Pneus Agricoles",
-    key: "Tracteur",
-    columns: []
-  }
+/** Slug alinhado à função SQL generate_slug (remove não alfanuméricos, hífens). */
+function slugFromMenuLabel(label: string): string {
+  return label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
+
+const STATIC_SUBMENU: Record<string, StaticMenuItem[]> = {
+  Auto: [
+    { label: 'Pneus 4 Saisons', slug: slugFromMenuLabel('Pneus 4 Saisons'), iconKey: 'CloudSun' },
+    { label: 'Pneus 4x4/SUV', slug: slugFromMenuLabel('Pneus 4x4/SUV'), iconKey: 'Mountain' },
+    { label: 'Pneus camionnette', slug: slugFromMenuLabel('Pneus camionnette'), iconKey: 'Truck' },
+    { label: 'Pneus camping', slug: slugFromMenuLabel('Pneus camping'), iconKey: 'Tent' },
+    { label: 'Pneus été Auto', slug: slugFromMenuLabel('Pneus été Auto'), iconKey: 'Sun' },
+    { label: 'Pneus Hiver', slug: slugFromMenuLabel('Pneus Hiver'), iconKey: 'Snowflake' },
+    { label: 'Pneus Voiture', slug: slugFromMenuLabel('Pneus Voiture'), iconKey: 'Car' },
+    { label: 'Pneus voiture électrique', slug: slugFromMenuLabel('Pneus voiture électrique'), iconKey: 'Zap' },
+    { label: 'Type-c', slug: slugFromMenuLabel('Type-c'), iconKey: 'Disc' },
+  ],
+  Moto: [
+    { label: 'Chopper / Cruiser', slug: slugFromMenuLabel('Chopper / Cruiser'), iconKey: 'Bike' },
+    { label: 'Pneus circuit et piste', slug: slugFromMenuLabel('Pneus circuit et piste'), iconKey: 'Flag' },
+    { label: 'Pneus cross / enduro / trial', slug: slugFromMenuLabel('Pneus cross / enduro / trial'), iconKey: 'Mountain' },
+    { label: 'Pneus custom et collection', slug: slugFromMenuLabel('Pneus custom et collection'), iconKey: 'Star' },
+    { label: 'Pneus moto sport et route', slug: slugFromMenuLabel('Pneus moto sport et route'), iconKey: 'Navigation' },
+    { label: 'Pneus scooter', slug: slugFromMenuLabel('Pneus scooter'), iconKey: 'Box' },
+    { label: 'Pneus trail', slug: slugFromMenuLabel('Pneus trail'), iconKey: 'Map' },
+    { label: 'Quad / Véhicule tout terrain', slug: slugFromMenuLabel('Quad / Véhicule tout terrain'), iconKey: 'Mountain' },
+    { label: 'Sport Tourisme diagonal', slug: slugFromMenuLabel('Sport Tourisme diagonal'), iconKey: 'Disc' },
+    { label: 'Sport Tourisme radial', slug: slugFromMenuLabel('Sport Tourisme radial'), iconKey: 'Disc' },
+  ],
+  Camion: [
+    { label: 'Pneus autocar - autobus', slug: slugFromMenuLabel('Pneus autocar - autobus'), iconKey: 'Bus' },
+    { label: 'Pneus chantier', slug: slugFromMenuLabel('Pneus chantier'), iconKey: 'Hammer' },
+    { label: 'Pneus longue distance', slug: slugFromMenuLabel('Pneus longue distance'), iconKey: 'Truck' },
+    { label: 'Pneus régionaux', slug: slugFromMenuLabel('Pneus régionaux'), iconKey: 'MapPin' },
+  ],
+  Tracteur: [
+    { label: 'Pneus avant tracteur', slug: slugFromMenuLabel('Pneus avant tracteur'), iconKey: 'Tractor' },
+    { label: 'Pneus espaces verts', slug: slugFromMenuLabel('Pneus espaces verts'), iconKey: 'Leaf' },
+    { label: 'Pneus industriel et manutention', slug: slugFromMenuLabel('Pneus industriel et manutention'), iconKey: 'Factory' },
+    { label: 'Pneus remorque agricole', slug: slugFromMenuLabel('Pneus remorque agricole'), iconKey: 'Warehouse' },
+    { label: 'Pneus roue motrice', slug: slugFromMenuLabel('Pneus roue motrice'), iconKey: 'CircleDot' },
+    { label: 'Recherche par dimension', slug: 'tracteurs', iconKey: 'Search', href: '/tracteurs' },
+  ],
+};
+
+const NAV_ENTRIES: Array<{
+  title: string;
+  key: keyof typeof STATIC_SUBMENU;
+  mainHref: string;
+  columnsPerChunk: number;
+}> = [
+  { title: 'Pneus Auto', key: 'Auto', mainHref: '/', columnsPerChunk: 3 },
+  { title: 'Pneu Moto', key: 'Moto', mainHref: '/moto', columnsPerChunk: 3 },
+  { title: 'Pneus Camion', key: 'Camion', mainHref: '/camion', columnsPerChunk: 2 },
+  { title: 'Pneus Agricoles', key: 'Tracteur', mainHref: '/tracteurs', columnsPerChunk: 3 },
 ];
+
+function buildNavigationData() {
+  return NAV_ENTRIES.map((entry) => {
+    const raw = STATIC_SUBMENU[entry.key];
+    const items = raw.map((s) => ({
+      label: s.label,
+      slug: s.slug,
+      href: s.href,
+      icon: iconMap[s.iconKey] || Car,
+    }));
+    return {
+      title: entry.title,
+      key: entry.key,
+      mainHref: entry.mainHref,
+      columns: chunkColumns(items, entry.columnsPerChunk),
+    };
+  });
+}
+
+const navigationDataStatic = buildNavigationData();
 
 export default function Header() {
   const { cartCount } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeMobileCategory, setActiveMobileCategory] = useState<string | null>(null);
-  const [navigationData, setNavigationData] = useState<Array<{ title: string; key: string; columns: any[][] }>>(baseNavigationData);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const supabase = createClient();
-
-  // Buscar subcategorias dinamicamente do banco
-  useEffect(() => {
-    const fetchSubcategories = async () => {
-      try {
-        const { data: subcategories } = await supabase
-          .from('menu_subcategories')
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order')
-          .order('name');
-
-        if (subcategories) {
-          // Termos que indicam categoria de carro/SUV/camionnette – excluir do menu Moto
-          const carTerms = /\b(voiture|4x4|suv|camionnette|type-c|camping|été auto|hiver|4 saisons)\b/i;
-          const isMotoSubcategory = (name: string, slug: string) => {
-            const n = (name || '').toLowerCase();
-            const s = (slug || '').toLowerCase();
-            const motoTerms = /\b(moto|scooter|trail|trall|quad|tout terrain)\b/;
-            if (carTerms.test(n) || carTerms.test(s)) return false;
-            return motoTerms.test(n) || motoTerms.test(s);
-          };
-
-          // Agrupar subcategorias por parent_category
-          const grouped: Record<string, any[]> = {};
-          
-          subcategories.forEach((sub) => {
-            if (!grouped[sub.parent_category]) {
-              grouped[sub.parent_category] = [];
-            }
-            const fallbackIcon = sub.parent_category === 'Moto' ? Bike : Car;
-            const icon = sub.icon_name && iconMap[sub.icon_name] 
-              ? iconMap[sub.icon_name] 
-              : fallbackIcon;
-            
-            grouped[sub.parent_category].push({
-              name: sub.name,
-              slug: sub.slug,
-              icon: icon
-            });
-          });
-
-          // Atualizar navigationData com subcategorias do banco
-          const updatedNav = baseNavigationData.map((nav) => {
-            let subcats = grouped[nav.key] || [];
-            // No menu Moto: mostrar apenas subcategorias realmente de moto
-            if (nav.key === 'Moto') {
-              subcats = subcats.filter((s) => isMotoSubcategory(s.name, s.slug));
-            }
-            // Remover duplicados: mesmo rótulo visível = mostrar só o primeiro
-            const seen = new Set<string>();
-            subcats = subcats.filter((s) => {
-              const key = getMenuDisplayLabel(s.name);
-              if (seen.has(key)) return false;
-              seen.add(key);
-              return true;
-            });
-            // Máx. 4 colunas, 5 itens por coluna
-            const maxColumns = 4;
-            const itemsPerColumn = 5;
-            const columns: any[][] = [];
-            for (let i = 0; i < Math.min(subcats.length, maxColumns * itemsPerColumn); i += itemsPerColumn) {
-              columns.push(subcats.slice(i, i + itemsPerColumn));
-            }
-            const emptyIcon = nav.key === 'Moto' ? Bike : Car;
-            return {
-              ...nav,
-              columns: columns.length > 0 ? columns : [[{ name: "Aucune sous-catégorie", icon: emptyIcon }]]
-            };
-          });
-
-          setNavigationData(updatedNav);
-        }
-      } catch (error) {
-        console.error('Error fetching subcategories:', error);
-      }
-    };
-
-    fetchSubcategories();
-  }, []);
 
   // Busca de produtos
   useEffect(() => {
@@ -280,48 +264,53 @@ export default function Header() {
 
   return (
     <>
-    <header className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="md:container md:mx-auto md:px-4 px-4 h-20 flex items-center justify-between relative">
-        {/* Mobile Menu Button */}
-        <button 
-          className="md:hidden text-gray-700 p-2"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+    <header className="bg-white shadow-sm sticky top-0 z-50 w-full">
+      <div className="layout-container h-16 md:h-20 flex items-center justify-between md:justify-center md:gap-4 lg:gap-5 gap-2 relative">
+        <div className="flex items-center gap-1 min-w-0 shrink-0">
+          <button 
+            className="md:hidden text-gray-700 p-2 shrink-0"
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <Link href="/" className="flex items-center gap-2 shrink-0 min-w-0">
+            <img 
+              src="/logo.png" 
+              alt="MecaniDoc Logo" 
+              className="object-contain h-8 w-auto max-h-8 md:max-h-9 max-w-[min(160px,42vw)]" 
+            />
+          </Link>
+        </div>
 
-        {/* Logo - Responsive Size */}
-        <Link href="/" className="flex items-center gap-2">
-          <img 
-            src="/logo.png" 
-            alt="MecaniDoc Logo" 
-            className="object-contain h-8 w-auto md:h-10 md:w-[180px]" 
-          />
-        </Link>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-700 h-full">
-          {navigationData.map((item) => (
+        {/* Desktop Navigation — coluna central para alinhar ao centro da barra */}
+        <nav className="hidden md:flex items-center gap-2 lg:gap-3 text-sm font-medium text-gray-700 h-full min-w-0 shrink-0">
+          {navigationDataStatic.map((item) => (
             <div key={item.title} className="group h-full flex items-center">
-              <button className="flex items-center gap-1 hover:text-blue-600 h-full border-b-2 border-transparent hover:border-blue-600 transition-colors">
-                {item.title} <ChevronDown size={14} />
-              </button>
+              <Link
+                href={item.mainHref}
+                className="flex items-center gap-1 hover:text-blue-600 h-full border-b-2 border-transparent hover:border-blue-600 transition-colors whitespace-nowrap"
+              >
+                {item.title} <ChevronDown size={14} className="opacity-60 shrink-0" aria-hidden />
+              </Link>
               
-              {/* Mega Menu - largura limitada e mais compacto */}
-              <div className="absolute left-0 top-full w-full flex justify-center z-50 hidden group-hover:block">
+              <div className="absolute left-0 top-full w-full flex justify-center z-50 hidden group-hover:block pointer-events-none group-hover:pointer-events-auto">
                 <div className="bg-white border border-gray-200 shadow-xl rounded-b-lg max-w-3xl mx-4 animate-in fade-in slide-in-from-top-1 duration-200">
                   <div className="flex">
                     {item.columns.map((column, colIndex) => (
                       <div key={colIndex} className={`min-w-[140px] py-4 px-4 ${colIndex !== item.columns.length - 1 ? 'border-r border-gray-100' : ''}`}>
                         <ul className="space-y-2">
-                        {column.map((subItem) => (
-                          <li key={subItem.slug || subItem.name}>
-                            <Link href={`/categorie/${subItem.slug || subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`} className="flex items-center gap-3 text-gray-600 hover:text-blue-600 transition-colors group/item">
+                        {column.map((subItem) => {
+                          const href = subItem.href ?? `/categorie/${subItem.slug}`;
+                          return (
+                          <li key={`${subItem.slug}-${subItem.label}`}>
+                            <Link href={href} className="flex items-center gap-3 text-gray-600 hover:text-blue-600 transition-colors group/item">
                               <subItem.icon size={20} className="text-gray-500 group-hover/item:text-blue-600 shrink-0" />
-                              <span className="text-sm font-medium">{getMenuDisplayLabel(subItem.name)}</span>
+                              <span className="text-sm font-medium">{subItem.label}</span>
                             </Link>
                           </li>
-                        ))}
+                          );
+                        })}
                         </ul>
                       </div>
                     ))}
@@ -332,22 +321,21 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Actions */}
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex items-center justify-end gap-1.5 md:gap-2 shrink-0 min-w-0">
           <button 
             onClick={() => setSearchOpen(true)}
-            className="text-gray-600 hover:text-blue-600 transition-colors"
+            className="text-gray-600 hover:text-blue-600 transition-colors p-1"
             aria-label="Rechercher"
           >
-            <Search size={20} className="md:w-6 md:h-6" />
+            <Search size={20} className="w-5 h-5" />
           </button>
-          <Link href="/auth/login" className="text-gray-600 hover:text-blue-600">
-            <User size={20} className="md:w-6 md:h-6" />
+          <Link href="/auth/login" className="text-gray-600 hover:text-blue-600 p-1">
+            <User size={20} className="w-5 h-5" />
           </Link>
-          <Link href="/checkout" className="text-gray-600 hover:text-blue-600 relative">
-            <ShoppingCart size={20} className="md:w-6 md:h-6" />
+          <Link href="/checkout" className="text-gray-600 hover:text-blue-600 relative p-1">
+            <ShoppingCart size={20} className="w-5 h-5" />
             {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.125rem] h-[1.125rem] px-0.5 flex items-center justify-center">
                 {cartCount}
               </span>
             )}
@@ -357,31 +345,45 @@ export default function Header() {
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-20 left-0 w-full bg-white border-t border-gray-100 shadow-lg max-h-[calc(100vh-80px)] overflow-y-auto">
+        <div className="md:hidden absolute top-16 left-0 right-0 w-full bg-white border-t border-gray-100 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="p-4 space-y-2">
-            {navigationData.map((item) => (
+            {navigationDataStatic.map((item) => (
               <div key={item.title} className="border-b border-gray-100 last:border-0">
-                <button 
-                  onClick={() => setActiveMobileCategory(activeMobileCategory === item.title ? null : item.title)}
-                  className="flex items-center justify-between w-full py-3 text-left font-bold text-gray-800"
-                >
-                  {item.title}
-                  <ChevronDown size={16} className={`transform transition-transform ${activeMobileCategory === item.title ? 'rotate-180' : ''}`} />
-                </button>
+                <div className="flex items-center gap-2 py-2">
+                  <Link
+                    href={item.mainHref}
+                    className="flex-1 py-2 text-left font-bold text-gray-800 hover:text-blue-600"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item.title}
+                  </Link>
+                  <button 
+                    type="button"
+                    onClick={() => setActiveMobileCategory(activeMobileCategory === item.title ? null : item.title)}
+                    className="p-2 text-gray-600"
+                    aria-expanded={activeMobileCategory === item.title}
+                    aria-label={`Sous-menu ${item.title}`}
+                  >
+                    <ChevronDown size={16} className={`transform transition-transform ${activeMobileCategory === item.title ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
                 
                 {activeMobileCategory === item.title && (
                   <div className="bg-gray-50 p-4 rounded-lg mb-2">
-                    {item.columns.flat().map((subItem) => (
+                    {item.columns.flat().map((subItem) => {
+                      const href = subItem.href ?? `/categorie/${subItem.slug}`;
+                      return (
                       <Link 
-                        key={subItem.slug || subItem.name}
-                        href={`/categorie/${subItem.slug || subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}
+                        key={`${subItem.slug}-${subItem.label}`}
+                        href={href}
                         className="flex items-center gap-3 py-2 text-sm text-gray-600 hover:text-blue-600"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <subItem.icon size={16} className="shrink-0" />
-                        {getMenuDisplayLabel(subItem.name)}
+                        {subItem.label}
                       </Link>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -163,7 +163,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
   if (loading) {
     return (
       <section className="py-2 md:py-4 bg-white">
-        <div className="md:container md:mx-auto md:px-4 flex justify-center">
+        <div className="layout-container flex justify-center">
           <Loader2 className="animate-spin text-gray-400" />
         </div>
       </section>
@@ -179,7 +179,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
 
   return (
     <section className="py-2 md:py-4 bg-white">
-      <div className="md:container md:mx-auto md:px-4">
+      <div className="layout-container">
         {/* Title - horizontal like BestSellers */}
         <h2 className="text-sm font-bold text-gray-900 mb-2 md:mb-4 uppercase tracking-wide">
           Marques Pneus {paTipo ? paTipo : (categoryTitles[category] || category)}

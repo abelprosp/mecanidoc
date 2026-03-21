@@ -219,7 +219,7 @@ export default function CheckoutPage() {
     return (
         <main className="min-h-screen bg-[#F1F1F1]">
           <Header />
-          <div className="container mx-auto px-4 py-20 text-center">
+          <div className="layout-container py-20 text-center">
              <h1 className="text-2xl font-bold text-gray-800 mb-4">Votre panier est vide</h1>
              <Link href="/" className="text-blue-600 hover:underline">Continuer vos achats</Link>
           </div>
@@ -232,7 +232,7 @@ export default function CheckoutPage() {
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="layout-container py-8">
         {paymentCanceled && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800">
             <AlertCircle size={20} />

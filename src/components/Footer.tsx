@@ -90,7 +90,7 @@ export default function Footer() {
     <footer className="text-gray-700 text-sm">
       {/* Upper Section - Light blue-grey */}
       <div className="bg-[#F5F7FA] pt-8 md:pt-12 pb-8 md:pb-10">
-        <div className="container mx-auto px-4">
+        <div className="layout-container">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
             {/* PRODUITS & SERVICES */}
             <div>
@@ -192,7 +192,7 @@ export default function Footer() {
 
       {/* Lower Section - Darker grey */}
       <div className="bg-[#E9EBEE] py-4 md:py-5">
-        <div className="container mx-auto px-4">
+        <div className="layout-container">
           <div className="flex flex-col md:flex-row flex-wrap justify-center items-center gap-3 md:gap-6 text-gray-600 text-xs mb-3">
             {bottomLinks.map((link, i) => (
               <React.Fragment key={link.title}>

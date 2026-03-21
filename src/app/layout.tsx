@@ -30,7 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#F1F1F1]`}
       >
         <CartProvider>
-          <div className="mx-auto xl:mx-[100px] bg-[#F1F1F1] min-h-screen overflow-x-hidden">
+          <div className="w-full min-h-screen overflow-x-hidden bg-[#F1F1F1]">
             {children}
           </div>
         </CartProvider>

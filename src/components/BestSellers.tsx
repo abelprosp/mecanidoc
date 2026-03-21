@@ -70,7 +70,7 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
   if (loading) {
     return (
       <section className="py-4 md:py-6 bg-transparent">
-        <div className="container mx-auto px-4 flex justify-center">
+        <div className="layout-container flex justify-center">
           <Loader2 className="animate-spin text-gray-400" />
         </div>
       </section>
@@ -81,7 +81,7 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
 
   return (
     <section className="py-4 md:py-6 bg-transparent relative group">
-      <div className="md:container md:mx-auto md:px-4">
+      <div className="layout-container">
         <h2 className="text-sm font-bold text-gray-900 mb-3 md:mb-5 uppercase tracking-wide">Les meilleures ventes {category ? `- ${category}` : ''}</h2>
         
         <div className="relative">
