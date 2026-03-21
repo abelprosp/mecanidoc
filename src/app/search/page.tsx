@@ -8,6 +8,59 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { ChevronDown, Filter, Loader2, ChevronUp } from 'lucide-react';
 
+/** Valor esperado na coluna `products.category` (a UI / URL usam "Tracteurs", a BD costuma usar "Tracteur"). */
+function dbCategoryFromUi(uiCategory: string): string | null {
+  if (!uiCategory || uiCategory === 'Toutes') return null;
+  if (uiCategory === 'Tracteurs') return 'Tracteur';
+  return uiCategory;
+}
+
+/** Aplica filtro de categoria de forma compatível com a BD (maiúsculas e Tracteur/Tracteurs). */
+function applyCategoryToQuery(query: any, uiCategory: string) {
+  const cat = dbCategoryFromUi(uiCategory);
+  if (!cat) return query;
+  if (cat === 'Tracteur') {
+    return query.or('category.ilike.Tracteur,category.ilike.Tracteurs');
+  }
+  return query.ilike('category', cat);
+}
+
+function productMatchesUiCategory(productCategory: string | null | undefined, uiCategory: string): boolean {
+  const want = dbCategoryFromUi(uiCategory);
+  if (!want) return true;
+  const p = (productCategory || '').trim().toLowerCase();
+  const w = want.toLowerCase();
+  if (p === w) return true;
+  if (w === 'tracteur' && (p === 'tracteurs' || p.startsWith('tracteur'))) return true;
+  return false;
+}
+
+type SpecsFilterSlice = {
+  width: string;
+  height: string;
+  diameter: string;
+  load_index: string;
+  speed_index: string;
+  season: string;
+};
+
+/**
+ * Filtros em `specs`: `.contains` no JSONB exige tipos iguais (número ≠ string).
+ * O CSV/Postgres costuma guardar width/height/diameter como número; o <select> envia string → 0 resultados.
+ * `specs->>chave` compara em texto e alinha os dois casos.
+ */
+function applySpecsFieldFilters(query: any, f: SpecsFilterSlice) {
+  let q = query;
+  const t = (s: string) => String(s).trim();
+  if (f.width) q = q.eq('specs->>width', t(f.width));
+  if (f.height) q = q.eq('specs->>height', t(f.height));
+  if (f.diameter) q = q.eq('specs->>diameter', t(f.diameter));
+  if (f.load_index) q = q.eq('specs->>load_index', t(f.load_index));
+  if (f.speed_index) q = q.eq('specs->>speed_index', t(f.speed_index));
+  if (f.season && f.season !== 'Tous') q = q.eq('specs->>season', f.season);
+  return q;
+}
+
 function SearchContent() {
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -25,6 +78,8 @@ function SearchContent() {
     brand: searchParams.get('brand') || '',
     season: searchParams.get('season') || 'Tous',
     searchQuery: searchParams.get('q') || '',
+    load_index: searchParams.get('load_index') || '',
+    speed_index: searchParams.get('speed_index') || '',
   });
 
   useEffect(() => {
@@ -34,9 +89,7 @@ function SearchContent() {
         .select('specs')
         .not('specs', 'is', null)
         .eq('is_active', true);
-      if (filters.category && filters.category !== 'Toutes') {
-        q = q.ilike('category', filters.category);
-      }
+      q = applyCategoryToQuery(q, filters.category);
       const { data } = await q;
       if (data) {
         const valid = data.map((r: any) => r.specs).filter((s: any) => s && s.width);
@@ -52,9 +105,7 @@ function SearchContent() {
         .from('products')
         .select('brand_id, brand, brands(id, name)')
         .eq('is_active', true);
-      if (filters.category && filters.category !== 'Toutes') {
-        q = q.ilike('category', filters.category);
-      }
+      q = applyCategoryToQuery(q, filters.category);
       const { data } = await q;
       if (data) {
         const seen = new Set<string>();
@@ -142,23 +193,8 @@ function SearchContent() {
         query = query.or(`name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,pa_tipo.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
 
-      // Apply Filters
-      if (filters.category && filters.category !== 'Toutes') {
-        query = query.eq('category', filters.category.toLowerCase());
-      }
-      // JSONB Filters for specs
-      if (filters.width) {
-        query = query.contains('specs', { width: filters.width });
-      }
-      if (filters.height) {
-        query = query.contains('specs', { height: filters.height });
-      }
-      if (filters.diameter) {
-        query = query.contains('specs', { diameter: filters.diameter });
-      }
-      if (filters.season && filters.season !== 'Tous') {
-        query = query.contains('specs', { season: filters.season });
-      }
+      query = applyCategoryToQuery(query, filters.category);
+      query = applySpecsFieldFilters(query, filters);
 
       let data: any[] = [];
       let error: any = null;
@@ -207,12 +243,9 @@ function SearchContent() {
             // Aplicar filtro de categoria no resultado se necessário
             let filtered = fullProducts;
             if (filters.category && filters.category !== 'Toutes') {
-              filtered = fullProducts.filter(p => {
-                const cat = p.category?.toLowerCase() || '';
-                return cat === filters.category.toLowerCase() || 
-                       cat === filters.category || 
-                       cat.includes(filters.category.toLowerCase());
-              });
+              filtered = fullProducts.filter((p) =>
+                productMatchesUiCategory(p.category, filters.category)
+              );
             }
             console.log('Produtos encontrados por brand texto (após filtro categoria):', filtered.length);
             results.push(...filtered);
@@ -227,23 +260,8 @@ function SearchContent() {
             .eq('is_active', true)
             .eq('brand_id', brandId);
           
-          // Aplicar filtro de categoria apenas se não for "Toutes"
-          if (filters.category && filters.category !== 'Toutes') {
-            // Tentar diferentes variações de categoria
-            query1 = query1.or(`category.eq.${filters.category.toLowerCase()},category.eq.${filters.category},category.ilike.%${filters.category}%`);
-          }
-          if (filters.width) {
-            query1 = query1.contains('specs', { width: filters.width });
-          }
-          if (filters.height) {
-            query1 = query1.contains('specs', { height: filters.height });
-          }
-          if (filters.diameter) {
-            query1 = query1.contains('specs', { diameter: filters.diameter });
-          }
-          if (filters.season && filters.season !== 'Tous') {
-            query1 = query1.contains('specs', { season: filters.season });
-          }
+          query1 = applyCategoryToQuery(query1, filters.category);
+          query1 = applySpecsFieldFilters(query1, filters);
           
           const { data: data1, error: error1 } = await query1;
           console.log('Busca por brand_id:', data1?.length || 0, error1);
@@ -264,22 +282,8 @@ function SearchContent() {
           .eq('is_active', true)
           .ilike('brand', `%${brandName}%`);
         
-        // Aplicar outros filtros também na query2
-        if (filters.category && filters.category !== 'Toutes') {
-          query2 = query2.or(`category.eq.${filters.category.toLowerCase()},category.eq.${filters.category},category.ilike.%${filters.category}%`);
-        }
-        if (filters.width) {
-          query2 = query2.contains('specs', { width: filters.width });
-        }
-        if (filters.height) {
-          query2 = query2.contains('specs', { height: filters.height });
-        }
-        if (filters.diameter) {
-          query2 = query2.contains('specs', { diameter: filters.diameter });
-        }
-        if (filters.season && filters.season !== 'Tous') {
-          query2 = query2.contains('specs', { season: filters.season });
-        }
+        query2 = applyCategoryToQuery(query2, filters.category);
+        query2 = applySpecsFieldFilters(query2, filters);
         
         const { data: data2, error: error2 } = await query2;
         console.log('Busca por brand texto:', data2?.length || 0, error2);
@@ -292,17 +296,25 @@ function SearchContent() {
           error = error2;
         }
         
-        // Combinar resultados e remover duplicatas
-        const uniqueProducts = results.filter((product, index, self) => 
+        // Combinar resultados, remover duplicatas e garantir categoria (caminho marca é complexo)
+        let uniqueProducts = results.filter((product, index, self) => 
           index === self.findIndex((p) => p.id === product.id)
         );
-        
+        if (filters.category && filters.category !== 'Toutes') {
+          uniqueProducts = uniqueProducts.filter((p) =>
+            productMatchesUiCategory(p.category, filters.category)
+          );
+        }
         data = uniqueProducts;
         console.log('Total único após combinar:', data.length);
       } else {
         // Sem filtro de marca, busca normal
         const result = await query;
-        data = result.data || [];
+        let rows = result.data || [];
+        if (filters.category && filters.category !== 'Toutes') {
+          rows = rows.filter((p) => productMatchesUiCategory(p.category, filters.category));
+        }
+        data = rows;
         error = result.error;
       }
 
@@ -323,6 +335,8 @@ function SearchContent() {
 
   // Update filters when URL params change (e.g. from Hero)
   useEffect(() => {
+    const seasonParam = searchParams.get('season');
+    const qParam = searchParams.get('q');
     setFilters(prev => ({
       ...prev,
       category: searchParams.get('category') || 'Toutes',
@@ -330,6 +344,10 @@ function SearchContent() {
       height: searchParams.get('height') || '',
       diameter: searchParams.get('diameter') || '',
       brand: searchParams.get('brand') || '',
+      season: seasonParam !== null ? (seasonParam || 'Tous') : prev.season,
+      load_index: searchParams.get('load_index') || '',
+      speed_index: searchParams.get('speed_index') || '',
+      searchQuery: qParam !== null ? qParam : prev.searchQuery,
     }));
   }, [searchParams]);
 
@@ -365,7 +383,7 @@ function SearchContent() {
               <div className="relative">
                 <select 
                   value={filters.category}
-                  onChange={(e) => setFilters({...filters, category: e.target.value, width: '', height: '', diameter: '', brand: ''})}
+                  onChange={(e) => setFilters({...filters, category: e.target.value, width: '', height: '', diameter: '', brand: '', load_index: '', speed_index: ''})}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm appearance-none bg-white"
                 >
                   <option value="Toutes">Toutes</option>
