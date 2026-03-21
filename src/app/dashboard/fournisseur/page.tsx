@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { 
-  Package, TrendingUp, DollarSign, PlusCircle, List, BarChart2, 
-  LogOut, User, Loader2, Save, Edit, Trash2, Upload, Settings
+  Package, TrendingUp, DollarSign, LogOut, User, Loader2, Save, Edit, Trash2, Upload,
+  ChevronDown, ChevronRight
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import OrderPurchaseDetails from '@/components/OrderPurchaseDetails';
 
 export default function SupplierDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -24,6 +25,9 @@ export default function SupplierDashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [supplierOrders, setSupplierOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -87,19 +91,36 @@ export default function SupplierDashboard() {
       // Fetch Sales/Revenue (through order_items)
       const { data: salesData } = await supabase
         .from('order_items')
-        .select('*, orders(total_amount, created_at, status)')
+        .select('*, orders(total_amount, created_at, status, payment_status)')
         .in('product_id', productsData?.map(p => p.id) || []);
       
       // Calculate Stats
       const activeProducts = (productsData || []).filter(p => p.is_active).length;
       const lowStock = (productsData || []).filter(p => (p.stock_quantity || 0) < 10 && (p.stock_quantity || 0) > 0).length;
       const totalRevenue = (salesData || []).reduce((sum, item) => {
-        if (item.orders?.status === 'completed' || item.orders?.status === 'delivered') {
+        const ord = item.orders;
+        const paid =
+          ord?.payment_status === 'paid' ||
+          ord?.status === 'completed' ||
+          ord?.status === 'delivered';
+        if (paid) {
           return sum + (Number(item.price) * Number(item.quantity) || 0);
         }
         return sum;
       }, 0);
-      const totalSales = salesData?.length || 0;
+      const paidLineIds = new Set(
+        (salesData || [])
+          .filter((item) => {
+            const ord = item.orders;
+            return (
+              ord?.payment_status === 'paid' ||
+              ord?.status === 'completed' ||
+              ord?.status === 'delivered'
+            );
+          })
+          .map((item) => item.order_id)
+      );
+      const totalSales = paidLineIds.size;
 
       setStats({
         totalRevenue,
@@ -113,6 +134,36 @@ export default function SupplierDashboard() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'sales' || !user) return;
+    let cancelled = false;
+    (async () => {
+      setOrdersLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            *,
+            products ( id, name, base_price, category ),
+            garages ( id, name, address, city, zip_code )
+          )
+        `)
+        .order('created_at', { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        console.error('Supplier orders:', error);
+        setSupplierOrders([]);
+      } else {
+        setSupplierOrders(data || []);
+      }
+      setOrdersLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, user]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -450,21 +501,84 @@ export default function SupplierDashboard() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-gray-500 text-sm font-medium mb-2">Revenus Total</h3>
+                <h3 className="text-gray-500 text-sm font-medium mb-2">Revenus (vos pneus, payées)</h3>
                 <p className="text-3xl font-bold text-gray-800">€{stats.totalRevenue.toFixed(2)}</p>
-                <span className="text-green-500 text-xs font-bold">Toutes les ventes</span>
+                <span className="text-green-500 text-xs font-bold">Lignes de commande payées</span>
               </div>
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-gray-500 text-sm font-medium mb-2">Nombre de Ventes</h3>
+                <h3 className="text-gray-500 text-sm font-medium mb-2">Commandes concernées</h3>
                 <p className="text-3xl font-bold text-gray-800">{stats.totalSales}</p>
-                <span className="text-gray-400 text-xs">Commandes complétées</span>
+                <span className="text-gray-400 text-xs">Commandes distinctes avec au moins une ligne payée</span>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <p className="text-gray-500 text-center">
-                Les détails des ventes seront disponibles prochainement.
-              </p>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-4 md:p-6 border-b border-gray-100">
+                <h2 className="font-bold text-lg text-gray-800">Commandes (détail)</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Vous voyez les commandes contenant au moins un de vos produits. Les lignes d’autres vendeurs sur la même commande n’apparaissent pas.
+                </p>
+              </div>
+              {ordersLoading ? (
+                <div className="p-12 flex justify-center">
+                  <Loader2 className="animate-spin text-gray-400" size={36} />
+                </div>
+              ) : supplierOrders.length === 0 ? (
+                <p className="p-8 text-center text-gray-500">Aucune commande pour le moment.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Commande</th>
+                        <th className="px-4 py-3 text-left">Date</th>
+                        <th className="px-4 py-3 text-left">Total</th>
+                        <th className="px-4 py-3 text-left">Paiement</th>
+                        <th className="px-4 py-3 text-left">Lignes</th>
+                        <th className="w-12 px-4 py-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {supplierOrders.map((ord) => (
+                        <Fragment key={ord.id}>
+                          <tr className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-mono text-xs">#{ord.id.slice(0, 8)}</td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {new Date(ord.created_at).toLocaleString('fr-FR')}
+                            </td>
+                            <td className="px-4 py-3 font-bold">€{Number(ord.total_amount).toFixed(2)}</td>
+                            <td className="px-4 py-3">{ord.payment_status || ord.status}</td>
+                            <td className="px-4 py-3">{ord.order_items?.length ?? 0}</td>
+                            <td className="px-4 py-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedOrderId(expandedOrderId === ord.id ? null : ord.id)
+                                }
+                                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                                aria-expanded={expandedOrderId === ord.id}
+                              >
+                                {expandedOrderId === ord.id ? (
+                                  <ChevronDown size={18} />
+                                ) : (
+                                  <ChevronRight size={18} />
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+                          {expandedOrderId === ord.id && (
+                            <tr>
+                              <td colSpan={6} className="p-0">
+                                <OrderPurchaseDetails order={ord} supplierView />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}

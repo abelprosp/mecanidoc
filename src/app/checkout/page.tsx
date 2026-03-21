@@ -126,6 +126,11 @@ export default function CheckoutPage() {
       const orderPayload = {
         user_id: user.id,
         total_amount: total,
+        subtotal_amount: subtotal,
+        delivery_fee: deliveryFee,
+        delivery_type: extras.deliveryType,
+        warranty_included: extras.warranty,
+        warranty_fee: warrantyFee,
         status: 'pending',
         contact_name: `${formData.firstName} ${formData.lastName}`.trim(),
         contact_phone: formData.phone?.trim() ?? '',

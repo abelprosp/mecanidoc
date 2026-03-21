@@ -43,7 +43,15 @@ export async function GET(request: NextRequest) {
           products (
             id,
             name,
-            base_price
+            base_price,
+            category
+          ),
+          garages (
+            id,
+            name,
+            address,
+            city,
+            zip_code
           )
         ),
         profiles (

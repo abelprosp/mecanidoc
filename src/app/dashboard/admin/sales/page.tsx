@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Loader2, Download, Filter, Calendar, DollarSign, Package, CheckCircle, Clock } from 'lucide-react';
+import { Loader2, Download, DollarSign, Package, CheckCircle, Clock, ChevronDown, ChevronRight } from 'lucide-react';
+import OrderPurchaseDetails from '@/components/OrderPurchaseDetails';
 
 export default function SalesPage() {
   const [sales, setSales] = useState<any[]>([]);
@@ -14,6 +15,7 @@ export default function SalesPage() {
     endDate: '',
     status: '',
   });
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -219,31 +221,52 @@ export default function SalesPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Articles</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {sales.map((sale) => (
-                <tr key={sale.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">#{sale.id.slice(0, 8)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{sale.contact_name || sale.profiles?.full_name || 'N/A'}</div>
-                    <div className="text-xs text-gray-500">{sale.contact_email || sale.profiles?.email || ''}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(sale.created_at)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-bold text-gray-900">€{parseFloat(sale.total_amount.toString()).toFixed(2)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(sale.payment_status || sale.status)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {sale.order_items?.length || 0} article(s)
-                  </td>
-                </tr>
+                <Fragment key={sale.id}>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">#{sale.id.slice(0, 8)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{sale.contact_name || sale.profiles?.full_name || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{sale.contact_email || sale.profiles?.email || ''}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(sale.created_at)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-bold text-gray-900">€{parseFloat(sale.total_amount.toString()).toFixed(2)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(sale.payment_status || sale.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {sale.order_items?.length || 0} article(s)
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expandedId === sale.id ? null : sale.id)}
+                        className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                        aria-expanded={expandedId === sale.id}
+                        title="Détails de la commande"
+                      >
+                        {expandedId === sale.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                      </button>
+                    </td>
+                  </tr>
+                  {expandedId === sale.id && (
+                    <tr>
+                      <td colSpan={7} className="p-0 border-t border-gray-100">
+                        <OrderPurchaseDetails order={sale} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
