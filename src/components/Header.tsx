@@ -43,15 +43,14 @@ const iconMap: { [key: string]: any } = {
   'Warehouse': Warehouse,
 };
 
-// Encurtar rótulos longos no menu (ex.: "Pneus 4x4/SUV, Pneus 4 Saisons, ..." → "4x4/SUV – 4 Saisons")
-function shortenMenuLabel(name: string, maxLen = 28): string {
+// Texto visível no mega-menu: só o 2.º nome (após a 1.ª vírgula); sem vírgula, após " / " (ex. Quad / TT)
+function getMenuDisplayLabel(name: string): string {
   if (!name) return name;
-  if (!name.includes(',') && name.length <= maxLen) return name;
-  const first = name.split(',')[0].trim().replace(/^Pneus\s+/i, '');
-  const rest = name.split(',').slice(1).map(s => s.trim().replace(/^Pneus\s+/i, '')).filter(Boolean);
-  const short = rest.length ? `${first} – ${rest[0]}` : first;
-  if (short.length <= maxLen) return short;
-  return short.slice(0, maxLen - 1) + '…';
+  const commaParts = name.split(',').map((s) => s.trim()).filter(Boolean);
+  if (commaParts.length >= 2) return commaParts[1];
+  const slashParts = name.split(/\s*\/\s*/).map((s) => s.trim()).filter(Boolean);
+  if (slashParts.length >= 2) return slashParts.slice(1).join(' / ');
+  return name.trim();
 }
 
 // Estrutura base do menu (categorias principais)
@@ -138,10 +137,10 @@ export default function Header() {
             if (nav.key === 'Moto') {
               subcats = subcats.filter((s) => isMotoSubcategory(s.name, s.slug));
             }
-            // Remover duplicados: mesmo rótulo encurtado = mostrar só o primeiro (evita "4x4/SUV – 4 Saisons" repetido)
+            // Remover duplicados: mesmo rótulo visível = mostrar só o primeiro
             const seen = new Set<string>();
             subcats = subcats.filter((s) => {
-              const key = shortenMenuLabel(s.name);
+              const key = getMenuDisplayLabel(s.name);
               if (seen.has(key)) return false;
               seen.add(key);
               return true;
@@ -316,10 +315,10 @@ export default function Header() {
                       <div key={colIndex} className={`min-w-[140px] py-4 px-4 ${colIndex !== item.columns.length - 1 ? 'border-r border-gray-100' : ''}`}>
                         <ul className="space-y-2">
                         {column.map((subItem) => (
-                          <li key={subItem.name}>
+                          <li key={subItem.slug || subItem.name}>
                             <Link href={`/categorie/${subItem.slug || subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`} className="flex items-center gap-3 text-gray-600 hover:text-blue-600 transition-colors group/item">
                               <subItem.icon size={20} className="text-gray-500 group-hover/item:text-blue-600 shrink-0" />
-                              <span className="text-sm font-medium">{subItem.name}</span>
+                              <span className="text-sm font-medium">{getMenuDisplayLabel(subItem.name)}</span>
                             </Link>
                           </li>
                         ))}
@@ -374,13 +373,13 @@ export default function Header() {
                   <div className="bg-gray-50 p-4 rounded-lg mb-2">
                     {item.columns.flat().map((subItem) => (
                       <Link 
-                        key={subItem.name}
+                        key={subItem.slug || subItem.name}
                         href={`/categorie/${subItem.slug || subItem.name.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-').normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}
                         className="flex items-center gap-3 py-2 text-sm text-gray-600 hover:text-blue-600"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <subItem.icon size={16} className="shrink-0" />
-                        {subItem.name}
+                        {getMenuDisplayLabel(subItem.name)}
                       </Link>
                     ))}
                   </div>
