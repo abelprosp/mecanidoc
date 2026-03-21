@@ -113,6 +113,11 @@ export default function RegisterGaragePage() {
             // Non-blocking for demo, but in prod handle cleanup
         }
 
+        await supabase
+          .from('profiles')
+          .update({ supplier_promotion_pending: false })
+          .eq('id', authData.user.id);
+
         // Redirect to Dashboard
         router.push('/dashboard/garage');
       }

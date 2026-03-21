@@ -554,6 +554,25 @@ create policy "Master can delete garages"
     exists (select 1 from public.profiles where id = auth.uid() and role = 'master')
   );
 
+-- -----------------------------------------------------------------------------
+-- Comptes clients → file fournisseur (Approbations admin)
+-- -----------------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists supplier_promotion_pending boolean not null default false;
+
+comment on column public.profiles.supplier_promotion_pending is
+  'Inscription client : en attente pour promotion fournisseur par le master.';
+
+drop policy if exists "Master can update any profile" on public.profiles;
+create policy "Master can update any profile" on public.profiles
+  for update
+  using (
+    exists (
+      select 1 from public.profiles pr
+      where pr.id = auth.uid() and pr.role = 'master'
+    )
+  );
+
 -- =============================================================================
 -- Fim do script único
 -- =============================================================================

@@ -55,7 +55,12 @@ export default function RegisterClientPage() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Redirect to Client Dashboard
+        // File d'approbation master : compte client visible dans Admin > Approbations (promotion fournisseur)
+        await supabase
+          .from('profiles')
+          .update({ supplier_promotion_pending: true })
+          .eq('id', authData.user.id);
+
         router.push('/dashboard/client');
       }
 

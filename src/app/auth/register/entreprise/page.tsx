@@ -70,6 +70,11 @@ export default function RegisterCompanyPage() {
             console.error("Company insert error:", companyError);
         }
 
+        await supabase
+          .from('profiles')
+          .update({ supplier_promotion_pending: false })
+          .eq('id', authData.user.id);
+
         // Redirect to Dashboard
         router.push('/dashboard/entreprise');
       }
