@@ -62,11 +62,11 @@ export async function GET(request: NextRequest) {
       `)
       .order('created_at', { ascending: false });
 
-    if (startDate) {
-      query = query.gte('created_at', startDate);
-    }
-    if (endDate) {
-      query = query.lte('created_at', endDate);
+    // Só filtrar por data se ambas existirem (evita "só início" = cortar todas as encomendas antigas)
+    if (startDate && endDate) {
+      const startIso = `${startDate}T00:00:00.000Z`;
+      const endIso = `${endDate}T23:59:59.999Z`;
+      query = query.gte('created_at', startIso).lte('created_at', endIso);
     }
     if (status) {
       query = query.eq('payment_status', status);

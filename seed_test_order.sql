@@ -3,9 +3,112 @@
 -- Exécuter dans Supabase → SQL Editor (rôle postgres : RLS ignoré pour ces INSERT).
 --
 -- Prérequis : au moins 1 utilisateur dans auth.users et 1 produit actif.
--- Optionnel : colonnes orders (subtotal_amount, delivery_*, warranty_*) —
---             voir add_orders_checkout_details.sql / run_all_migrations.sql
 -- =============================================================================
+
+-- Colonnes orders si la table date d’une ancienne migration (évite ERROR 42703)
+alter table public.orders add column if not exists contact_name text;
+alter table public.orders add column if not exists contact_phone text;
+alter table public.orders add column if not exists contact_email text;
+alter table public.orders add column if not exists shipping_address text;
+alter table public.orders add column if not exists shipping_city text;
+alter table public.orders add column if not exists shipping_zip text;
+alter table public.orders add column if not exists shipping_country text;
+alter table public.orders add column if not exists notes text;
+alter table public.orders add column if not exists stripe_payment_intent_id text;
+alter table public.orders add column if not exists stripe_customer_id text;
+alter table public.orders add column if not exists payment_method text default 'stripe';
+alter table public.orders add column if not exists payment_status text default 'pending';
+alter table public.orders add column if not exists subtotal_amount numeric;
+alter table public.orders add column if not exists delivery_fee numeric default 0;
+alter table public.orders add column if not exists delivery_type text;
+alter table public.orders add column if not exists warranty_included boolean default false;
+alter table public.orders add column if not exists warranty_fee numeric default 0;
+
+-- Table order_items (si absente — ERROR 42P01)
+-- garage_id sans FK forcée : évite l’échec si public.garages n’existe pas encore
+create table if not exists public.order_items (
+  id uuid default gen_random_uuid() primary key,
+  order_id uuid not null references public.orders(id) on delete cascade,
+  product_id uuid not null references public.products(id),
+  quantity integer not null default 1,
+  price numeric not null,
+  garage_id uuid,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+create index if not exists idx_order_items_order_id on public.order_items(order_id);
+create index if not exists idx_order_items_product_id on public.order_items(product_id);
+
+alter table public.order_items enable row level security;
+
+drop policy if exists "Order items viewable by owner" on public.order_items;
+create policy "Order items viewable by owner" on public.order_items
+  for select using (
+    exists (
+      select 1 from public.orders o
+      where o.id = order_items.order_id and o.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Order items viewable by master" on public.order_items;
+create policy "Order items viewable by master" on public.order_items
+  for select using (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'master')
+  );
+
+drop policy if exists "Users can insert order items" on public.order_items;
+create policy "Users can insert order items" on public.order_items
+  for insert with check (
+    exists (
+      select 1 from public.orders o
+      where o.id = order_items.order_id and o.user_id = auth.uid()
+    )
+  );
+
+do $pol$
+begin
+  if exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public' and table_name = 'garages'
+  ) then
+    drop policy if exists "Order items viewable by linked garage" on public.order_items;
+    create policy "Order items viewable by linked garage" on public.order_items
+      for select using (
+        exists (
+          select 1 from public.garages g
+          where g.id = order_items.garage_id and g.profile_id = auth.uid()
+        )
+      );
+  end if;
+
+  if exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public' and table_name = 'suppliers'
+  ) then
+    drop policy if exists "Order items viewable by product supplier" on public.order_items;
+    create policy "Order items viewable by product supplier" on public.order_items
+      for select using (
+        exists (
+          select 1 from public.products p
+          where p.id = order_items.product_id
+          and (
+            p.supplier_user_id = auth.uid()
+            or exists (
+              select 1 from public.suppliers s
+              where s.id = p.supplier_id and s.profile_id = auth.uid()
+            )
+          )
+        )
+      );
+  end if;
+end
+$pol$;
+
+grant usage on schema public to anon, authenticated;
+grant all on public.order_items to anon, authenticated;
+grant all on public.order_items to service_role;
+
+notify pgrst, 'reload schema';
 
 DO $$
 DECLARE

@@ -16,46 +16,38 @@ export default function SalesPage() {
     status: '',
   });
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [masterReady, setMasterReady] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  useEffect(() => {
-    if (filters.startDate || filters.endDate || filters.status) {
-      fetchSales();
-    }
-  }, [filters]);
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/auth/login');
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.role !== 'master') {
-      router.push('/dashboard/admin');
-      return;
-    }
-
-    fetchSales();
-  };
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (profile?.role !== 'master') {
+        router.push('/dashboard/admin');
+        return;
+      }
+      setMasterReady(true);
+    })();
+  }, [router, supabase]);
 
   const fetchSales = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.startDate && filters.endDate) {
+        params.append('startDate', filters.startDate);
+        params.append('endDate', filters.endDate);
+      }
       if (filters.status) params.append('status', filters.status);
 
       const response = await fetch(`/api/sales?${params.toString()}`);
@@ -73,6 +65,12 @@ export default function SalesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!masterReady) return;
+    fetchSales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarregar quando filtros mudam
+  }, [masterReady, filters]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
@@ -167,6 +165,11 @@ export default function SalesPage() {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <p className="text-sm text-gray-600 mb-3">
+          Pour filtrer par période, indiquez <strong>les deux dates</strong> (début et fin). Une seule date
+          laissée vide = toutes les commandes sont affichées. Le statut « Tous » n’applique aucun filtre
+          de paiement.
+        </p>
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
