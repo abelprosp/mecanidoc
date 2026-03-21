@@ -1,7 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { ensureSupportSchema, getSupportPool, makeId } from '@/lib/support-db';
+import { ensureSupportSchema, getSupportMailSettings, getSupportPool, makeId } from '@/lib/support-db';
 
 async function requireAdmin() {
   const supabase = await createServerSupabaseClient();
@@ -22,13 +22,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'threadId, to, subject and body are required' }, { status: 400 });
     }
 
-    const host = process.env.SUPPORT_SMTP_HOST;
-    const port = Number(process.env.SUPPORT_SMTP_PORT || 587);
-    const user = process.env.SUPPORT_SMTP_USER;
-    const pass = process.env.SUPPORT_SMTP_PASS;
-    const from = process.env.SUPPORT_EMAIL_FROM || user;
+    let host = process.env.SUPPORT_SMTP_HOST || '';
+    let port = Number(process.env.SUPPORT_SMTP_PORT || 587);
+    let user = process.env.SUPPORT_SMTP_USER || '';
+    let pass = process.env.SUPPORT_SMTP_PASS || '';
+    let from = (process.env.SUPPORT_EMAIL_FROM || user || '').trim();
+
+    const dbMail = await getSupportMailSettings().catch(() => null);
+    if (dbMail?.smtp_host?.trim()) {
+      host = dbMail.smtp_host.trim();
+      port = Number(dbMail.smtp_port ?? 587);
+      user = (dbMail.smtp_user || process.env.SUPPORT_SMTP_USER || '').trim();
+      pass = (dbMail.smtp_pass || process.env.SUPPORT_SMTP_PASS || '').trim();
+      from = (dbMail.smtp_from || dbMail.smtp_user || process.env.SUPPORT_EMAIL_FROM || user || '').trim();
+    }
+
     if (!host || !user || !pass || !from) {
-      return NextResponse.json({ error: 'Configure SUPPORT_SMTP_HOST, SUPPORT_SMTP_PORT, SUPPORT_SMTP_USER, SUPPORT_SMTP_PASS e SUPPORT_EMAIL_FROM.' }, { status: 503 });
+      return NextResponse.json(
+        {
+          error:
+            'SMTP non configuré : renseignez la section « Messagerie support » dans Configuration Globale (admin) ou les variables SUPPORT_SMTP_*.',
+        },
+        { status: 503 }
+      );
     }
 
     const transporter = nodemailer.createTransport({

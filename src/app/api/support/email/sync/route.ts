@@ -1,8 +1,8 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { ensureSupportSchema, getSupportPool, makeId } from '@/lib/support-db';
+import { ensureSupportSchema, getSupportMailSettings, getSupportPool, makeId } from '@/lib/support-db';
 
 async function requireAdmin() {
   const supabase = await createServerSupabaseClient();
@@ -18,13 +18,29 @@ export async function POST() {
     const admin = await requireAdmin();
     if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const host = process.env.SUPPORT_IMAP_HOST;
-    const port = Number(process.env.SUPPORT_IMAP_PORT || 993);
-    const user = process.env.SUPPORT_IMAP_USER;
-    const pass = process.env.SUPPORT_IMAP_PASS;
-    const mailbox = process.env.SUPPORT_IMAP_MAILBOX || 'INBOX';
+    let host = process.env.SUPPORT_IMAP_HOST || '';
+    let port = Number(process.env.SUPPORT_IMAP_PORT || 993);
+    let user = process.env.SUPPORT_IMAP_USER || '';
+    let pass = process.env.SUPPORT_IMAP_PASS || '';
+    let mailbox = process.env.SUPPORT_IMAP_MAILBOX || 'INBOX';
+
+    const dbMail = await getSupportMailSettings().catch(() => null);
+    if (dbMail?.imap_host?.trim()) {
+      host = dbMail.imap_host.trim();
+      port = Number(dbMail.imap_port ?? 993);
+      user = (dbMail.imap_user || process.env.SUPPORT_IMAP_USER || '').trim();
+      pass = (dbMail.imap_pass || process.env.SUPPORT_IMAP_PASS || '').trim();
+      mailbox = (dbMail.imap_mailbox || process.env.SUPPORT_IMAP_MAILBOX || 'INBOX').trim();
+    }
+
     if (!host || !user || !pass) {
-      return NextResponse.json({ error: 'Configure SUPPORT_IMAP_HOST, SUPPORT_IMAP_PORT, SUPPORT_IMAP_USER e SUPPORT_IMAP_PASS.' }, { status: 503 });
+      return NextResponse.json(
+        {
+          error:
+            'IMAP non configuré : renseignez la section « Messagerie support » dans Configuration Globale ou les variables SUPPORT_IMAP_*.',
+        },
+        { status: 503 }
+      );
     }
 
     const client = new ImapFlow({
@@ -41,8 +57,8 @@ export async function POST() {
     let synced = 0;
 
     try {
-      const mailbox = client.mailbox as { exists: number };
-      const total = mailbox.exists;
+      const mboxInfo = client.mailbox as { exists: number };
+      const total = mboxInfo.exists;
       if (total === 0) {
         return NextResponse.json({ ok: true, synced: 0 });
       }

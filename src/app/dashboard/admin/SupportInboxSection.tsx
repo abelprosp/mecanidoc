@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Inbox, Loader2, RefreshCcw, Send } from 'lucide-react';
@@ -111,7 +111,9 @@ export default function SupportInboxSection() {
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Inbox Email</h1>
-          <p className="text-sm text-gray-500">Synchronisation IMAP et réponses SMTP depuis l'admin.</p>
+          <p className="text-sm text-gray-500">
+            Synchronisation IMAP et réponses SMTP. Configurez les serveurs dans <strong>Configuration Globale</strong> → Messagerie support (ou variables SUPPORT_* sur le serveur).
+          </p>
         </div>
         <button onClick={syncInbox} disabled={syncing} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
           {syncing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCcw size={16} />} Synchroniser
