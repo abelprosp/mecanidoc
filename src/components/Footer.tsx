@@ -36,6 +36,11 @@ export default function Footer() {
     'Mentions légales': '/mentions-legales',
     'Qui sommes-nous': '/qui-sommes-nous',
     'Devenir partenaire': '/devenir-partenaire',
+    'Devenir garage partenaire': '/auth/register/garage',
+    'Inscription garage partenaire': '/auth/register/garage',
+    'Inscription garage': '/auth/register/garage',
+    'Connexion au garage': '/auth/login',
+    'Connexion garage': '/auth/login',
     'Devenir affilié': '/devenez-affilie',
     'Espace professionnel': '/auth/login',
   };
@@ -68,6 +73,8 @@ export default function Footer() {
   const entrepriseLinks = [
     { title: 'Qui sommes-nous', href: '/qui-sommes-nous' },
     { title: 'Devenir partenaire', href: '/devenir-partenaire' },
+    { title: 'Inscription garage partenaire', href: '/auth/register/garage' },
+    { title: 'Connexion au garage', href: '/auth/login' },
     { title: 'Devenir affilié', href: '/devenez-affilie' },
     { title: 'Espace professionnel', href: '/auth/login' },
   ];
