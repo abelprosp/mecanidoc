@@ -3,6 +3,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { applyCategoryToQuery, applyPaTipoToQuery } from '@/lib/product-query-helpers';
+
+/** Compara medidas specs vindas da BD (número ou string) com o valor do <select> (string). */
+function specDimEq(a: unknown, b: unknown): boolean {
+  return String(a ?? '').trim() === String(b ?? '').trim();
+}
 
 interface CategoryHeroProps {
   title: string;
@@ -34,8 +40,8 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
         .not('specs', 'is', null)
         .eq('is_active', true);
 
-      if (category?.trim()) query = query.ilike('category', category.trim());
-      if (paTipo?.trim()) query = query.ilike('pa_tipo', paTipo.trim());
+      query = applyCategoryToQuery(query, category?.trim() ? category : 'Toutes');
+      query = applyPaTipoToQuery(query, paTipo);
 
       const { data } = await query;
 
@@ -67,31 +73,71 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
   }, [category, paTipo]);
 
   const availableWidths = useMemo(() => {
-    const widths = new Set(allSpecs.map(s => s.width).filter(Boolean));
+    const widths = new Set(
+      allSpecs.map((s) => s.width).filter((w) => w !== '' && w != null).map((w) => String(w).trim())
+    );
     return Array.from(widths).sort((a, b) => Number(a) - Number(b));
   }, [allSpecs]);
 
   const availableHeights = useMemo(() => {
     if (!selected.width) return [];
-    const heights = new Set(allSpecs.filter(s => s.width === selected.width).map(s => s.height).filter(Boolean));
+    const heights = new Set(
+      allSpecs
+        .filter((s) => specDimEq(s.width, selected.width))
+        .map((s) => s.height)
+        .filter((h) => h !== '' && h != null)
+        .map((h) => String(h).trim())
+    );
     return Array.from(heights).sort((a, b) => Number(a) - Number(b));
   }, [allSpecs, selected.width]);
 
   const availableDiameters = useMemo(() => {
     if (!selected.width || !selected.height) return [];
-    const diameters = new Set(allSpecs.filter(s => s.width === selected.width && s.height === selected.height).map(s => s.diameter).filter(Boolean));
+    const diameters = new Set(
+      allSpecs
+        .filter(
+          (s) => specDimEq(s.width, selected.width) && specDimEq(s.height, selected.height)
+        )
+        .map((s) => s.diameter)
+        .filter((d) => d !== '' && d != null)
+        .map((d) => String(d).trim())
+    );
     return Array.from(diameters).sort((a, b) => Number(a) - Number(b));
   }, [allSpecs, selected.width, selected.height]);
 
   const availableLoads = useMemo(() => {
     if (!selected.width || !selected.height || !selected.diameter) return [];
-    const loads = new Set(allSpecs.filter(s => s.width === selected.width && s.height === selected.height && s.diameter === selected.diameter).map(s => s.load_index).filter(Boolean));
-    return Array.from(loads).sort((a, b) => (String(a)).localeCompare(String(b)));
+    const loads = new Set(
+      allSpecs
+        .filter(
+          (s) =>
+            specDimEq(s.width, selected.width) &&
+            specDimEq(s.height, selected.height) &&
+            specDimEq(s.diameter, selected.diameter)
+        )
+        .map((s) => s.load_index)
+        .filter((l) => l !== '' && l != null)
+        .map((l) => String(l).trim())
+    );
+    return Array.from(loads).sort((a, b) => a.localeCompare(b));
   }, [allSpecs, selected.width, selected.height, selected.diameter]);
 
   const availableSpeeds = useMemo(() => {
     if (!selected.width || !selected.height || !selected.diameter) return [];
-    const speeds = new Set(allSpecs.filter(s => s.width === selected.width && s.height === selected.height && s.diameter === selected.diameter && (!selected.load || s.load_index === selected.load)).map(s => s.speed_index).filter(Boolean));
+    const speeds = new Set(
+      allSpecs
+        .filter((s) => {
+          const dimOk =
+            specDimEq(s.width, selected.width) &&
+            specDimEq(s.height, selected.height) &&
+            specDimEq(s.diameter, selected.diameter);
+          const loadOk = !selected.load || specDimEq(s.load_index, selected.load);
+          return dimOk && loadOk;
+        })
+        .map((s) => s.speed_index)
+        .filter((sp) => sp !== '' && sp != null)
+        .map((sp) => String(sp).trim())
+    );
     return Array.from(speeds).sort();
   }, [allSpecs, selected.width, selected.height, selected.diameter, selected.load]);
 
@@ -103,7 +149,8 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
     if (selected.load) params.set('load_index', selected.load);
     if (selected.speed) params.set('speed_index', selected.speed);
     if (selected.brand) params.set('brand', selected.brand);
-    if (category) params.set('category', category);
+    if (category?.trim()) params.set('category', category.trim());
+    if (paTipo?.trim()) params.set('pa_tipo', paTipo.trim());
     window.location.href = `/search?${params.toString()}`;
   };
 

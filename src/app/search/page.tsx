@@ -7,59 +7,13 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { ChevronDown, Filter, Loader2, ChevronUp } from 'lucide-react';
-
-/** Valor esperado na coluna `products.category` (a UI / URL usam "Tracteurs", a BD costuma usar "Tracteur"). */
-function dbCategoryFromUi(uiCategory: string): string | null {
-  if (!uiCategory || uiCategory === 'Toutes') return null;
-  if (uiCategory === 'Tracteurs') return 'Tracteur';
-  return uiCategory;
-}
-
-/** Aplica filtro de categoria de forma compatível com a BD (maiúsculas e Tracteur/Tracteurs). */
-function applyCategoryToQuery(query: any, uiCategory: string) {
-  const cat = dbCategoryFromUi(uiCategory);
-  if (!cat) return query;
-  if (cat === 'Tracteur') {
-    return query.or('category.ilike.Tracteur,category.ilike.Tracteurs');
-  }
-  return query.ilike('category', cat);
-}
-
-function productMatchesUiCategory(productCategory: string | null | undefined, uiCategory: string): boolean {
-  const want = dbCategoryFromUi(uiCategory);
-  if (!want) return true;
-  const p = (productCategory || '').trim().toLowerCase();
-  const w = want.toLowerCase();
-  if (p === w) return true;
-  if (w === 'tracteur' && (p === 'tracteurs' || p.startsWith('tracteur'))) return true;
-  return false;
-}
-
-type SpecsFilterSlice = {
-  width: string;
-  height: string;
-  diameter: string;
-  load_index: string;
-  speed_index: string;
-  season: string;
-};
-
-/**
- * Filtros em `specs`: `.contains` no JSONB exige tipos iguais (número ≠ string).
- * O CSV/Postgres costuma guardar width/height/diameter como número; o <select> envia string → 0 resultados.
- * `specs->>chave` compara em texto e alinha os dois casos.
- */
-function applySpecsFieldFilters(query: any, f: SpecsFilterSlice) {
-  let q = query;
-  const t = (s: string) => String(s).trim();
-  if (f.width) q = q.eq('specs->>width', t(f.width));
-  if (f.height) q = q.eq('specs->>height', t(f.height));
-  if (f.diameter) q = q.eq('specs->>diameter', t(f.diameter));
-  if (f.load_index) q = q.eq('specs->>load_index', t(f.load_index));
-  if (f.speed_index) q = q.eq('specs->>speed_index', t(f.speed_index));
-  if (f.season && f.season !== 'Tous') q = q.eq('specs->>season', f.season);
-  return q;
-}
+import {
+  applyCategoryToQuery,
+  applyPaTipoToQuery,
+  applySpecsFieldFilters,
+  productMatchesPaTipo,
+  productMatchesUiCategory,
+} from '@/lib/product-query-helpers';
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -80,6 +34,7 @@ function SearchContent() {
     searchQuery: searchParams.get('q') || '',
     load_index: searchParams.get('load_index') || '',
     speed_index: searchParams.get('speed_index') || '',
+    pa_tipo: searchParams.get('pa_tipo') || '',
   });
 
   useEffect(() => {
@@ -90,6 +45,7 @@ function SearchContent() {
         .not('specs', 'is', null)
         .eq('is_active', true);
       q = applyCategoryToQuery(q, filters.category);
+      q = applyPaTipoToQuery(q, filters.pa_tipo);
       const { data } = await q;
       if (data) {
         const valid = data.map((r: any) => r.specs).filter((s: any) => s && s.width);
@@ -97,7 +53,7 @@ function SearchContent() {
       }
     };
     fetchDimensionSpecs();
-  }, [filters.category]);
+  }, [filters.category, filters.pa_tipo]);
 
   useEffect(() => {
     const fetchBrands = async () => {
@@ -106,6 +62,7 @@ function SearchContent() {
         .select('brand_id, brand, brands(id, name)')
         .eq('is_active', true);
       q = applyCategoryToQuery(q, filters.category);
+      q = applyPaTipoToQuery(q, filters.pa_tipo);
       const { data } = await q;
       if (data) {
         const seen = new Set<string>();
@@ -123,7 +80,7 @@ function SearchContent() {
       }
     };
     fetchBrands();
-  }, [filters.category]);
+  }, [filters.category, filters.pa_tipo]);
 
   const availableWidths = useMemo(() => {
     const w = new Set(dimensionSpecs.map(s => s.width).filter(Boolean));
@@ -194,6 +151,7 @@ function SearchContent() {
       }
 
       query = applyCategoryToQuery(query, filters.category);
+      query = applyPaTipoToQuery(query, filters.pa_tipo);
       query = applySpecsFieldFilters(query, filters);
 
       let data: any[] = [];
@@ -243,8 +201,13 @@ function SearchContent() {
             // Aplicar filtro de categoria no resultado se necessário
             let filtered = fullProducts;
             if (filters.category && filters.category !== 'Toutes') {
-              filtered = fullProducts.filter((p) =>
+              filtered = filtered.filter((p) =>
                 productMatchesUiCategory(p.category, filters.category)
+              );
+            }
+            if (filters.pa_tipo?.trim()) {
+              filtered = filtered.filter((p) =>
+                productMatchesPaTipo(p.pa_tipo, filters.pa_tipo)
               );
             }
             console.log('Produtos encontrados por brand texto (após filtro categoria):', filtered.length);
@@ -261,6 +224,7 @@ function SearchContent() {
             .eq('brand_id', brandId);
           
           query1 = applyCategoryToQuery(query1, filters.category);
+          query1 = applyPaTipoToQuery(query1, filters.pa_tipo);
           query1 = applySpecsFieldFilters(query1, filters);
           
           const { data: data1, error: error1 } = await query1;
@@ -283,6 +247,7 @@ function SearchContent() {
           .ilike('brand', `%${brandName}%`);
         
         query2 = applyCategoryToQuery(query2, filters.category);
+        query2 = applyPaTipoToQuery(query2, filters.pa_tipo);
         query2 = applySpecsFieldFilters(query2, filters);
         
         const { data: data2, error: error2 } = await query2;
@@ -305,6 +270,11 @@ function SearchContent() {
             productMatchesUiCategory(p.category, filters.category)
           );
         }
+        if (filters.pa_tipo?.trim()) {
+          uniqueProducts = uniqueProducts.filter((p) =>
+            productMatchesPaTipo(p.pa_tipo, filters.pa_tipo)
+          );
+        }
         data = uniqueProducts;
         console.log('Total único após combinar:', data.length);
       } else {
@@ -313,6 +283,9 @@ function SearchContent() {
         let rows = result.data || [];
         if (filters.category && filters.category !== 'Toutes') {
           rows = rows.filter((p) => productMatchesUiCategory(p.category, filters.category));
+        }
+        if (filters.pa_tipo?.trim()) {
+          rows = rows.filter((p) => productMatchesPaTipo(p.pa_tipo, filters.pa_tipo));
         }
         data = rows;
         error = result.error;
@@ -347,6 +320,7 @@ function SearchContent() {
       season: seasonParam !== null ? (seasonParam || 'Tous') : prev.season,
       load_index: searchParams.get('load_index') || '',
       speed_index: searchParams.get('speed_index') || '',
+      pa_tipo: searchParams.get('pa_tipo') || '',
       searchQuery: qParam !== null ? qParam : prev.searchQuery,
     }));
   }, [searchParams]);
@@ -383,7 +357,7 @@ function SearchContent() {
               <div className="relative">
                 <select 
                   value={filters.category}
-                  onChange={(e) => setFilters({...filters, category: e.target.value, width: '', height: '', diameter: '', brand: '', load_index: '', speed_index: ''})}
+                  onChange={(e) => setFilters({...filters, category: e.target.value, width: '', height: '', diameter: '', brand: '', load_index: '', speed_index: '', pa_tipo: ''})}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm appearance-none bg-white"
                 >
                   <option value="Toutes">Toutes</option>
