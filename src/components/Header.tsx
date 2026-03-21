@@ -267,7 +267,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full">
       <div className="layout-container pt-2 md:pt-3">
         <div className="relative">
-          <div className="relative bg-white shadow-sm rounded-b-2xl md:rounded-b-[2.5rem] h-16 md:h-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 md:gap-x-3">
+          <div className="relative bg-white shadow-sm h-16 md:h-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 md:gap-x-3">
         <div className="flex items-center gap-1 min-w-0 justify-self-start">
           <button 
             className="md:hidden text-gray-700 p-2 shrink-0"
@@ -347,7 +347,7 @@ export default function Header() {
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 z-40 mt-0 w-full bg-white border border-gray-200 border-t-0 rounded-b-2xl shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
+        <div className="md:hidden absolute top-full left-0 right-0 z-40 mt-0 w-full bg-white border border-gray-200 border-t-0 shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
           <div className="p-4 space-y-2">
             {navigationDataStatic.map((item) => (
               <div key={item.title} className="border-b border-gray-100 last:border-0">

@@ -162,9 +162,11 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
 
   if (loading) {
     return (
-      <section className="py-2 md:py-4 bg-white">
-        <div className="layout-container flex justify-center">
-          <Loader2 className="animate-spin text-gray-400" />
+      <section className="py-2 md:py-4">
+        <div className="layout-container">
+          <div className="bg-white shadow-sm py-3 md:py-4 flex justify-center">
+            <Loader2 className="animate-spin text-gray-400" />
+          </div>
         </div>
       </section>
     );
@@ -178,8 +180,9 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
   console.log('✅ BrandCarousel - Renderizando com', brands.length, 'marcas');
 
   return (
-    <section className="py-2 md:py-4 bg-white">
+    <section className="py-2 md:py-4">
       <div className="layout-container">
+        <div className="bg-white shadow-sm py-3 md:py-4">
         {/* Title - horizontal like BestSellers */}
         <h2 className="text-sm font-bold text-gray-900 mb-2 md:mb-4 uppercase tracking-wide">
           Marques Pneus {paTipo ? paTipo : (categoryTitles[category] || category)}
@@ -231,6 +234,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
           >
             <ChevronRight size={20} />
           </button>
+        </div>
         </div>
       </div>
     </section>
