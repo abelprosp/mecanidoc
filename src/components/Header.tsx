@@ -267,7 +267,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full">
       <div className="layout-container pt-2 md:pt-3">
         <div className="relative">
-          <div className="relative bg-white shadow-sm h-16 md:h-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 md:gap-x-3">
+          <div className="relative bg-white shadow-sm h-16 md:h-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 md:gap-x-3 px-3 sm:px-4 md:px-5">
         <div className="flex items-center gap-1 min-w-0 justify-self-start">
           <button 
             className="md:hidden text-gray-700 p-2 shrink-0"
@@ -296,11 +296,11 @@ export default function Header() {
                 {item.title} <ChevronDown size={14} className="opacity-60 shrink-0" aria-hidden />
               </Link>
               
-              <div className="absolute left-0 top-full w-full flex justify-center z-50 hidden group-hover:block pointer-events-none group-hover:pointer-events-auto">
-                <div className="bg-white border border-gray-200 shadow-xl rounded-b-lg max-w-3xl mx-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <div className="flex">
+              <div className="absolute left-0 right-0 top-full z-[60] hidden w-full group-hover:block pointer-events-none group-hover:pointer-events-auto">
+                <div className="w-full bg-white border border-gray-200 border-t-0 shadow-xl rounded-b-lg animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="flex w-full">
                     {item.columns.map((column, colIndex) => (
-                      <div key={colIndex} className={`min-w-[140px] py-4 px-4 ${colIndex !== item.columns.length - 1 ? 'border-r border-gray-100' : ''}`}>
+                      <div key={colIndex} className={`flex-1 min-w-0 py-4 px-3 sm:px-4 md:px-5 ${colIndex !== item.columns.length - 1 ? 'border-r border-gray-100' : ''}`}>
                         <ul className="space-y-2">
                         {column.map((subItem) => {
                           const href = subItem.href ?? `/categorie/${subItem.slug}`;

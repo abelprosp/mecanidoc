@@ -107,7 +107,7 @@ export default function HeroMoto() {
 
   return (
     <div className="layout-container py-3 md:py-5">
-      <div className="relative bg-gray-900 h-auto md:h-[550px] md:rounded-[2.5rem] flex flex-col items-center justify-center text-white overflow-hidden shadow-2xl py-8 md:py-0">
+      <div className="relative bg-gray-900 h-auto md:h-[550px] md:rounded-[2.5rem] flex flex-col items-center justify-center text-white overflow-hidden shadow-2xl py-8 md:py-0 px-3 sm:px-4 md:px-6">
         {/* Background Image - Moto specific if possible, or same */}
         <div className="absolute inset-0 z-0">
           <img 

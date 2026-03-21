@@ -164,7 +164,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
     return (
       <section className="py-2 md:py-4">
         <div className="layout-container">
-          <div className="bg-white shadow-sm py-3 md:py-4 flex justify-center">
+          <div className="bg-white shadow-sm py-3 md:py-4 px-3 sm:px-4 md:px-5 flex justify-center">
             <Loader2 className="animate-spin text-gray-400" />
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
   return (
     <section className="py-2 md:py-4">
       <div className="layout-container">
-        <div className="bg-white shadow-sm py-3 md:py-4">
+        <div className="bg-white shadow-sm py-3 md:py-4 px-3 sm:px-4 md:px-5">
         {/* Title - horizontal like BestSellers */}
         <h2 className="text-sm font-bold text-gray-900 mb-2 md:mb-4 uppercase tracking-wide">
           Marques Pneus {paTipo ? paTipo : (categoryTitles[category] || category)}
@@ -193,7 +193,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
           {/* Left Button */}
           <button 
             onClick={() => scroll('left')}
-            className="absolute -left-2 md:left-0 top-1/2 -translate-y-1/2 bg-white shadow-lg hover:shadow-xl text-gray-600 rounded-full p-2 z-10 transition-all opacity-0 group-hover:opacity-100"
+            className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 bg-white shadow-lg hover:shadow-xl text-gray-600 rounded-full p-2 z-10 transition-all opacity-0 group-hover:opacity-100"
           >
             <ChevronLeft size={20} />
           </button>
@@ -230,7 +230,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
           {/* Right Button */}
           <button 
             onClick={() => scroll('right')}
-            className="absolute -right-2 md:right-0 top-1/2 -translate-y-1/2 bg-white shadow-lg hover:shadow-xl text-gray-600 rounded-full p-2 z-10 transition-all opacity-0 group-hover:opacity-100"
+            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 bg-white shadow-lg hover:shadow-xl text-gray-600 rounded-full p-2 z-10 transition-all opacity-0 group-hover:opacity-100"
           >
             <ChevronRight size={20} />
           </button>
