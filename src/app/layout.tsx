@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MecaniDoc - Pneus Auto, Moto, Camion",
   description: "Roulez en toute sécurité avec mecanidoc.com",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 import { CartProvider } from '@/context/CartContext';

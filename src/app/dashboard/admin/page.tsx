@@ -1241,7 +1241,7 @@ function SettingsSection() {
 
   useEffect(() => {
     const f = async () => {
-      const { data } = await supabase.from('global_settings').select('*').single();
+      const { data } = await supabase.from('global_settings').select('*').maybeSingle();
       setSettings(data || {});
 
       const { data: mailRow, error: mailErr } = await supabase

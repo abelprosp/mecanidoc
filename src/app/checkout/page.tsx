@@ -44,7 +44,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const { data } = await supabase.from('global_settings').select('*').single();
+        const { data } = await supabase.from('global_settings').select('*').maybeSingle();
         setSettings(data || { delivery_base_fee: 10, fast_delivery_fee: 19.90, warranty_fee: 5.50 });
       } catch {
         setSettings({ delivery_base_fee: 10, fast_delivery_fee: 19.90, warranty_fee: 5.50 });
@@ -167,7 +167,14 @@ export default function CheckoutPage() {
         body: JSON.stringify({ orderId: order.id, items: orderItems }),
       });
       const itemsData = await itemsRes.json().catch(() => ({}));
-      if (!itemsRes.ok) {
+      let itemsOk = itemsRes.ok;
+      // Hébergement statique ou API absente : 404. Config DB manquante : 503.
+      if (!itemsOk && (itemsRes.status === 404 || itemsRes.status === 503)) {
+        const { error: directErr } = await supabase.from('order_items').insert(orderItems);
+        if (!directErr) itemsOk = true;
+        else console.error('order_items insert (fallback):', directErr);
+      }
+      if (!itemsOk) {
         console.error('Order items insert error:', itemsData);
         alert(itemsData.error || `Erreur articles: ${itemsRes.status}`);
         setPlacingOrder(false);
