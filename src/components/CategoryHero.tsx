@@ -3,7 +3,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-import { applyCategoryToQuery, applyPaTipoToQuery } from '@/lib/product-query-helpers';
+import {
+  applyCategoryToQuery,
+  applyPaTipoToQuery,
+  productMatchesUiCategory,
+  productMatchesPaTipo,
+} from '@/lib/product-query-helpers';
 
 /** Compara medidas specs vindas da BD (número ou string) com o valor do <select> (string). */
 function specDimEq(a: unknown, b: unknown): boolean {
@@ -46,13 +51,19 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
       const { data } = await query;
 
       if (data) {
-        const validSpecs = data
+        const uiCat = category?.trim() ? category.trim() : 'Toutes';
+        const rows = data.filter(
+          (item: any) =>
+            productMatchesUiCategory(item.category, uiCat) &&
+            productMatchesPaTipo(item.pa_tipo, paTipo || '')
+        );
+        const validSpecs = rows
           .map((item: any) => item.specs)
           .filter((spec: any) => spec && spec.width);
         setAllSpecs(validSpecs);
         const seen = new Set<string>();
         const list: { id: string | null; name: string }[] = [];
-        data.forEach((p: any) => {
+        rows.forEach((p: any) => {
           const name = (p.brands?.name || p.brand || '').trim();
           if (!name) return;
           const key = p.brand_id || name;
@@ -141,7 +152,11 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
     return Array.from(speeds).sort();
   }, [allSpecs, selected.width, selected.height, selected.diameter, selected.load]);
 
+  const hasThreeDimensions =
+    Boolean(selected.width?.trim() && selected.height?.trim() && selected.diameter?.trim());
+
   const handleSearch = () => {
+    if (!hasThreeDimensions) return;
     const params = new URLSearchParams();
     if (selected.width) params.set('width', selected.width);
     if (selected.height) params.set('height', selected.height);
@@ -248,12 +263,18 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
               </div>
             </div>
 
-            <button 
+            <button
+              type="button"
+              disabled={!hasThreeDimensions}
               onClick={handleSearch}
-              className="w-full bg-[#0066CC] hover:bg-blue-600 text-white font-bold py-3 rounded-lg uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+              className={`w-full font-bold py-3 rounded-lg uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${
+                hasThreeDimensions
+                  ? 'bg-[#0066CC] hover:bg-blue-600 text-white cursor-pointer'
+                  : 'bg-[#99A1AF] text-white/95 cursor-not-allowed opacity-90'
+              }`}
             >
               <Search size={20} />
-              Sélectionnez tous les attributs requis
+              {hasThreeDimensions ? 'Rechercher' : 'Sélectionnez largeur, hauteur et diamètre'}
             </button>
           </div>
         </div>

@@ -3,6 +3,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import {
+  applyCategoryToQuery,
+  applyPaTipoToQuery,
+  productMatchesUiCategory,
+  productMatchesPaTipo,
+} from '@/lib/product-query-helpers';
 
 interface BrandCarouselProps {
   category?: string;
@@ -17,120 +23,60 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
 
   // Mapeamento de categorias para títulos
   const categoryTitles: { [key: string]: string } = {
-    'Auto': 'Auto',
-    'Moto': 'Moto',
-    'Camion': 'Poids Lourd',
-    'Tracteur': 'Agricoles'
+    Auto: 'Auto',
+    Moto: 'Moto',
+    Camion: 'Poids Lourd',
+    Tracteur: 'Agricoles',
+    Tracteurs: 'Agricoles',
   };
 
   useEffect(() => {
     const fetchBrands = async () => {
       setLoading(true);
-      console.log('🔍 BrandCarousel - Buscando marcas para categoria:', category);
-      
-      if (category) {
-        // Buscar apenas marcas que têm produtos ativos na categoria específica
-        const normalizedCategory = category.trim().toLowerCase();
-        console.log('🔍 Categoria normalizada:', normalizedCategory);
-        
-        // Buscar produtos da categoria com suas marcas - usar múltiplas queries para garantir
-        const normalizedCategoryUpper = normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1);
-        
-        // Query 1: Buscar por categoria exata (lowercase)
-        let query1 = supabase
-          .from('products')
-          .select('brand_id, brand, category, pa_tipo, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .eq('category', normalizedCategory);
-        if (paTipo?.trim()) {
-          query1 = query1.eq('pa_tipo', paTipo.trim());
-        }
-        const { data: productsData1 } = await query1;
-        
-        // Query 2: Buscar por categoria exata (uppercase)
-        let query2 = supabase
-          .from('products')
-          .select('brand_id, brand, category, pa_tipo, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .eq('category', normalizedCategoryUpper);
-        if (paTipo?.trim()) {
-          query2 = query2.eq('pa_tipo', paTipo.trim());
-        }
-        const { data: productsData2 } = await query2;
-        
-        // Query 3: Buscar por categoria case-insensitive
-        let query3 = supabase
-          .from('products')
-          .select('brand_id, brand, category, pa_tipo, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .ilike('category', normalizedCategory);
-        if (paTipo?.trim()) {
-          query3 = query3.eq('pa_tipo', paTipo.trim());
-        }
-        const { data: productsData3 } = await query3;
-        
-        // Combinar todos os resultados e remover duplicatas
-        const allProductsMap = new Map<string, any>();
-        [...(productsData1 || []), ...(productsData2 || []), ...(productsData3 || [])].forEach((product: any) => {
-          const key = product.brand_id || product.brand || `brand_${product.brand}`;
-          if (!allProductsMap.has(key)) {
-            allProductsMap.set(key, product);
-          }
-        });
-        
-        const productsData = Array.from(allProductsMap.values());
-        const productsError = null;
 
-        if (productsError) {
-          console.error('❌ Error fetching products for brands:', productsError);
+      if (category?.trim()) {
+        const cat = category.trim();
+        let query = supabase
+          .from('products')
+          .select('brand_id, brand, category, pa_tipo, brands(id, name, logo_url)')
+          .eq('is_active', true);
+        query = applyCategoryToQuery(query, cat);
+        query = applyPaTipoToQuery(query, paTipo);
+        const { data: productsData, error } = await query;
+
+        if (error) {
+          console.error('BrandCarousel:', error);
+          setBrands([]);
           setLoading(false);
           return;
         }
 
-        console.log('📦 Total de produtos encontrados:', productsData?.length || 0);
-
-        // Filtrar produtos pela categoria (case-insensitive) e extrair marcas únicas
         const brandMap = new Map<string, any>();
-        
         (productsData || []).forEach((product: any) => {
-          const productCategory = (product.category || '').toLowerCase();
-          const productPaTipo = (product.pa_tipo || '').trim();
-          
-          // Verificar se o produto pertence à categoria
-          if (productCategory === normalizedCategory) {
-            // Se paTipo foi especificado, verificar se o produto corresponde
-            if (paTipo?.trim() && productPaTipo !== paTipo.trim()) {
-              return; // Pular este produto se não corresponder ao paTipo
+          if (!productMatchesUiCategory(product.category, cat)) return;
+          if (!productMatchesPaTipo(product.pa_tipo, paTipo || '')) return;
+          if (product.brand_id && product.brands) {
+            if (!brandMap.has(product.brand_id)) {
+              brandMap.set(product.brand_id, product.brands);
             }
-            // Priorizar brand_id se existir
-            if (product.brand_id && product.brands) {
-              if (!brandMap.has(product.brand_id)) {
-                brandMap.set(product.brand_id, product.brands);
-              }
-            } else if (product.brand) {
-              // Se não houver brand_id, usar o nome da marca
-              const brandName = product.brand.trim();
-              if (!brandMap.has(brandName)) {
-                brandMap.set(brandName, {
-                  id: null,
-                  name: brandName,
-                  logo_url: null
-                });
-              }
+          } else if (product.brand?.trim()) {
+            const brandName = product.brand.trim();
+            if (!brandMap.has(brandName)) {
+              brandMap.set(brandName, {
+                id: null,
+                name: brandName,
+                logo_url: null,
+              });
             }
           }
         });
 
-        console.log('🏷️ Marcas únicas encontradas:', brandMap.size);
-
-        // Converter Map para array e ordenar por nome
-        const uniqueBrands = Array.from(brandMap.values())
-          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-        console.log('✅ Marcas finais:', uniqueBrands.length, uniqueBrands.map(b => b.name));
-        setBrands(uniqueBrands);
+        setBrands(
+          Array.from(brandMap.values()).sort((a, b) =>
+            (a.name || '').localeCompare(b.name || '')
+          )
+        );
       } else {
-        // Se não houver categoria, mostrar todas as marcas (comportamento padrão)
         const { data, error } = await supabase
           .from('brands')
           .select('*')
@@ -138,17 +84,17 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
 
         if (error) {
           console.error('Error fetching brands:', error);
+          setBrands([]);
         } else {
-          console.log('📋 Todas as marcas (sem filtro):', data?.length || 0);
           setBrands(data || []);
         }
       }
-      
+
       setLoading(false);
     };
 
-      fetchBrands();
-    }, [category, paTipo]);
+    fetchBrands();
+  }, [category, paTipo]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -173,11 +119,8 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
   }
 
   if (brands.length === 0) {
-    console.log('⚠️ BrandCarousel - Nenhuma marca encontrada para categoria:', category);
     return null;
   }
-
-  console.log('✅ BrandCarousel - Renderizando com', brands.length, 'marcas');
 
   return (
     <section className="py-2 md:py-4">
@@ -205,7 +148,7 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
           >
             {brands.map((brand) => (
               <div 
-                key={brand.id} 
+                key={brand.id ?? `name-${brand.name}`} 
                 className="flex-shrink-0 snap-center"
                 onClick={() => window.location.href = `/search?brand=${encodeURIComponent(brand.name)}&category=${encodeURIComponent(category)}`}
               >

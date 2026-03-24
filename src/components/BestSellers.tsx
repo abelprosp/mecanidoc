@@ -4,6 +4,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import ProductCard from './VerticalProductCard';
+import {
+  applyCategoryToQuery,
+  applyPaTipoToQuery,
+  productMatchesUiCategory,
+  productMatchesPaTipo,
+} from '@/lib/product-query-helpers';
 
 interface BestSellersProps {
   category?: string;
@@ -23,33 +29,24 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
         .select('*, brands(id, name, logo_url)')
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-        .limit(12); // Increased limit for carousel
+        .limit(12);
 
-      if (category) {
-        // Normalizar categoria para garantir match exato
-        const normalizedCategory = category.trim();
-        // Filtrar por categoria exata - garantir que categorias diferentes não se misturem
-        query = query.or(
-          `category.eq.${normalizedCategory},category.eq.${normalizedCategory.toLowerCase()},category.eq.${normalizedCategory.toUpperCase()}`
-        );
+      if (category?.trim()) {
+        query = applyCategoryToQuery(query, category.trim());
       }
-      
-      // Se houver paTipo, filtrar produtos por pa_tipo
-      if (paTipo) {
-        query = query.eq('pa_tipo', paTipo);
-      }
-      
+      query = applyPaTipoToQuery(query, paTipo);
+
       const { data, error } = await query;
-      
+
       if (error) {
-        console.error("Error fetching products:", error);
+        console.error('Error fetching products:', error);
+        setProducts([]);
       } else {
-        // Filtro adicional no cliente para garantir match exato (case-insensitive)
-        const normalizedCategory = category?.trim().toLowerCase();
+        const cat = category?.trim() || '';
         const filtered = (data || []).filter((product: any) => {
-          if (!category) return true;
-          const productCategory = (product.category || '').toLowerCase();
-          return productCategory === normalizedCategory;
+          if (!cat) return true;
+          if (!productMatchesUiCategory(product.category, cat)) return false;
+          return productMatchesPaTipo(product.pa_tipo, paTipo || '');
         });
         setProducts(filtered);
       }

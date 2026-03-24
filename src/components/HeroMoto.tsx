@@ -4,21 +4,27 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Car, Bike, Truck, Tractor, Sun, ChevronDown, CloudLightning, CloudSnow } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { applyCategoryToQuery, productMatchesUiCategory } from '@/lib/product-query-helpers';
 
-export default function HeroMoto() {
+type HeroMotoProps = { category?: string };
+
+export default function HeroMoto({ category = 'Moto' }: HeroMotoProps) {
   const [allSpecs, setAllSpecs] = useState<any[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
     const fetchSpecs = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('products')
         .select('specs, category')
         .not('specs', 'is', null)
-        .ilike('category', 'Moto'); // Filtrar apenas produtos da categoria Moto
+        .eq('is_active', true);
+      query = applyCategoryToQuery(query, category);
+      const { data } = await query;
 
       if (data) {
         const validSpecs = data
+          .filter((item: any) => productMatchesUiCategory(item.category, category))
           .map((item: any) => item.specs)
           .filter((spec: any) => spec && spec.width);
         setAllSpecs(validSpecs);
@@ -26,7 +32,8 @@ export default function HeroMoto() {
     };
 
     fetchSpecs();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- supabase client não é estável entre renders
+  }, [category]);
 
   const [selected, setSelected] = useState({
     width: '',
@@ -92,9 +99,13 @@ export default function HeroMoto() {
     return Array.from(speeds).sort();
   }, [allSpecs, selected.width, selected.height, selected.diameter, selected.load]);
 
+  const hasThreeDimensions =
+    Boolean(selected.width?.trim() && selected.height?.trim() && selected.diameter?.trim());
+
   const handleSearch = () => {
+    if (!hasThreeDimensions) return;
     const params = new URLSearchParams();
-    params.set('category', 'Moto');
+    params.set('category', category);
     if (selected.width) params.set('width', selected.width);
     if (selected.height) params.set('height', selected.height);
     if (selected.diameter) params.set('diameter', selected.diameter);
@@ -314,12 +325,29 @@ export default function HeroMoto() {
                   </div>
 
                   {/* Submit Button */}
-                  <button 
+                  <button
+                    type="button"
+                    disabled={!hasThreeDimensions}
                     onClick={handleSearch}
-                    className="bg-[#99A1AF] text-white font-bold py-4 px-8 rounded text-sm text-center uppercase tracking-wide hover:bg-gray-500 transition-colors shadow-sm leading-tight w-full md:w-auto"
+                    className={`text-white font-bold py-4 px-8 rounded text-sm text-center uppercase tracking-wide transition-colors shadow-sm leading-tight w-full md:w-auto ${
+                      hasThreeDimensions
+                        ? 'bg-[#0066CC] hover:bg-blue-600 cursor-pointer'
+                        : 'bg-[#99A1AF] cursor-not-allowed opacity-90'
+                    }`}
                   >
-                    RECHERCHER<br />
-                    LES PNEUS
+                    {hasThreeDimensions ? (
+                      <>
+                        RECHERCHER
+                        <br />
+                        LES PNEUS
+                      </>
+                    ) : (
+                      <>
+                        LARGEUR, HAUTEUR
+                        <br />
+                        ET DIAMÈTRE
+                      </>
+                    )}
                   </button>
                 </div>
 

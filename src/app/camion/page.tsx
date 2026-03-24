@@ -26,7 +26,7 @@ export default async function CamionPage() {
   return (
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
-      <HeroCamion />
+      <HeroCamion category={category} />
       <BrandCarousel category={category} />
       <BestSellers category={category} />
       <WarrantyBanner />

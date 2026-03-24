@@ -26,7 +26,7 @@ export default async function TractorPage() {
   return (
     <main className="min-h-screen">
       <Header />
-      <HeroTractor />
+      <HeroTractor category={category} />
       <BrandCarousel category={category} />
       <BestSellers category={category} />
       <WarrantyBanner />
