@@ -7,21 +7,10 @@ import DeliveryModes from "@/components/DeliveryModes";
 import FAQ from "@/components/FAQ";
 import Steps from "@/components/Steps";
 import Footer from "@/components/Footer";
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-
-async function getCategoryFilter() {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase
-    .from('category_pages')
-    .select('product_category_filter')
-    .eq('slug', 'auto')
-    .maybeSingle();
-  
-  return data?.product_category_filter || 'Auto';
-}
+import { MAIN_ROUTE_PRODUCT_CATEGORY } from '@/lib/main-page-product-category';
 
 export default async function Home() {
-  const category = await getCategoryFilter();
+  const category = MAIN_ROUTE_PRODUCT_CATEGORY.home;
   
   return (
     <main className="min-h-screen">
