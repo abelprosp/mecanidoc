@@ -267,7 +267,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full">
       <div className="layout-container pt-2 md:pt-3">
         <div className="relative">
-          <div className="relative bg-white shadow-sm h-16 md:h-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 md:gap-x-3 px-3 sm:px-4 md:px-5">
+          <div className="relative bg-white shadow-sm h-16 md:h-20 grid grid-cols-[auto_1fr_auto] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 md:gap-x-3 px-3 sm:px-4 md:px-5">
         <div className="flex items-center gap-1 min-w-0 justify-self-start">
           <button 
             className="md:hidden text-gray-700 p-2 shrink-0"
@@ -323,7 +323,7 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center justify-end gap-1.5 md:gap-2 shrink-0 min-w-0 justify-self-end w-full">
+        <div className="flex items-center justify-end gap-1.5 md:gap-2 shrink-0 min-w-0 justify-self-end">
           <button 
             onClick={() => setSearchOpen(true)}
             className="text-gray-600 hover:text-blue-600 transition-colors p-1"
