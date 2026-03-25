@@ -9,7 +9,9 @@
     "build": "node scripts/run-next.js build",
     "start": "next start",
     "lint": "eslint",
-    "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook"
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "mirror-images": "node scripts/mirror-product-images.mjs",
+    "mirror-images:dry": "node scripts/mirror-product-images.mjs --dry-run"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
