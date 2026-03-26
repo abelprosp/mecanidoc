@@ -197,10 +197,10 @@ export default function ProductPage() {
         <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row mb-6">
           
           {/* Left Column: Image & Badges */}
-          <div className="w-full md:w-5/12 p-8 border-r border-gray-100 flex flex-col items-center">
+          <div className="w-full md:w-5/12 p-4 md:p-8 border-r border-gray-100 flex flex-col items-center">
             
             {/* Main Image com Labels e Marca - com padding para evitar sobreposição */}
-            <div className="w-full h-96 md:h-[500px] flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative p-8 md:p-12">
+            <div className="w-full h-[460px] md:h-[500px] flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative p-4 md:p-12">
               {/* Brand Logo - posicionado fora da área da imagem */}
               <div className="absolute top-2 left-2 md:top-4 md:left-4 z-10">
                 {product.brands?.logo_url ? (
@@ -211,18 +211,18 @@ export default function ProductPage() {
               </div>
 
               {/* Container flex para imagem e labels lado a lado */}
-              <div className="w-full h-full flex items-center justify-center gap-4 md:gap-6">
+              <div className="w-full h-full flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6">
                 {/* Imagem do pneu - com padding interno para não sobrepor marca */}
-                <div className="flex-1 h-full flex items-center justify-center pt-8 pl-8">
+                <div className="flex-1 w-full h-full flex items-center justify-center pt-10 md:pt-8 md:pl-8">
                   <img 
                     src={product.images?.[0] || 'https://placehold.co/400x400/f3f4f6/d1d5db?text=Tire+Image'} 
                     alt={product.name} 
-                    className="max-w-full max-h-full object-contain mix-blend-multiply"
+                    className="max-w-full max-h-full object-contain mix-blend-multiply scale-110 md:scale-100"
                   />
                 </div>
 
                 {/* Labels - ao lado da imagem, alinhados verticalmente */}
-                <div className="flex flex-col gap-2 justify-center">
+                <div className="flex flex-row md:flex-col gap-2 justify-center">
                   <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
                   <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
                   <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />
