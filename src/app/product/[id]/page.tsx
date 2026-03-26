@@ -222,7 +222,7 @@ export default function ProductPage() {
                 </div>
 
                 {/* Labels - ao lado da imagem, alinhados verticalmente */}
-                <div className="flex flex-row md:flex-col gap-2 justify-center">
+                <div className="w-full px-3 sm:px-6 md:w-auto md:px-0 flex flex-row md:flex-col gap-2 justify-between md:justify-center">
                   <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
                   <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
                   <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />
