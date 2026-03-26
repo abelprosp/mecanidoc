@@ -18,17 +18,17 @@ const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', val
   };
 
   return (
-    <div className="flex items-center gap-2 mb-1">
-      <div className="w-6 flex justify-center">{icons[type]}</div>
+    <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+      <div className="w-5 md:w-6 flex justify-center">{icons[type]}</div>
       {type === 'noise' ? (
-        <div className="flex items-center bg-gray-800 text-white text-xs font-bold px-2 h-6 rounded-r-sm relative ml-4 w-14 justify-between">
-           <div className="absolute -left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[8px] border-r-gray-800 border-b-[12px] border-b-transparent"></div>
+        <div className="flex items-center bg-gray-800 text-white text-[11px] md:text-xs font-bold px-1.5 md:px-2 h-6 rounded-r-sm relative ml-2 md:ml-4 w-12 md:w-14 justify-between">
+           <div className="absolute -left-1.5 md:-left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[6px] md:border-r-[8px] border-r-gray-800 border-b-[12px] border-b-transparent"></div>
            <span className="ml-1">{value}</span>
            <span className="text-[9px] scale-75">dB</span>
         </div>
       ) : (
-        <div className={`flex items-center text-white text-xs font-bold px-2 h-6 rounded-r-sm relative ml-4 w-14 justify-center ${color}`}>
-           <div className={`absolute -left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[8px] border-b-[12px] border-b-transparent`} style={{ borderRightColor: 'inherit' }}></div>
+        <div className={`flex items-center text-white text-[11px] md:text-xs font-bold px-1.5 md:px-2 h-6 rounded-r-sm relative ml-2 md:ml-4 w-12 md:w-14 justify-center ${color}`}>
+           <div className={`absolute -left-1.5 md:-left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[6px] md:border-r-[8px] border-b-[12px] border-b-transparent`} style={{ borderRightColor: 'inherit' }}></div>
            {value}
         </div>
       )}
@@ -222,7 +222,7 @@ export default function ProductPage() {
                 </div>
 
                 {/* Labels - ao lado da imagem, alinhados verticalmente */}
-                <div className="w-full px-3 sm:px-6 md:w-auto md:px-0 flex flex-row md:flex-col gap-2 justify-between md:justify-center">
+                <div className="w-full px-2 sm:px-4 md:w-auto md:px-0 flex flex-row md:flex-col gap-1.5 md:gap-2 justify-center md:justify-center">
                   <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
                   <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
                   <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />
