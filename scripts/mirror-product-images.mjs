@@ -21,8 +21,10 @@
  *   MIRROR_IMAGES_BUCKET=product-images
  *
  * Uso:
- *   node scripts/mirror-product-images.mjs              # executa
- *   node scripts/mirror-product-images.mjs --dry-run    # só mostra o que faria
+ *   node scripts/mirror-product-images.mjs                 # executa
+ *   node scripts/mirror-product-images.mjs --dry-run     # resumo (sem listar cada URL)
+ *   node scripts/mirror-product-images.mjs --dry-run --dry-run-verbose  # uma linha por URL
+ *   node scripts/mirror-product-images.mjs --verbose     # env + skips de produto
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -64,7 +66,17 @@ function loadEnvFiles() {
 loadEnvFiles();
 
 const DRY_RUN = process.argv.includes('--dry-run');
+const DRY_RUN_VERBOSE = process.argv.includes('--dry-run-verbose');
+const VERBOSE = process.argv.includes('--verbose');
 const BUCKET = (process.env.MIRROR_IMAGES_BUCKET || 'product-images').trim();
+
+if (VERBOSE) {
+  const envLocal = path.join(ROOT, '.env.local');
+  const envFile = path.join(ROOT, '.env');
+  console.error('[verbose] Pasta do projeto:', ROOT);
+  console.error('[verbose] .env.local existe:', existsSync(envLocal), envLocal);
+  console.error('[verbose] .env existe:', existsSync(envFile), envFile);
+}
 
 function normalizeEnvValue(v) {
   if (v == null) return '';
@@ -97,6 +109,16 @@ if (!SERVICE_KEY && keyFile && existsSync(keyFile)) {
   SERVICE_KEY = normalizeServiceKey(readFileSync(keyFile, 'utf8'));
 }
 
+if (VERBOSE) {
+  const raw = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  console.error(
+    '[verbose] SUPABASE_SERVICE_ROLE_KEY: comprimento após normalizar =',
+    SERVICE_KEY.length,
+    raw === undefined ? '(variável ausente no process.env)' : '(definida)'
+  );
+  console.error('[verbose] NEXT_PUBLIC_SUPABASE_URL definido:', Boolean(SUPABASE_URL));
+}
+
 /** Extrai o campo `ref` do payload de um JWT Supabase (sem validar assinatura). */
 function jwtPayloadRef(jwt) {
   if (!jwt || typeof jwt !== 'string' || !jwt.includes('.')) return null;
@@ -122,6 +144,56 @@ function supabaseRefFromUrl(urlString) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Normaliza `products.images`: JSONB array, string JSON, ou um único URL em texto.
+ */
+function normalizeImagesField(raw) {
+  if (raw == null) return { list: [], reason: 'null' };
+  if (Array.isArray(raw)) {
+    if (raw.length === 0) return { list: [], reason: 'array_vazio' };
+    return { list: raw, reason: null };
+  }
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return { list: [], reason: 'string_vazia' };
+    if (t.startsWith('[')) {
+      try {
+        const p = JSON.parse(t);
+        if (Array.isArray(p)) {
+          if (p.length === 0) return { list: [], reason: 'array_vazio' };
+          return { list: p, reason: null };
+        }
+        return { list: [], reason: 'json_nao_array' };
+      } catch {
+        return { list: [], reason: 'json_invalido' };
+      }
+    }
+    if (/^https?:\/\//i.test(t)) return { list: [t], reason: null };
+    return { list: [], reason: 'string_sem_url' };
+  }
+  return { list: [], reason: 'tipo_desconhecido' };
+}
+
+async function fetchAllProductsWithImages(supabase) {
+  const pageSize = 1000;
+  const all = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, images')
+      .not('images', 'is', null)
+      .range(from, from + pageSize - 1);
+
+    if (error) return { error, data: all };
+    const chunk = data || [];
+    all.push(...chunk);
+    if (chunk.length < pageSize) break;
+    from += pageSize;
+  }
+  return { error: null, data: all };
 }
 
 function printKeyHelp() {
@@ -283,9 +355,25 @@ async function downloadImage(url) {
 }
 
 async function main() {
-  if (!SUPABASE_URL || !SERVICE_KEY) {
+  if (!SUPABASE_URL) {
     console.error(
-      'Defina NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ver .env.example).'
+      'NEXT_PUBLIC_SUPABASE_URL está vazio. Defina no .env.local na raiz do projeto (ex.: https://xxxx.supabase.co).'
+    );
+    printKeyHelp();
+    process.exitCode = 1;
+    return;
+  }
+
+  if (!SERVICE_KEY) {
+    console.error(
+      'SUPABASE_SERVICE_ROLE_KEY está VAZIO — o script nem chega a chamar a API.\n\n' +
+        'No ficheiro .env.local (na raiz do repositório mecanidoc), na linha:\n' +
+        '  SUPABASE_SERVICE_ROLE_KEY=\n' +
+        'cole o JWT completo do Dashboard (sem aspas), sem espaços antes/depois do =:\n' +
+        '  Supabase → projeto deste URL → Settings → API → Legacy API keys → service_role → Reveal\n\n' +
+        'Ou use um ficheiro só com a chave:\n' +
+        '  SUPABASE_SERVICE_ROLE_KEY_FILE=C:\\caminho\\service_role.txt\n\n' +
+        'Diagnóstico: npm run mirror-images:dry -- --verbose'
     );
     printKeyHelp();
     process.exitCode = 1;
@@ -366,12 +454,9 @@ async function main() {
   const projectHost = new URL(SUPABASE_URL).hostname;
 
   console.log(`Bucket: ${BUCKET}`);
-  console.log(`Dry-run: ${DRY_RUN}`);
+  console.log(`Dry-run: ${DRY_RUN}${DRY_RUN && !DRY_RUN_VERBOSE ? ' (use --dry-run-verbose para listar cada URL)' : ''}`);
 
-  const { data: products, error: fetchErr } = await supabase
-    .from('products')
-    .select('id, images')
-    .not('images', 'is', null);
+  const { data: products, error: fetchErr } = await fetchAllProductsWithImages(supabase);
 
   if (fetchErr) {
     console.error('Erro ao listar produtos:', fetchErr.message);
@@ -380,30 +465,34 @@ async function main() {
     return;
   }
 
+  console.log(`Produtos carregados (com images NOT NULL): ${(products || []).length}`);
+
   /** @type {Map<string, string>} url remota → URL pública no Storage */
   const urlCache = new Map();
   let updatedProducts = 0;
-  let skippedProducts = 0;
+  const skipReasons = {};
   let errors = 0;
+  let dryRunExternalUrls = 0;
+  let dryRunProductsWithExternal = 0;
+  const dryRunUniqueRemoteUrls = new Set();
+
+  const bumpSkip = (reason) => {
+    skipReasons[reason] = (skipReasons[reason] || 0) + 1;
+  };
 
   for (const row of products || []) {
-    let images = row.images;
-    if (typeof images === 'string') {
-      try {
-        images = JSON.parse(images);
-      } catch {
-        skippedProducts++;
-        console.warn(`[skip] ${row.id}: images não é JSON/array válido`);
-        continue;
+    const { list: images, reason: normReason } = normalizeImagesField(row.images);
+    if (!images.length) {
+      bumpSkip(normReason || 'sem_imagens');
+      if (VERBOSE && normReason) {
+        console.warn(`[skip] ${row.id}: ${normReason}`);
       }
-    }
-    if (!Array.isArray(images) || images.length === 0) {
-      skippedProducts++;
       continue;
     }
 
     const newUrls = [];
     let changed = false;
+    let productHasExternalInDryRun = false;
 
     for (let i = 0; i < images.length; i++) {
       const raw = images[i];
@@ -427,7 +516,12 @@ async function main() {
 
       try {
         if (DRY_RUN) {
-          console.log(`[dry-run] ${row.id}: baixaria ${url}`);
+          dryRunExternalUrls++;
+          dryRunUniqueRemoteUrls.add(url);
+          productHasExternalInDryRun = true;
+          if (DRY_RUN_VERBOSE) {
+            console.log(`[dry-run] ${row.id}: baixaria ${url}`);
+          }
           newUrls.push(url);
           continue;
         }
@@ -462,6 +556,10 @@ async function main() {
       }
     }
 
+    if (DRY_RUN && productHasExternalInDryRun) {
+      dryRunProductsWithExternal++;
+    }
+
     if (!changed || DRY_RUN) continue;
 
     const { error: upProdErr } = await supabase
@@ -477,12 +575,35 @@ async function main() {
     }
   }
 
+  const skippedTotal = Object.values(skipReasons).reduce((a, b) => a + b, 0);
+
   console.log('---');
   console.log(`Produtos atualizados: ${updatedProducts}`);
-  console.log(`Ignorados: ${skippedProducts}`);
+  if (DRY_RUN) {
+    console.log(`Produtos com ≥1 URL externa (dry-run): ${dryRunProductsWithExternal}`);
+    console.log(
+      `Referências no array a descarregar (pode repetir a mesma imagem em vários produtos): ${dryRunExternalUrls}`
+    );
+    console.log(`Ficheiros remotos únicos (uploads distintos ao Storage): ${dryRunUniqueRemoteUrls.size}`);
+  }
+  console.log(`Ignorados (sem trabalho útil neste produto): ${skippedTotal}`);
+  if (skippedTotal > 0 && Object.keys(skipReasons).length > 0) {
+    console.log('  Motivos:', JSON.stringify(skipReasons));
+    if (skipReasons.array_vazio) {
+      console.log(
+        '  → array_vazio: coluna images existe mas é []. Pode limpar ou ignorar; não há URL para migrar.'
+      );
+    }
+  }
   console.log(`Erros (download/upload/update): ${errors}`);
   if (DRY_RUN) {
     console.log('Execute sem --dry-run após criar o bucket e políticas.');
+    if (skippedTotal > 0 && dryRunExternalUrls === 0) {
+      console.log(
+        '\nDica: se "array_vazio" domina, a coluna images existe mas está []. ' +
+          'Se o site mostra fotos, podem estar só em images[0] noutros produtos ou noutra coluna.'
+      );
+    }
   }
 }
 

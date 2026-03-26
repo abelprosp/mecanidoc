@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import {
   applyCategoryToQuery,
@@ -189,69 +189,85 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
           {subtitle && <p className="text-lg text-gray-300 mb-4 md:mb-6">{subtitle}</p>}
 
           {/* Search Box */}
-          <div className="bg-white/10 backdrop-blur-md p-4 md:p-6 rounded-xl border border-white/20 mt-4 md:mt-6 overflow-x-hidden">
-            <h3 className="text-sm font-bold uppercase mb-3 md:mb-4 tracking-wide text-gray-200">Recherchez des pneus</h3>
+          <div className="mt-4 md:mt-6 rounded-2xl border border-white/20 bg-slate-900/55 p-4 md:p-6 shadow-2xl backdrop-blur-md overflow-x-hidden">
+            <h3 className="mb-3 md:mb-4 text-sm font-bold uppercase tracking-[0.08em] text-white/90">Recherchez des pneus</h3>
             
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-3 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5 md:gap-3 mb-4">
               <div className="flex flex-col w-full min-w-0">
-                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Largeur</label>
-                <select 
-                  className="w-full bg-white text-gray-900 text-base md:text-sm px-2 py-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[48px] md:min-h-0"
+                <label className="mb-1.5 text-[11px] uppercase tracking-wide text-white/75 font-semibold">Largeur</label>
+                <div className="relative">
+                <select
+                  className="w-full appearance-none rounded-lg border border-slate-200/80 bg-white px-2.5 py-3 pr-8 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[46px] md:min-h-0"
                   value={selected.width}
                   onChange={(e) => setSelected({...selected, width: e.target.value, height: '', diameter: '', load: '', speed: ''})}
                 >
                   <option value="">Largeur</option>
                   {availableWidths.map(w => <option key={w} value={w}>{w}</option>)}
                 </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                </div>
               </div>
               <div className="flex flex-col w-full min-w-0">
-                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Hauteur</label>
-                <select 
-                  className="w-full bg-white text-gray-900 text-base md:text-sm px-2 py-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[48px] md:min-h-0"
+                <label className="mb-1.5 text-[11px] uppercase tracking-wide text-white/75 font-semibold">Hauteur</label>
+                <div className="relative">
+                <select
+                  className="w-full appearance-none rounded-lg border border-slate-200/80 bg-white px-2.5 py-3 pr-8 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[46px] md:min-h-0"
                   value={selected.height}
                   onChange={(e) => setSelected({...selected, height: e.target.value, diameter: '', load: '', speed: ''})}
                 >
                   <option value="">Hauteur</option>
                   {availableHeights.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                </div>
               </div>
               <div className="flex flex-col w-full min-w-0">
-                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Diamètre</label>
-                <select 
-                  className="w-full bg-white text-gray-900 text-base md:text-sm px-2 py-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[48px] md:min-h-0"
+                <label className="mb-1.5 text-[11px] uppercase tracking-wide text-white/75 font-semibold">Diamètre</label>
+                <div className="relative">
+                <select
+                  className="w-full appearance-none rounded-lg border border-slate-200/80 bg-white px-2.5 py-3 pr-8 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[46px] md:min-h-0"
                   value={selected.diameter}
                   onChange={(e) => setSelected({...selected, diameter: e.target.value, load: '', speed: ''})}
                 >
                   <option value="">Diamètre</option>
                   {availableDiameters.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                </div>
               </div>
               <div className="flex flex-col w-full min-w-0">
-                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Charge</label>
-                <select 
-                  className="w-full bg-white text-gray-900 text-base md:text-sm px-2 py-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[48px] md:min-h-0"
+                <label className="mb-1.5 text-[11px] uppercase tracking-wide text-white/75 font-semibold">Charge</label>
+                <div className="relative">
+                <select
+                  className="w-full appearance-none rounded-lg border border-slate-200/80 bg-white px-2.5 py-3 pr-8 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[46px] md:min-h-0"
                   value={selected.load}
                   onChange={(e) => setSelected({...selected, load: e.target.value, speed: ''})}
                 >
                   <option value="">Charge</option>
                   {availableLoads.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                </div>
               </div>
               <div className="flex flex-col w-full min-w-0">
-                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Vitesse</label>
-                <select 
-                  className="w-full bg-white text-gray-900 text-base md:text-sm px-2 py-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[48px] md:min-h-0"
+                <label className="mb-1.5 text-[11px] uppercase tracking-wide text-white/75 font-semibold">Vitesse</label>
+                <div className="relative">
+                <select
+                  className="w-full appearance-none rounded-lg border border-slate-200/80 bg-white px-2.5 py-3 pr-8 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[46px] md:min-h-0"
                   value={selected.speed}
                   onChange={(e) => setSelected({...selected, speed: e.target.value})}
                 >
                   <option value="">Vitesse</option>
                   {availableSpeeds.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                </div>
               </div>
               <div className="flex flex-col w-full min-w-0">
-                <label className="text-xs md:text-[10px] text-gray-400 mb-2 md:mb-1 uppercase font-bold">Marque</label>
-                <select 
-                  className="w-full bg-white text-gray-900 text-base md:text-sm px-2 py-3 md:p-2 rounded border-none focus:ring-2 focus:ring-blue-500 min-h-[48px] md:min-h-0"
+                <label className="mb-1.5 text-[11px] uppercase tracking-wide text-white/75 font-semibold">Marque</label>
+                <div className="relative">
+                <select
+                  className="w-full appearance-none rounded-lg border border-slate-200/80 bg-white px-2.5 py-3 pr-8 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[46px] md:min-h-0"
                   value={selected.brand}
                   onChange={(e) => setSelected({...selected, brand: e.target.value})}
                 >
@@ -260,6 +276,8 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
                     <option key={b.id || b.name} value={b.name}>{b.name}</option>
                   ))}
                 </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                </div>
               </div>
             </div>
 
@@ -267,10 +285,10 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
               type="button"
               disabled={!hasThreeDimensions}
               onClick={handleSearch}
-              className={`w-full font-bold py-3 rounded-lg uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${
+              className={`w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-[0.08em] transition-all flex items-center justify-center gap-2 shadow-lg ${
                 hasThreeDimensions
-                  ? 'bg-[#0066CC] hover:bg-blue-600 text-white cursor-pointer'
-                  : 'bg-[#99A1AF] text-white/95 cursor-not-allowed opacity-90'
+                  ? 'bg-[#0B6DDB] hover:bg-[#0A63C6] text-white cursor-pointer hover:shadow-blue-900/30'
+                  : 'bg-slate-400 text-white/95 cursor-not-allowed opacity-90'
               }`}
             >
               <Search size={20} />

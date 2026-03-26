@@ -29,6 +29,17 @@ export default function CategoryPage() {
     return 'Auto'; // Default
   };
 
+  const normalizeProductCategory = (value?: string | null) => {
+    const normalized = (value || '').trim().toLowerCase();
+    if (!normalized) return null;
+    if (normalized === 'moto') return 'Moto';
+    if (normalized === 'camion') return 'Camion';
+    if (normalized === 'tracteur' || normalized === 'tracteurs' || normalized === 'agricole') {
+      return 'Tracteurs';
+    }
+    return 'Auto';
+  };
+
   const [pageData, setPageData] = useState<any>(null);
   const [subcategoryData, setSubcategoryData] = useState<any>(null);
   
@@ -55,7 +66,11 @@ export default function CategoryPage() {
   // Se for subcategoria do menu, usar dados dela; senão usar category_pages
   const title = pageData?.seo_title || subcategoryData?.name || formatTitle(slug);
   const heroImage = pageData?.hero_image;
-  const categoryFilter = pageData?.product_category_filter || subcategoryData?.product_category_filter || getCategoryFilter(slug);
+  const categoryFilter =
+    normalizeProductCategory(subcategoryData?.product_category_filter) ||
+    normalizeProductCategory(subcategoryData?.parent_category) ||
+    normalizeProductCategory(pageData?.product_category_filter) ||
+    getCategoryFilter(slug);
   // Se for subcategoria do menu, usar o nome como pa_tipo para filtrar produtos
   const paTipoFilter = subcategoryData?.name || null;
   const promoBanners = pageData?.promo_banners || [];
