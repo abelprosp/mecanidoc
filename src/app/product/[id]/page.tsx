@@ -217,7 +217,7 @@ export default function ProductPage() {
                   <img 
                     src={product.images?.[0] || 'https://placehold.co/400x400/f3f4f6/d1d5db?text=Tire+Image'} 
                     alt={product.name} 
-                    className="max-w-full max-h-full object-contain mix-blend-multiply scale-110 md:scale-100"
+                    className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] md:w-full md:h-full object-contain mix-blend-multiply scale-[1.35] sm:scale-[1.45] md:scale-100"
                   />
                 </div>
 
