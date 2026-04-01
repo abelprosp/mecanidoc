@@ -17,10 +17,14 @@ export function calculateFinalPrice(
 ): number {
   let finalPrice = basePrice;
 
+  const normalizedCategory = normalizeTaxCategory(category);
+
   // Filtrar taxas ativas que se aplicam a esta categoria
-  const applicableTaxes = taxes.filter(
-    tax => tax.is_active && (tax.applies_to === 'all' || tax.applies_to.toLowerCase() === category.toLowerCase())
-  );
+  const applicableTaxes = taxes.filter((tax) => {
+    if (!tax.is_active) return false;
+    const appliesTo = normalizeTaxCategory(tax.applies_to);
+    return appliesTo === 'all' || appliesTo === normalizedCategory;
+  });
 
   // Aplicar cada taxa na ordem
   for (const tax of applicableTaxes) {
@@ -54,9 +58,13 @@ export function calculateTaxAmount(
   let totalTax = 0;
   const breakdown: Array<{ name: string; amount: number }> = [];
 
-  const applicableTaxes = taxes.filter(
-    tax => tax.is_active && (tax.applies_to === 'all' || tax.applies_to.toLowerCase() === category.toLowerCase())
-  );
+  const normalizedCategory = normalizeTaxCategory(category);
+
+  const applicableTaxes = taxes.filter((tax) => {
+    if (!tax.is_active) return false;
+    const appliesTo = normalizeTaxCategory(tax.applies_to);
+    return appliesTo === 'all' || appliesTo === normalizedCategory;
+  });
 
   for (const tax of applicableTaxes) {
     let taxAmount = 0;
@@ -78,4 +86,17 @@ export function calculateTaxAmount(
     total: Math.round(totalTax * 100) / 100,
     breakdown
   };
+}
+
+function normalizeTaxCategory(value?: string): string {
+  const raw = (value || '').trim().toLowerCase();
+  if (!raw) return 'all';
+
+  if (raw === 'all' || raw === 'toutes' || raw === 'todas') return 'all';
+  if (raw.startsWith('tracteur')) return 'tracteur';
+  if (raw.startsWith('camion')) return 'camion';
+  if (raw.startsWith('moto')) return 'moto';
+  if (raw.startsWith('auto') || raw.startsWith('voiture') || raw.startsWith('car')) return 'auto';
+
+  return raw;
 }
