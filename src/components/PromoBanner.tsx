@@ -18,7 +18,10 @@ export default function PromoBanner() {
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
           .limit(10);
-        if (error) return;
+        if (error) {
+          console.error('Erro ao buscar promoções:', error);
+          return;
+        }
         const list = data || [];
         const now = new Date();
         const active = list.filter((p) => {

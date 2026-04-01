@@ -2206,12 +2206,21 @@ function TaxesSection() {
   const supabase = createClient();
   const [taxes, setTaxes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingTax, setEditingTax] = useState<any>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchTaxes = async () => {
     setLoading(true);
-    const { data } = await supabase.from('taxes').select('*').order('sort_order', { ascending: true });
+    setErrorMsg(null);
+    const { data, error } = await supabase.from('taxes').select('*').order('sort_order', { ascending: true });
+    if (error) {
+      console.error('Erro ao buscar taxas:', error);
+      setErrorMsg('Tabela "taxes" não encontrada neste projeto Supabase. Execute as migrations SQL.');
+      setTaxes([]);
+      setLoading(false);
+      return;
+    }
     setTaxes(data || []);
     setLoading(false);
   };
@@ -2231,9 +2240,17 @@ function TaxesSection() {
     };
     
     if (taxData.id) {
-      await supabase.from('taxes').update(data).eq('id', taxData.id);
+      const { error } = await supabase.from('taxes').update(data).eq('id', taxData.id);
+      if (error) {
+        alert(`Erro ao guardar taxa: ${error.message}`);
+        return;
+      }
     } else {
-      await supabase.from('taxes').insert([data]);
+      const { error } = await supabase.from('taxes').insert([data]);
+      if (error) {
+        alert(`Erro ao criar taxa: ${error.message}`);
+        return;
+      }
     }
     setEditingTax(null);
     setIsAdding(false);
@@ -2242,7 +2259,11 @@ function TaxesSection() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette taxe ?')) return;
-    await supabase.from('taxes').delete().eq('id', id);
+    const { error } = await supabase.from('taxes').delete().eq('id', id);
+    if (error) {
+      alert(`Erro ao apagar taxa: ${error.message}`);
+      return;
+    }
     fetchTaxes();
   };
 
@@ -2262,6 +2283,11 @@ function TaxesSection() {
           + Nouvelle Taxe
         </button>
       </header>
+      {errorMsg && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMsg}
+        </div>
+      )}
 
       {/* Mobile Cards View */}
       <div className="md:hidden space-y-3">

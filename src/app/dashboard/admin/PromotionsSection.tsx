@@ -8,12 +8,21 @@ export default function PromotionsSection() {
   const supabase = createClient();
   const [promotions, setPromotions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchPromotions = async () => {
     setLoading(true);
-    const { data } = await supabase.from('promotions').select('*').order('sort_order', { ascending: true });
+    setErrorMsg(null);
+    const { data, error } = await supabase.from('promotions').select('*').order('sort_order', { ascending: true });
+    if (error) {
+      console.error('Erro ao buscar promoções:', error);
+      setErrorMsg('Tabela "promotions" não encontrada neste projeto Supabase. Execute as migrations SQL.');
+      setPromotions([]);
+      setLoading(false);
+      return;
+    }
     setPromotions(data || []);
     setLoading(false);
   };
@@ -38,9 +47,17 @@ export default function PromotionsSection() {
       updated_at: new Date().toISOString(),
     };
     if (editing?.id) {
-      await supabase.from('promotions').update(payload).eq('id', editing.id);
+      const { error } = await supabase.from('promotions').update(payload).eq('id', editing.id);
+      if (error) {
+        alert(`Erro ao guardar promoção: ${error.message}`);
+        return;
+      }
     } else {
-      await supabase.from('promotions').insert([payload]);
+      const { error } = await supabase.from('promotions').insert([payload]);
+      if (error) {
+        alert(`Erro ao criar promoção: ${error.message}`);
+        return;
+      }
     }
     setEditing(null);
     setIsAdding(false);
@@ -49,7 +66,11 @@ export default function PromotionsSection() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette promotion ?')) return;
-    await supabase.from('promotions').delete().eq('id', id);
+    const { error } = await supabase.from('promotions').delete().eq('id', id);
+    if (error) {
+      alert(`Erro ao apagar promoção: ${error.message}`);
+      return;
+    }
     fetchPromotions();
   };
 
@@ -86,6 +107,11 @@ export default function PromotionsSection() {
       <p className="text-gray-600 text-sm mb-6">
         As promoções ativas aparecem automaticamente no site (ex: barra com &quot;20% de desconto&quot;).
       </p>
+      {errorMsg && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMsg}
+        </div>
+      )}
 
       <div className="space-y-4">
         {promotions.map((p) => (

@@ -20,12 +20,51 @@ export default function CategoryPage() {
     return slug.replace(/-/g, ' ').toUpperCase();
   };
 
-  // Helper to map slug to DB category (simple mapping for now)
-  // In a real app, you might have a DB table for categories mapping slugs to IDs/Filters
+  const SLUG_CATEGORY_FALLBACK: Record<string, 'Auto' | 'Moto' | 'Camion' | 'Tracteurs'> = {
+    // Auto
+    'pneus-4-saisons': 'Auto',
+    'pneus-4x4suv': 'Auto',
+    'pneus-camionnette': 'Auto',
+    'pneus-camping': 'Auto',
+    'pneus-ete-auto': 'Auto',
+    'pneus-hiver': 'Auto',
+    'pneus-voiture': 'Auto',
+    'pneus-voiture-electrique': 'Auto',
+    'typec': 'Auto',
+    // Moto
+    'chopper-cruiser': 'Moto',
+    'pneus-circuit-et-piste': 'Moto',
+    'pneus-cross-enduro-trial': 'Moto',
+    'pneus-custom-et-collection': 'Moto',
+    'pneus-moto-sport-et-route': 'Moto',
+    'pneus-scooter': 'Moto',
+    'pneus-trail': 'Moto',
+    'quad-vehicule-tout-terrain': 'Moto',
+    'sport-tourisme-diagonal': 'Moto',
+    'sport-tourisme-radial': 'Moto',
+    // Camion
+    'pneus-autocar-autobus': 'Camion',
+    'pneus-chantier': 'Camion',
+    'pneus-longue-distance': 'Camion',
+    'pneus-regionaux': 'Camion',
+    // Tracteurs
+    'pneus-avant-tracteur': 'Tracteurs',
+    'pneus-espaces-verts': 'Tracteurs',
+    'pneus-industriel-et-manutention': 'Tracteurs',
+    'pneus-remorque-agricole': 'Tracteurs',
+    'pneus-roue-motrice': 'Tracteurs',
+    'tracteurs': 'Tracteurs',
+  };
+
+  // Helper to map slug to DB category
   const getCategoryFilter = (slug: string) => {
-    if (slug.includes('moto')) return 'Moto';
-    if (slug.includes('camion')) return 'Camion';
-    if (slug.includes('agricole') || slug.includes('tracteur')) return 'Tracteurs';
+    const normalizedSlug = (slug || '').trim().toLowerCase();
+    const staticFallback = SLUG_CATEGORY_FALLBACK[normalizedSlug];
+    if (staticFallback) return staticFallback;
+
+    if (normalizedSlug.includes('moto')) return 'Moto';
+    if (normalizedSlug.includes('camion')) return 'Camion';
+    if (normalizedSlug.includes('agricole') || normalizedSlug.includes('tracteur')) return 'Tracteurs';
     return 'Auto'; // Default
   };
 
