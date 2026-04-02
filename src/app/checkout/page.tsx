@@ -6,7 +6,7 @@ import { useCart } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { ChevronDown, ChevronUp, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -492,17 +492,10 @@ export default function CheckoutPage() {
                  )}
                </div>
 
-               {/* Paiement intégré (Embedded Checkout) */}
                {checkoutPhase === 'details' && (
-                 <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
-                   <p className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-2">
-                     <CreditCard size={18} className="text-[#0066CC]" />
-                     Paiement sur cette page (Stripe)
-                   </p>
-                   <p className="text-xs text-gray-600 leading-relaxed">
-                     Après validation, le formulaire de paiement Stripe s&apos;affiche ci-dessous sur Mecanidoc : carte, PayPal, Apple Pay, Google Pay et autres moyens activés sur votre compte.
-                   </p>
-                 </div>
+                 <p className="mt-6 text-xs text-gray-600">
+                   Será direcionado para o checkout para escolher os métodos de pagamento.
+                 </p>
                )}
 
                {/* Terms */}
