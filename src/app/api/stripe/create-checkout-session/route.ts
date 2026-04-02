@@ -55,9 +55,10 @@ export async function POST(request: NextRequest) {
     const amountCents = Math.round(Number(order.total_amount) * 100);
     const origin = request.headers.get('origin') || (typeof request.url === 'string' ? new URL(request.url).origin : null) || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+    // Sem `payment_method_types`: o Stripe usa os métodos ativados no Dashboard
+    // (cartão + wallets, PayPal, Cofidis/BNPL, etc.), com ordenação dinâmica.
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
       line_items: [
         {
           price_data: {

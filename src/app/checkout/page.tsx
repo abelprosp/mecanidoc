@@ -443,19 +443,17 @@ export default function CheckoutPage() {
                  )}
                </div>
 
-               {/* Payment Placeholder */}
-               <div className="mt-6 space-y-3">
-                 <div className="border rounded p-3 flex items-center gap-3">
-                    <input type="radio" name="payment" defaultChecked />
-                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">Carte Bancaire <CreditCard size={16} /></span>
-                 </div>
-                 <div className="bg-gray-50 p-3 rounded border border-dashed border-gray-300">
-                    <div className="h-8 bg-gray-200 rounded animate-pulse w-full mb-2"></div>
-                    <div className="flex gap-2">
-                       <div className="h-8 bg-gray-200 rounded animate-pulse w-1/2"></div>
-                       <div className="h-8 bg-gray-200 rounded animate-pulse w-1/2"></div>
-                    </div>
-                 </div>
+               {/* Paiement : choix du moyen sur la page sécurisée Stripe */}
+               <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
+                 <p className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-2">
+                   <CreditCard size={18} className="text-[#0066CC]" />
+                   Paiement sécurisé (Stripe)
+                 </p>
+                 <p className="text-xs text-gray-600 leading-relaxed">
+                   Après « Place order », vous serez redirigé vers Stripe pour{' '}
+                   <strong className="font-medium text-gray-700">choisir votre moyen de paiement</strong>
+                   : carte (Visa, Mastercard, American Express…), PayPal, Apple Pay, Google Pay, Cofidis et autres options activées pour votre compte.
+                 </p>
                </div>
 
                {/* Terms */}
