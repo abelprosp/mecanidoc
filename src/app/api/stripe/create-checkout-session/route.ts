@@ -55,10 +55,11 @@ export async function POST(request: NextRequest) {
     const amountCents = Math.round(Number(order.total_amount) * 100);
     const origin = request.headers.get('origin') || (typeof request.url === 'string' ? new URL(request.url).origin : null) || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    // Sem `payment_method_types`: o Stripe usa os métodos ativados no Dashboard
-    // (cartão + wallets, PayPal, Cofidis/BNPL, etc.), com ordenação dinâmica.
+    // Embedded Checkout: formulário Stripe dentro do site (iframe).
+    // Sem `payment_method_types`: métodos ativados no Dashboard.
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      ui_mode: 'embedded',
       line_items: [
         {
           price_data: {
@@ -72,8 +73,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
-      cancel_url: `${origin}/checkout?canceled=1`,
+      return_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_id=${encodeURIComponent(orderId)}`,
       metadata: {
         order_id: orderId,
         user_id: user.id,
@@ -81,7 +81,17 @@ export async function POST(request: NextRequest) {
       customer_email: order.contact_email || undefined,
     });
 
-    return NextResponse.json({ url: session.url, sessionId: session.id });
+    if (!session.client_secret) {
+      return NextResponse.json(
+        { error: 'Stripe did not return a client secret for embedded checkout.' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      clientSecret: session.client_secret,
+      sessionId: session.id,
+    });
   } catch (error: any) {
     console.error('Error creating checkout session:', error);
     return NextResponse.json(

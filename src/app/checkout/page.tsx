@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
 import { useCart } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { ChevronDown, ChevronUp, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 export default function CheckoutPage() {
   const { items, cartTotal, clearCart } = useCart();
@@ -40,6 +43,9 @@ export default function CheckoutPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [paymentCanceled, setPaymentCanceled] = useState(false);
+  const [checkoutPhase, setCheckoutPhase] = useState<'details' | 'payment'>('details');
+  const [embeddedClientSecret, setEmbeddedClientSecret] = useState<string | null>(null);
+  const embeddedMountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -53,6 +59,42 @@ export default function CheckoutPage() {
     };
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    if (!embeddedClientSecret || !stripePublishableKey) return;
+    const mountEl = embeddedMountRef.current;
+    if (!mountEl) return;
+
+    let cancelled = false;
+    let instance: { destroy: () => void } | null = null;
+
+    (async () => {
+      const stripe = await loadStripe(stripePublishableKey);
+      if (!stripe || cancelled) return;
+      const checkout = await stripe.initEmbeddedCheckout({
+        clientSecret: embeddedClientSecret,
+      });
+      if (cancelled) {
+        checkout.destroy();
+        return;
+      }
+      instance = checkout;
+      checkout.mount(mountEl);
+    })();
+
+    return () => {
+      cancelled = true;
+      instance?.destroy();
+    };
+  }, [embeddedClientSecret]);
+
+  useEffect(() => {
+    if (checkoutPhase !== 'payment') return;
+    const t = window.setTimeout(() => {
+      embeddedMountRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [checkoutPhase]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -101,6 +143,11 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!termsAccepted) {
       alert("Veuillez accepter les termes et conditions.");
+      return;
+    }
+
+    if (!stripePublishableKey) {
+      alert('Paiement indisponible : ajoutez NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY dans la configuration.');
       return;
     }
 
@@ -191,22 +238,22 @@ export default function CheckoutPage() {
         body: JSON.stringify({ orderId: order.id }),
       });
 
-      let paymentData: { url?: string; error?: string } = {};
+      let paymentData: { clientSecret?: string; error?: string } = {};
       try {
         paymentData = await response.json();
       } catch {
-        paymentData = { error: `Erreur serveur (${response.status}). Vérifiez que o Stripe está configurado no .env.` };
+        paymentData = { error: `Erreur serveur (${response.status}). Vérifiez la configuration Stripe (.env).` };
       }
 
-      if (!response.ok || !paymentData.url) {
+      if (!response.ok || !paymentData.clientSecret) {
         console.error('Error creating checkout session:', paymentData);
         alert(paymentData.error || "Erreur lors de l'initialisation du paiement. Veuillez réessayer.");
         setPlacingOrder(false);
         return;
       }
 
-      // Redirecionar para a página de pagamento do Stripe
-      window.location.href = paymentData.url;
+      setEmbeddedClientSecret(paymentData.clientSecret);
+      setCheckoutPhase('payment');
     } catch (error: any) {
       console.error('Error placing order:', error);
       alert("Une erreur est survenue. Veuillez réessayer.");
@@ -227,7 +274,7 @@ export default function CheckoutPage() {
 
   if (loading) return <div className="min-h-screen bg-[#F1F1F1] flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
-  if (items.length === 0 && !paymentCanceled) {
+  if (items.length === 0 && !paymentCanceled && checkoutPhase === 'details') {
     return (
         <main className="min-h-screen bg-[#F1F1F1]">
           <Header />
@@ -251,7 +298,9 @@ export default function CheckoutPage() {
             <span>Paiement annulé. Vous pouvez modifier votre commande et réessayer.</span>
           </div>
         )}
-        <h1 className="text-2xl font-bold text-gray-800 mb-8">Validation de la commande</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-8">
+          {checkoutPhase === 'payment' ? 'Paiement sécurisé' : 'Validation de la commande'}
+        </h1>
         
         <div className="flex flex-col lg:flex-row gap-8">
           
@@ -443,18 +492,18 @@ export default function CheckoutPage() {
                  )}
                </div>
 
-               {/* Paiement : choix du moyen sur la page sécurisée Stripe */}
-               <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
-                 <p className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-2">
-                   <CreditCard size={18} className="text-[#0066CC]" />
-                   Paiement sécurisé (Stripe)
-                 </p>
-                 <p className="text-xs text-gray-600 leading-relaxed">
-                   Après « Place order », vous serez redirigé vers Stripe pour{' '}
-                   <strong className="font-medium text-gray-700">choisir votre moyen de paiement</strong>
-                   : carte (Visa, Mastercard, American Express…), PayPal, Apple Pay, Google Pay, Cofidis et autres options activées pour votre compte.
-                 </p>
-               </div>
+               {/* Paiement intégré (Embedded Checkout) */}
+               {checkoutPhase === 'details' && (
+                 <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
+                   <p className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-2">
+                     <CreditCard size={18} className="text-[#0066CC]" />
+                     Paiement sur cette page (Stripe)
+                   </p>
+                   <p className="text-xs text-gray-600 leading-relaxed">
+                     Après validation, le formulaire de paiement Stripe s&apos;affiche ci-dessous sur Mecanidoc : carte, PayPal, Apple Pay, Google Pay et autres moyens activés sur votre compte.
+                   </p>
+                 </div>
+               )}
 
                {/* Terms */}
                <div className="mt-6">
@@ -471,19 +520,32 @@ export default function CheckoutPage() {
                  </label>
                </div>
 
-               <button 
-                 onClick={handlePlaceOrder}
-                 disabled={placingOrder}
-                 className="w-full mt-6 bg-[#40C4E7] hover:bg-[#3bb0cf] text-white font-bold py-3 rounded text-center transition-colors shadow-sm disabled:opacity-50 flex justify-center items-center gap-2"
-               >
-                 {placingOrder && <Loader2 className="animate-spin" size={18} />}
-                 Place order
-               </button>
+               {checkoutPhase === 'details' && (
+                 <button 
+                   onClick={handlePlaceOrder}
+                   disabled={placingOrder}
+                   className="w-full mt-6 bg-[#40C4E7] hover:bg-[#3bb0cf] text-white font-bold py-3 rounded text-center transition-colors shadow-sm disabled:opacity-50 flex justify-center items-center gap-2"
+                 >
+                   {placingOrder && <Loader2 className="animate-spin" size={18} />}
+                   Place order
+                 </button>
+               )}
 
             </div>
           </div>
 
         </div>
+
+        {checkoutPhase === 'payment' && embeddedClientSecret && (
+          <div className="mt-10 max-w-3xl mx-auto w-full">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Finalisez votre paiement. Vous serez redirigé vers la confirmation une fois le paiement accepté.
+              </p>
+              <div ref={embeddedMountRef} className="min-h-[480px] w-full" />
+            </div>
+          </div>
+        )}
       </div>
 
       <Footer />

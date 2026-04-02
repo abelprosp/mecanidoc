@@ -14,6 +14,7 @@
     "mirror-images:dry": "node scripts/mirror-product-images.mjs --dry-run"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^4.10.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.91.0",
     "@types/papaparse": "^5.5.2",
