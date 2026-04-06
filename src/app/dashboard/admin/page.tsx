@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, Package, ShoppingBag, Users, Tag, CreditCard, 
   Settings, Truck, TrendingUp, AlertTriangle, FileText, CheckCircle, 
-  Percent, DollarSign, Globe, Shield, Loader2, LogOut, User, Grid, Layout, Trash2,
+  Percent, DollarSign, Globe, Shield, Loader2, LogOut, User, Grid, Layout, Trash2, Upload,
   Menu, X, List, MessageSquare, Inbox
 } from 'lucide-react';
 import Link from 'next/link';
@@ -262,6 +262,24 @@ function ProductsSection() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [productImageUploadBusy, setProductImageUploadBusy] = useState(false);
+  const productImageFileRef = useRef<HTMLInputElement>(null);
+
+  const uploadProductImage = async (file: File, productId: string) => {
+    setProductImageUploadBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('productId', productId);
+      const res = await fetch('/api/admin/product-image', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Échec du téléversement');
+      if (!data.url) throw new Error('Réponse invalide du serveur');
+      return data.url as string;
+    } finally {
+      setProductImageUploadBusy(false);
+    }
+  };
 
   const categories = ['Auto', 'Moto', 'Camion', 'Tracteur'];
 
@@ -536,8 +554,8 @@ function ProductsSection() {
                     <Package size={32} className="text-gray-300" />
                   )}
                 </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-gray-500 mb-1">URL de l'image</label>
+                <div className="flex-1 space-y-2">
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Image (URL ou fichier)</label>
                   <input 
                     type="text" 
                     value={editingProduct.image_url || ''} 
@@ -545,6 +563,35 @@ function ProductsSection() {
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                     placeholder="https://..."
                   />
+                  <input
+                    ref={productImageFileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      const pid = editingProduct?.id;
+                      if (!f || !pid) return;
+                      try {
+                        const url = await uploadProductImage(f, pid);
+                        setEditingProduct((prev: any) =>
+                          prev && prev.id === pid ? { ...prev, image_url: url } : prev
+                        );
+                      } catch (err: unknown) {
+                        alert(err instanceof Error ? err.message : 'Erreur');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={productImageUploadBusy}
+                    onClick={() => productImageFileRef.current?.click()}
+                    className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  >
+                    {productImageUploadBusy ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
+                    Téléverser une image
+                  </button>
                 </div>
               </div>
 
@@ -949,6 +996,25 @@ function BrandsSection() {
   const [newName, setNewName] = useState('');
   const [newLogo, setNewLogo] = useState('');
   const [editingBrand, setEditingBrand] = useState<any>(null);
+  const [logoUploadBusy, setLogoUploadBusy] = useState(false);
+  const newLogoFileRef = useRef<HTMLInputElement>(null);
+  const editLogoFileRef = useRef<HTMLInputElement>(null);
+
+  const uploadBrandLogo = async (file: File, brandFolderId: string) => {
+    setLogoUploadBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('brandId', brandFolderId);
+      const res = await fetch('/api/admin/brand-logo', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Échec du téléversement');
+      if (!data.url) throw new Error('Réponse invalide du serveur');
+      return data.url as string;
+    } finally {
+      setLogoUploadBusy(false);
+    }
+  };
 
   const fetchBrands = async () => {
     const { data } = await supabase.from('brands').select('*').order('name');
@@ -1105,14 +1171,40 @@ function BrandsSection() {
               required 
             />
           </div>
-          <div className="flex-1 md:flex-[2]">
-            <label className="block text-xs font-bold text-gray-500 mb-1">Logo URL</label>
+          <div className="flex-1 md:flex-[2] space-y-2">
+            <label className="block text-xs font-bold text-gray-500 mb-1">Logo (URL ou fichier)</label>
             <input 
               value={newLogo} 
               onChange={e => setNewLogo(e.target.value)} 
               placeholder="https://..." 
               className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-50 focus:bg-white transition-colors" 
             />
+            <input
+              ref={newLogoFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (!f) return;
+                try {
+                  const url = await uploadBrandLogo(f, 'pending');
+                  setNewLogo(url);
+                } catch (err: unknown) {
+                  alert(err instanceof Error ? err.message : 'Erreur');
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={logoUploadBusy}
+              onClick={() => newLogoFileRef.current?.click()}
+              className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+            >
+              {logoUploadBusy ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
+              Téléverser une image
+            </button>
           </div>
           <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700 transition-colors h-[42px] w-full md:w-auto">
             Ajouter
@@ -1174,13 +1266,42 @@ function BrandsSection() {
                     required 
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Logo URL</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-500 mb-1">Logo (URL ou fichier)</label>
                 <input 
                     value={editingBrand.logo_url || ''} 
                     onChange={e => setEditingBrand({...editingBrand, logo_url: e.target.value})} 
                     className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" 
                 />
+                <input
+                  ref={editLogoFileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    const brandId = editingBrand?.id;
+                    if (!f || !brandId) return;
+                    try {
+                      const url = await uploadBrandLogo(f, brandId);
+                      setEditingBrand((prev: any) =>
+                        prev && prev.id === brandId ? { ...prev, logo_url: url } : prev
+                      );
+                    } catch (err: unknown) {
+                      alert(err instanceof Error ? err.message : 'Erreur');
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={logoUploadBusy}
+                  onClick={() => editLogoFileRef.current?.click()}
+                  className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                >
+                  {logoUploadBusy ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
+                  Téléverser une image
+                </button>
               </div>
               
               {/* Preview */}
