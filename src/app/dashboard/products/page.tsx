@@ -9,6 +9,12 @@ export default function ProductUploadPage() {
   const supabase = createClient();
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sftpLoading, setSftpLoading] = useState(false);
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [storagePath, setStoragePath] = useState('');
+  const [storageBucket, setStorageBucket] = useState('product-imports');
   const [logs, setLogs] = useState<string[]>([]);
   const [successCount, setSuccessCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
@@ -248,11 +254,183 @@ export default function ProductUploadPage() {
     });
   };
 
+  const importFromSftp = async () => {
+    setSftpLoading(true);
+    setLogs((prev) => [...prev, "Début de l'importation SFTP..."]);
+    setSuccessCount(0);
+    setErrorCount(0);
+
+    try {
+      const response = await fetch('/api/admin/import-products-sftp', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || `Erreur serveur (${response.status})`);
+      }
+
+      setSuccessCount(data.success || 0);
+      setErrorCount(data.errors || 0);
+      const apiLogs: string[] = Array.isArray(data.logs) ? data.logs : [];
+      setLogs((prev) => [...prev, ...apiLogs, "Importation SFTP terminée."]);
+    } catch (error: any) {
+      setLogs((prev) => [...prev, `Erreur SFTP: ${error?.message || 'inconnue'}`]);
+    } finally {
+      setSftpLoading(false);
+    }
+  };
+
+  const importFromUrl = async () => {
+    const url = importUrl.trim();
+    if (!url) {
+      setLogs((prev) => [...prev, 'Erreur: URL vide.']);
+      return;
+    }
+    setUrlLoading(true);
+    setLogs((prev) => [...prev, "Début de l'importation depuis URL HTTPS..."]);
+    setSuccessCount(0);
+    setErrorCount(0);
+    try {
+      const response = await fetch('/api/admin/import-products-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || `Erreur serveur (${response.status})`);
+      }
+      setSuccessCount(data.success || 0);
+      setErrorCount(data.errors || 0);
+      const apiLogs: string[] = Array.isArray(data.logs) ? data.logs : [];
+      setLogs((prev) => [...prev, ...apiLogs, 'Importation URL terminée.']);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'inconnue';
+      setLogs((prev) => [...prev, `Erreur URL: ${msg}`]);
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
+  const importFromStorage = async () => {
+    const path = storagePath.trim();
+    if (!path) {
+      setLogs((prev) => [...prev, 'Erreur: chemin Storage vide (ex: imports/produits.csv).']);
+      return;
+    }
+    setStorageLoading(true);
+    setLogs((prev) => [...prev, "Début de l'importation depuis Supabase Storage..."]);
+    setSuccessCount(0);
+    setErrorCount(0);
+    try {
+      const bucket = storageBucket.trim() || 'product-imports';
+      const response = await fetch('/api/admin/import-products-storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ path, bucket }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || `Erreur serveur (${response.status})`);
+      }
+      setSuccessCount(data.success || 0);
+      setErrorCount(data.errors || 0);
+      const apiLogs: string[] = Array.isArray(data.logs) ? data.logs : [];
+      setLogs((prev) => [...prev, ...apiLogs, 'Importation Storage terminée.']);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'inconnue';
+      setLogs((prev) => [...prev, `Erreur Storage: ${msg}`]);
+    } finally {
+      setStorageLoading(false);
+    }
+  };
+
+  const remoteBusy = loading || sftpLoading || urlLoading || storageLoading;
+
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Importer des Produits</h1>
       
       <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 mb-8">
+        <div className="mb-4 p-4 rounded-lg bg-indigo-50 border border-indigo-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-indigo-900">Importation via SFTP</p>
+            <p className="text-xs text-indigo-700">
+              Télécharge le CSV distant défini dans les variables d&apos;environnement (Vercel / .env).
+            </p>
+          </div>
+          <button
+            onClick={importFromSftp}
+            disabled={remoteBusy}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {sftpLoading && <Loader2 className="animate-spin" size={16} />}
+            Importer via SFTP
+          </button>
+        </div>
+
+        <div className="mb-4 p-4 rounded-lg bg-emerald-50 border border-emerald-100 space-y-3">
+          <p className="text-sm font-bold text-emerald-900">Importation via URL HTTPS</p>
+          <p className="text-xs text-emerald-800">
+            Lien direct vers un fichier CSV (éviter Google Drive/Dropbox sans lien de téléchargement direct). Max ~15 Mo.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="url"
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              placeholder="https://exemple.com/export/produits.csv"
+              className="flex-1 border border-emerald-200 rounded px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={importFromUrl}
+              disabled={remoteBusy}
+              className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {urlLoading && <Loader2 className="animate-spin" size={16} />}
+              Importer depuis URL
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 p-4 rounded-lg bg-sky-50 border border-sky-100 space-y-3">
+          <p className="text-sm font-bold text-sky-900">Importation via Supabase Storage</p>
+          <p className="text-xs text-sky-800">
+            Créez le bucket <code className="bg-sky-100 px-1 rounded">product-imports</code> (script SQL), uploadez le CSV
+            depuis le dashboard Supabase, puis indiquez le chemin du fichier.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={storageBucket}
+              onChange={(e) => setStorageBucket(e.target.value)}
+              placeholder="Bucket (défaut: product-imports)"
+              className="border border-sky-200 rounded px-3 py-2 text-sm"
+            />
+            <input
+              type="text"
+              value={storagePath}
+              onChange={(e) => setStoragePath(e.target.value)}
+              placeholder="Chemin: imports/produits.csv"
+              className="border border-sky-200 rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={importFromStorage}
+            disabled={remoteBusy}
+            className="bg-sky-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-sky-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {storageLoading && <Loader2 className="animate-spin" size={16} />}
+            Importer depuis Storage
+          </button>
+        </div>
+
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:bg-gray-50 transition-colors">
           <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <p className="text-gray-600 mb-2">Glissez votre fichier CSV ici ou cliquez pour parcourir</p>
@@ -279,7 +457,7 @@ export default function ProductUploadPage() {
             </div>
             <button 
               onClick={processCSV} 
-              disabled={loading}
+              disabled={remoteBusy}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
               {loading && <Loader2 className="animate-spin" size={16} />}
