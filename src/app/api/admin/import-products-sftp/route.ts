@@ -1,6 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import SftpClient from 'ssh2-sftp-client';
 import { requireSupplierOrMasterUser } from '@/lib/admin-auth-server';
 import { importProductsFromCsvText } from '@/lib/import-products-from-csv';
 
@@ -43,9 +42,14 @@ export async function POST(_request: NextRequest) {
 
   const admin = createClient(supabaseUrl, serviceKey);
   const logs: string[] = [];
-  const sftp = new SftpClient();
+
+  // import dinâmico: ssh2 tem código nativo; ajuda o bundler (Turbopack/Vercel).
+  let sftp: import('ssh2-sftp-client') | null = null;
 
   try {
+    const { default: SftpClient } = await import('ssh2-sftp-client');
+    sftp = new SftpClient();
+
     logs.push(`Conectando ao SFTP ${sftpHost}:${sftpPort}...`);
 
     await sftp.connect({
@@ -80,10 +84,12 @@ export async function POST(_request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    try {
-      await sftp.end();
-    } catch {
-      // ignore
+    if (sftp) {
+      try {
+        await sftp.end();
+      } catch {
+        // ignore
+      }
     }
   }
 }
