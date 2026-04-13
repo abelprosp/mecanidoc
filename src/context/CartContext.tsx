@@ -14,6 +14,8 @@ type CartContextType = {
   items: CartItem[];
   addToCart: (product: any, quantity: number, garage: any) => void;
   removeFromCart: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  getItemLineTotal: (item: CartItem) => number;
   clearCart: () => void;
   cartCount: number;
   cartTotal: number;
@@ -78,22 +80,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(prev => prev.filter(item => item.product.id !== productId));
   };
 
+  const updateQuantity = (productId: string, quantity: number) => {
+    const q = Math.max(0, Math.floor(quantity));
+    if (q < 1) {
+      removeFromCart(productId);
+      return;
+    }
+    setItems(prev =>
+      prev.map(item => (item.product.id === productId ? { ...item, quantity: q } : item))
+    );
+  };
+
+  const getItemLineTotal = (item: CartItem) => {
+    const unit = calculateFinalPrice(
+      item.product.base_price || 0,
+      item.product.category || 'Auto',
+      taxes
+    );
+    return Math.round(unit * item.quantity * 100) / 100;
+  };
+
   const clearCart = () => {
     setItems([]);
   };
 
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = items.reduce((acc, item) => {
-    const finalPrice = calculateFinalPrice(
-      item.product.base_price || 0,
-      item.product.category || 'Auto',
-      taxes
-    );
-    return acc + (finalPrice * item.quantity);
+    return acc + getItemLineTotal(item);
   }, 0);
 
   return (
-    <CartContext.Provider value={{ items, addToCart, removeFromCart, clearCart, cartCount, cartTotal }}>
+    <CartContext.Provider
+      value={{
+        items,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        getItemLineTotal,
+        clearCart,
+        cartCount,
+        cartTotal,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

@@ -464,6 +464,10 @@ create policy "Authenticated users can delete promotions" on public.promotions f
 
 comment on table public.promotions is 'Promoções e publicidade exibidas no site (ex: 20% de desconto)';
 
+alter table public.promotions add column if not exists parent_category text;
+alter table public.promotions add column if not exists badge_text text;
+alter table public.promotions add column if not exists badge_color text;
+
 -- -----------------------------------------------------------------------------
 -- 13. Vincular produtos existentes a marcas (brand_id)
 -- -----------------------------------------------------------------------------

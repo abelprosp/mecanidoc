@@ -31,3 +31,8 @@ CREATE POLICY "Authenticated users can delete promotions"
   ON public.promotions FOR DELETE TO authenticated USING (true);
 
 COMMENT ON TABLE public.promotions IS 'Promoções e publicidade exibidas no site (ex: 20% de desconto)';
+
+ALTER TABLE public.promotions
+  ADD COLUMN IF NOT EXISTS parent_category text,
+  ADD COLUMN IF NOT EXISTS badge_text text,
+  ADD COLUMN IF NOT EXISTS badge_color text;

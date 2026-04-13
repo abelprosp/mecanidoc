@@ -35,6 +35,8 @@ export default function PromotionsSection() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
+    const parentRaw = ((formData.get('parent_category') as string) || '').trim();
+    const badgeColorRaw = ((formData.get('badge_color') as string) || '').trim();
     const payload = {
       title: formData.get('title') as string,
       discount_text: formData.get('discount_text') as string || null,
@@ -44,6 +46,9 @@ export default function PromotionsSection() {
       start_date: (formData.get('start_date') as string) || null,
       end_date: (formData.get('end_date') as string) || null,
       sort_order: parseInt(formData.get('sort_order') as string) || 0,
+      parent_category: parentRaw || null,
+      badge_text: ((formData.get('badge_text') as string) || '').trim() || null,
+      badge_color: badgeColorRaw || null,
       updated_at: new Date().toISOString(),
     };
     if (editing?.id) {
@@ -105,7 +110,9 @@ export default function PromotionsSection() {
       </header>
 
       <p className="text-gray-600 text-sm mb-6">
-        As promoções ativas aparecem automaticamente no site (ex: barra com &quot;20% de desconto&quot;).
+        Com <strong>catégorie mère</strong> vide : la promo apparaît dans le <strong>bandeau orange</strong> en haut du site.
+        Avec Auto, Moto, Camion ou Tracteurs : elle apparaît dans le <strong>carrousel d&apos;offres</strong> sur l&apos;accueil
+        (et sur les pages catégorie correspondantes), au-dessus des meilleures ventes.
       </p>
       {errorMsg && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -126,6 +133,11 @@ export default function PromotionsSection() {
               <div className="min-w-0">
                 <p className="font-bold text-gray-800 truncate">{p.title}</p>
                 <p className="text-sm text-gray-500">
+                  {p.parent_category && (
+                    <span className="inline-block mr-2 text-xs font-bold uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                      {p.parent_category}
+                    </span>
+                  )}
                   {p.discount_text && <span className="text-green-600 font-medium">{p.discount_text}</span>}
                   {p.discount_text && p.description && ' · '}
                   {p.description && <span className="truncate block">{p.description}</span>}
@@ -211,6 +223,44 @@ export default function PromotionsSection() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   placeholder="Ex: /categorie/pneus-auto"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Catégorie mère (carrousel)</label>
+                <select
+                  name="parent_category"
+                  defaultValue={editing?.parent_category || ''}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="">— Bandeau général uniquement (pas de carrousel)</option>
+                  <option value="Auto">Auto</option>
+                  <option value="Moto">Moto</option>
+                  <option value="Camion">Camion</option>
+                  <option value="Tracteurs">Tracteurs</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Texte du badge</label>
+                  <input
+                    name="badge_text"
+                    defaultValue={editing?.badge_text || ''}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    placeholder="Ex: PROMO, OFFRE, CARBURANT"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Couleur du badge</label>
+                  <select
+                    name="badge_color"
+                    defaultValue={editing?.badge_color || 'red'}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                  >
+                    <option value="red">Rouge</option>
+                    <option value="green">Vert</option>
+                    <option value="blue">Bleu</option>
+                    <option value="orange">Orange</option>
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

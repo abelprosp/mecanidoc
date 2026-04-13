@@ -2,27 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { ALLOWED_IMAGE_MIMES, extFromMime, MAX_BRAND_LOGO_BYTES } from '@/lib/admin-image-upload';
+import { buildAbsoluteSiteImageUrl } from '@/lib/site-image-url';
 
 const BUCKET = 'brand-logos';
-const MAX_BYTES = 2 * 1024 * 1024;
-const ALLOWED_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/svg+xml',
-]);
-
-function extFromMime(mime: string): string {
-  const map: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'image/gif': 'gif',
-    'image/svg+xml': 'svg',
-  };
-  return map[mime] || 'bin';
-}
 
 function sanitizeBrandId(raw: string | null): string {
   if (!raw || raw === 'new' || raw === 'pending') return 'pending';
@@ -66,12 +49,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Fichier manquant' }, { status: 400 });
   }
 
-  if (file.size > MAX_BYTES) {
+  if (file.size > MAX_BRAND_LOGO_BYTES) {
     return NextResponse.json({ error: 'Fichier trop volumineux (max 2 Mo)' }, { status: 400 });
   }
 
   const mime = file.type || 'application/octet-stream';
-  if (!ALLOWED_TYPES.has(mime)) {
+  if (!ALLOWED_IMAGE_MIMES.has(mime)) {
     return NextResponse.json(
       { error: 'Type non autorisé (JPEG, PNG, WebP, GIF, SVG)' },
       { status: 400 }
@@ -103,9 +86,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const {
-    data: { publicUrl },
-  } = admin.storage.from(BUCKET).getPublicUrl(path);
-
-  return NextResponse.json({ url: publicUrl });
+  const url = buildAbsoluteSiteImageUrl(request, BUCKET, path);
+  return NextResponse.json({ url });
 }

@@ -6,13 +6,13 @@ import { useCart } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { ChevronDown, ChevronUp, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertCircle, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 export default function CheckoutPage() {
-  const { items, cartTotal, clearCart } = useCart();
+  const { items, cartTotal, clearCart, removeFromCart, updateQuantity, getItemLineTotal } = useCart();
   const supabase = createClient();
   const [settings, setSettings] = useState<any>({});
   const [loading, setLoading] = useState(true);
@@ -374,20 +374,59 @@ export default function CheckoutPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-24">
                <h2 className="text-lg font-bold text-gray-800 mb-6 pb-4 border-b">Votre Commande</h2>
                
-               {/* Product List */}
-               <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2">
-                 {items.map((item, idx) => (
-                   <div key={idx} className="flex justify-between text-sm">
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-700 block">{item.product.name}</span>
-                        <span className="text-xs text-gray-500">Qté: {item.quantity}</span>
-                        {item.garage && (
+               {/* Product List — édition quantité / suppression */}
+               <div className="space-y-4 mb-6 max-h-72 overflow-y-auto pr-2">
+                 {items.map((item) => {
+                   const lineTotal = getItemLineTotal(item);
+                   const cartLocked = checkoutPhase === 'payment';
+                   return (
+                     <div key={item.product.id} className="flex justify-between gap-3 text-sm border-b border-gray-50 pb-3 last:border-0">
+                       <div className="flex-1 min-w-0">
+                         <span className="font-medium text-gray-700 block truncate">{item.product.name}</span>
+                         {item.garage && (
                            <span className="text-xs text-blue-600 block mt-1">Montage: {item.garage.name}</span>
-                        )}
-                      </div>
-                      <span className="font-bold text-gray-800">€{(item.product.base_price * item.quantity).toFixed(2)}</span>
-                   </div>
-                 ))}
+                         )}
+                         <div className="flex items-center gap-2 mt-2">
+                           <span className="text-xs text-gray-500">Qté</span>
+                           <div className="inline-flex items-center rounded border border-gray-200 bg-gray-50">
+                             <button
+                               type="button"
+                               disabled={cartLocked || placingOrder}
+                               onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                               className="p-1.5 text-gray-600 hover:bg-gray-200 disabled:opacity-40 rounded-l"
+                               aria-label="Diminuer la quantité"
+                             >
+                               <Minus size={14} />
+                             </button>
+                             <span className="min-w-[2rem] text-center text-xs font-bold text-gray-800 tabular-nums">
+                               {item.quantity}
+                             </span>
+                             <button
+                               type="button"
+                               disabled={cartLocked || placingOrder}
+                               onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                               className="p-1.5 text-gray-600 hover:bg-gray-200 disabled:opacity-40 rounded-r"
+                               aria-label="Augmenter la quantité"
+                             >
+                               <Plus size={14} />
+                             </button>
+                           </div>
+                           <button
+                             type="button"
+                             disabled={cartLocked || placingOrder}
+                             onClick={() => removeFromCart(item.product.id)}
+                             className="p-1.5 text-red-600 hover:bg-red-50 rounded border border-transparent hover:border-red-100 disabled:opacity-40"
+                             title="Retirer du panier"
+                             aria-label="Retirer du panier"
+                           >
+                             <Trash2 size={16} />
+                           </button>
+                         </div>
+                       </div>
+                       <span className="font-bold text-gray-800 shrink-0">€{lineTotal.toFixed(2)}</span>
+                     </div>
+                   );
+                 })}
                </div>
 
                {/* Totals */}

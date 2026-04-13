@@ -14,10 +14,12 @@ export default function PromoBanner() {
       try {
         const { data, error } = await supabase
           .from('promotions')
-          .select('id, title, discount_text, description, link_url, start_date, end_date')
+          .select(
+            'id, title, discount_text, description, link_url, start_date, end_date, parent_category'
+          )
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
-          .limit(10);
+          .limit(20);
         if (error) {
           console.error('Erro ao buscar promoções:', error);
           return;
@@ -25,6 +27,7 @@ export default function PromoBanner() {
         const list = data || [];
         const now = new Date();
         const active = list.filter((p) => {
+          if (String(p.parent_category || '').trim()) return false;
           if (p.start_date && new Date(p.start_date) > now) return false;
           if (p.end_date && new Date(p.end_date) < now) return false;
           return true;

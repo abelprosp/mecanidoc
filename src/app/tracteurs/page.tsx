@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import HeroTractor from "@/components/HeroTractor";
 import BrandCarousel from "@/components/BrandCarousel";
+import HomeOffersCarousels from "@/components/HomeOffersCarousels";
 import BestSellers from "@/components/BestSellers";
 import WarrantyBanner from "@/components/WarrantyBanner";
 import DeliveryModes from "@/components/DeliveryModes";
@@ -17,6 +18,7 @@ export default async function TractorPage() {
       <Header />
       <HeroTractor category={category} />
       <BrandCarousel category={category} />
+      <HomeOffersCarousels categoryFilter={category} />
       <BestSellers category={category} />
       <WarrantyBanner />
       <DeliveryModes />

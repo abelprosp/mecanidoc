@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CategoryHero from "@/components/CategoryHero";
 import BrandCarousel from "@/components/BrandCarousel";
+import HomeOffersCarousels from "@/components/HomeOffersCarousels";
 import BestSellers from "@/components/BestSellers";
 import WarrantyBanner from "@/components/WarrantyBanner";
 import FAQ from "@/components/FAQ";
@@ -124,6 +125,8 @@ export default function CategoryPage() {
         
         {/* Brand Carousel */}
         <BrandCarousel category={categoryFilter} paTipo={paTipoFilter} />
+
+        <HomeOffersCarousels categoryFilter={categoryFilter} />
         
         {/* SEO Text Block */}
         <section className="bg-white rounded-xl p-4 md:p-6 mb-4 md:mb-6 shadow-sm text-gray-600 text-sm leading-relaxed">

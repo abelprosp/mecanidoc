@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import HeroCamion from "@/components/HeroCamion";
 import BrandCarousel from "@/components/BrandCarousel";
+import HomeOffersCarousels from "@/components/HomeOffersCarousels";
 import BestSellers from "@/components/BestSellers";
 import WarrantyBanner from "@/components/WarrantyBanner";
 import DeliveryModes from "@/components/DeliveryModes";
@@ -17,6 +18,7 @@ export default async function CamionPage() {
       <Header />
       <HeroCamion category={category} />
       <BrandCarousel category={category} />
+      <HomeOffersCarousels categoryFilter={category} />
       <BestSellers category={category} />
       <WarrantyBanner />
       <DeliveryModes />

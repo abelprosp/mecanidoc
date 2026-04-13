@@ -15,6 +15,38 @@ import PromotionsSection from './PromotionsSection';
 import SupportChatSection from './SupportChatSection';
 import SupportInboxSection from './SupportInboxSection';
 
+/** URL externe ou Storage → copie vers bucket et URL du site (/imagem/...). */
+async function normalizeAdminImageUrl(
+  raw: string,
+  opts: { kind: 'product'; productId: string } | { kind: 'brand'; brandId?: string }
+): Promise<string> {
+  const t = raw.trim();
+  if (!t) return '';
+  if (t.startsWith('/imagem/')) return t;
+  try {
+    const u = new URL(t);
+    if (u.pathname.startsWith('/imagem/')) return t;
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return t;
+  } catch {
+    return t;
+  }
+
+  const body =
+    opts.kind === 'product'
+      ? { url: t, kind: 'product' as const, productId: opts.productId }
+      : { url: t, kind: 'brand' as const, brandId: opts.brandId };
+
+  const res = await fetch('/api/admin/ingest-image-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : "Échec de l'import d'image");
+  if (!data.url || typeof data.url !== 'string') throw new Error('Réponse serveur invalide');
+  return data.url;
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -310,7 +342,21 @@ function ProductsSection() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    
+
+    let resolvedImageUrl = editingProduct.image_url?.trim() || '';
+    if (resolvedImageUrl) {
+      try {
+        resolvedImageUrl = await normalizeAdminImageUrl(resolvedImageUrl, {
+          kind: 'product',
+          productId: editingProduct.id,
+        });
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Échec de l'import d'image");
+        setSaving(false);
+        return;
+      }
+    }
+
     const selectedBrand = brands.find(b => b.id === editingProduct.brand_id);
     
     // Processar specs - incluir season e autres_categories
@@ -348,8 +394,8 @@ function ProductsSection() {
     };
     
     // Se image_url foi fornecido, atualizar o array images
-    if (editingProduct.image_url) {
-      updates.images = [editingProduct.image_url];
+    if (resolvedImageUrl) {
+      updates.images = [resolvedImageUrl];
     } else if (editingProduct.images && Array.isArray(editingProduct.images)) {
       updates.images = editingProduct.images;
     }
@@ -359,7 +405,11 @@ function ProductsSection() {
       alert('Erreur: ' + error.message);
     } else {
       // Atualizar a lista de produtos com os dados atualizados
-      const updatedProduct = { ...editingProduct, ...updates };
+      const updatedProduct = {
+        ...editingProduct,
+        ...updates,
+        image_url: resolvedImageUrl || editingProduct.image_url,
+      };
       setProducts(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
       setEditingProduct(null);
     }
@@ -1053,7 +1103,16 @@ function BrandsSection() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('brands').insert([{ name: newName, logo_url: newLogo }]);
+    let logo = newLogo.trim();
+    if (logo) {
+      try {
+        logo = await normalizeAdminImageUrl(logo, { kind: 'brand', brandId: 'pending' });
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Échec de l'import d'image");
+        return;
+      }
+    }
+    const { error } = await supabase.from('brands').insert([{ name: newName, logo_url: logo }]);
     if (error) {
       alert('Erreur lors de l\'ajout de la marque');
     } else {
@@ -1094,7 +1153,19 @@ function BrandsSection() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBrand) return;
-    const { error } = await supabase.from('brands').update({ name: editingBrand.name, logo_url: editingBrand.logo_url }).eq('id', editingBrand.id);
+    let logoUrl = editingBrand.logo_url?.trim() || '';
+    if (logoUrl) {
+      try {
+        logoUrl = await normalizeAdminImageUrl(logoUrl, { kind: 'brand', brandId: editingBrand.id });
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Échec de l'import d'image");
+        return;
+      }
+    }
+    const { error } = await supabase
+      .from('brands')
+      .update({ name: editingBrand.name, logo_url: logoUrl })
+      .eq('id', editingBrand.id);
     if (error) {
       alert('Erreur lors de la mise à jour');
     } else {
