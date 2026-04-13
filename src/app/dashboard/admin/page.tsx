@@ -96,7 +96,7 @@ export default function AdminDashboard() {
     { id: 'pages', icon: Layout, label: 'Pages Catégories' },
     { id: 'subcategories', icon: List, label: 'Sous-catégories Menu' },
     { id: 'footer', icon: Globe, label: 'Pied de page' },
-    { id: 'promotions', icon: Tag, label: 'Promoções' },
+    { id: 'promotions', icon: Tag, label: 'Promotions' },
     { id: 'faqs', icon: FileText, label: 'FAQs' },
     { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },

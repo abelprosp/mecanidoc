@@ -33,3 +33,7 @@ create or replace function generate_slug(text) returns text as $$
     )
   );
 $$ language sql immutable;
+
+alter table public.menu_subcategories
+  add column if not exists hero_image_url text,
+  add column if not exists hero_overlay text default 'medium';

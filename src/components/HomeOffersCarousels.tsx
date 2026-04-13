@@ -21,6 +21,13 @@ const CARD_GRADIENTS = [
   "bg-gradient-to-br from-gray-800 to-black",
 ];
 
+/** Dégradé sombre par-dessus la photo (bas → haut) pour lisibilité du texte blanc */
+const OVERLAY_GRADIENT: Record<string, string> = {
+  strong: "from-black/90 via-black/65 to-black/35",
+  medium: "from-black/80 via-black/50 to-black/25",
+  soft: "from-black/55 via-black/35 to-black/10",
+};
+
 function normalizeParentCategory(raw: string | null | undefined): ParentCategory | null {
   const t = (raw || "").trim();
   if (!t) return null;
@@ -51,6 +58,8 @@ type PromoRow = {
   parent_category?: string | null;
   badge_text?: string | null;
   badge_color?: string | null;
+  card_image_url?: string | null;
+  card_overlay?: string | null;
 };
 
 function OfferCard({ p, index }: { p: PromoRow; index: number }) {
@@ -58,41 +67,63 @@ function OfferCard({ p, index }: { p: PromoRow; index: number }) {
   const badgeKey = (p.badge_color || "red").toLowerCase();
   const badgeCls = BADGE_CLASS[badgeKey] || BADGE_CLASS.red;
   const grad = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
+  const bgUrl = p.card_image_url?.trim();
+  const overlayKey = (p.card_overlay || "medium").toLowerCase();
+  const overlayGrad =
+    OVERLAY_GRADIENT[overlayKey === "strong" || overlayKey === "soft" ? overlayKey : "medium"];
+
+  const shell =
+    "relative min-h-[152px] rounded-2xl overflow-hidden shadow-md border border-white/10 transition-transform hover:scale-[1.02] focus-within:ring-2 focus-within:ring-blue-400/60 focus-within:ring-offset-2 focus-within:ring-offset-[#F1F1F1]";
 
   const inner = (
-    <div
-      className={`${grad} rounded-2xl p-5 min-h-[140px] flex flex-col justify-end shadow-md border border-white/10 transition-transform hover:scale-[1.02] focus-within:ring-2 focus-within:ring-blue-400/60`}
-    >
-      <span className={`text-xs font-bold px-2 py-1 rounded w-fit mb-2 ${badgeCls}`}>{badgeLabel}</span>
-      <h3 className="font-bold text-lg text-white leading-snug line-clamp-2">{p.title}</h3>
-      {p.description ? (
-        <p className="text-sm text-white/85 mt-1 line-clamp-2">{p.description}</p>
-      ) : null}
+    <div className={shell}>
+      {bgUrl ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={bgUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+          <div
+            className={`pointer-events-none absolute inset-0 bg-gradient-to-t ${overlayGrad}`}
+            aria-hidden
+          />
+        </>
+      ) : (
+        <div className={`absolute inset-0 ${grad}`} aria-hidden />
+      )}
+      <div className="relative z-10 flex min-h-[152px] flex-col justify-end p-5">
+        <span className={`mb-2 w-fit rounded px-2 py-1 text-xs font-bold shadow-sm ${badgeCls}`}>{badgeLabel}</span>
+        <h3 className="line-clamp-2 text-lg font-bold leading-snug text-white drop-shadow-sm">{p.title}</h3>
+        {p.description ? (
+          <p className="mt-1 line-clamp-2 text-sm text-white/90 drop-shadow-sm">{p.description}</p>
+        ) : null}
+      </div>
     </div>
   );
+
+  const wrap = "block min-w-[min(100%,280px)] md:min-w-[300px] snap-center shrink-0";
 
   if (p.link_url?.trim()) {
     const href = p.link_url.trim();
     if (/^https?:\/\//i.test(href)) {
       return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block min-w-[min(100%,280px)] md:min-w-[300px] snap-center shrink-0"
-        >
+        <a href={href} target="_blank" rel="noopener noreferrer" className={wrap}>
           {inner}
         </a>
       );
     }
     return (
-      <Link href={href} className="block min-w-[min(100%,280px)] md:min-w-[300px] snap-center shrink-0">
+      <Link href={href} className={wrap}>
         {inner}
       </Link>
     );
   }
 
-  return <div className="min-w-[min(100%,280px)] md:min-w-[300px] snap-center shrink-0">{inner}</div>;
+  return <div className={wrap}>{inner}</div>;
 }
 
 function OffersCarouselRow({ category, items }: { category: ParentCategory; items: PromoRow[] }) {
@@ -158,7 +189,7 @@ export default function HomeOffersCarousels({ categoryFilter }: HomeOffersCarous
       const { data, error } = await supabase
         .from("promotions")
         .select(
-          "id, title, discount_text, description, link_url, start_date, end_date, sort_order, parent_category, badge_text, badge_color"
+          "id, title, discount_text, description, link_url, start_date, end_date, sort_order, parent_category, badge_text, badge_color, card_image_url, card_overlay"
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true });

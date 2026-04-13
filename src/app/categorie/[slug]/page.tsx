@@ -105,7 +105,8 @@ export default function CategoryPage() {
 
   // Se for subcategoria do menu, usar dados dela; senão usar category_pages
   const title = pageData?.seo_title || subcategoryData?.name || formatTitle(slug);
-  const heroImage = pageData?.hero_image;
+  const heroImage = subcategoryData?.hero_image_url || pageData?.hero_image;
+  const heroOverlay = subcategoryData?.hero_overlay || "medium";
   const categoryFilter =
     normalizeProductCategory(subcategoryData?.product_category_filter) ||
     normalizeProductCategory(subcategoryData?.parent_category) ||
@@ -121,7 +122,14 @@ export default function CategoryPage() {
       <Header />
       
       <div className="layout-container">
-        <CategoryHero title={title} subtitle="Trouvez le pneu parfait pour votre véhicule" image={heroImage} category={categoryFilter} paTipo={paTipoFilter} />
+        <CategoryHero
+          title={title}
+          subtitle="Trouvez le pneu parfait pour votre véhicule"
+          image={heroImage}
+          overlayStrength={subcategoryData ? heroOverlay : "medium"}
+          category={categoryFilter}
+          paTipo={paTipoFilter}
+        />
         
         {/* Brand Carousel */}
         <BrandCarousel category={categoryFilter} paTipo={paTipoFilter} />

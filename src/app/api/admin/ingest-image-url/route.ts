@@ -7,15 +7,17 @@ import {
   extFromMime,
   MAX_BRAND_LOGO_BYTES,
   MAX_PRODUCT_IMAGE_BYTES,
+  MAX_SUBCATEGORY_HERO_BYTES,
 } from '@/lib/admin-image-upload';
 import { fetchRemoteImageWithLimit } from '@/lib/remote-image-fetch';
 import { buildAbsoluteSiteImageUrl, tryParseSupabaseStoragePublicUrl } from '@/lib/site-image-url';
 
 type Body = {
   url?: string;
-  kind?: 'product' | 'brand';
+  kind?: 'product' | 'brand' | 'subcategory';
   productId?: string | null;
   brandId?: string | null;
+  subcategorySlug?: string | null;
 };
 
 function sanitizeBrandId(raw: string | null | undefined): string {
@@ -28,6 +30,16 @@ function sanitizeProductId(raw: string | null | undefined): string | null {
   if (!raw || raw === 'pending') return null;
   if (!/^[a-f0-9-]{36}$/i.test(raw)) return null;
   return raw;
+}
+
+function sanitizeSubcategorySlug(raw: string | null | undefined): string {
+  const t = (raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return t || 'pending';
 }
 
 function alreadySiteImagemPath(raw: string): boolean {
@@ -88,19 +100,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: absolute });
   }
 
-  const kind = body.kind === 'brand' ? 'brand' : 'product';
-  const maxBytes = kind === 'brand' ? MAX_BRAND_LOGO_BYTES : MAX_PRODUCT_IMAGE_BYTES;
-  const bucket = kind === 'brand' ? 'brand-logos' : 'product-images';
+  const kindRaw = body.kind;
+  const kind: 'product' | 'brand' | 'subcategory' =
+    kindRaw === 'brand' ? 'brand' : kindRaw === 'subcategory' ? 'subcategory' : 'product';
 
+  let maxBytes: number;
+  let bucket: string;
   let storageFolder: string;
-  if (kind === 'product') {
+
+  if (kind === 'subcategory') {
+    maxBytes = MAX_SUBCATEGORY_HERO_BYTES;
+    bucket = 'subcategory-heroes';
+    storageFolder = sanitizeSubcategorySlug(body.subcategorySlug);
+  } else if (kind === 'brand') {
+    maxBytes = MAX_BRAND_LOGO_BYTES;
+    bucket = 'brand-logos';
+    storageFolder = sanitizeBrandId(body.brandId ?? null);
+  } else {
+    maxBytes = MAX_PRODUCT_IMAGE_BYTES;
+    bucket = 'product-images';
     const productId = sanitizeProductId(body.productId);
     if (!productId) {
       return NextResponse.json({ error: 'Identifiant produit invalide' }, { status: 400 });
     }
     storageFolder = productId;
-  } else {
-    storageFolder = sanitizeBrandId(body.brandId ?? null);
   }
 
   let buffer: Buffer;
@@ -129,7 +152,7 @@ export async function POST(request: NextRequest) {
       {
         error:
           uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')
-            ? `Bucket « ${bucket} » introuvable.`
+            ? `Bucket « ${bucket} » introuvable. Exécutez le SQL storage correspondant.`
             : uploadError.message || 'Échec du téléversement',
       },
       { status: 500 }

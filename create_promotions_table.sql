@@ -35,4 +35,6 @@ COMMENT ON TABLE public.promotions IS 'Promoções e publicidade exibidas no sit
 ALTER TABLE public.promotions
   ADD COLUMN IF NOT EXISTS parent_category text,
   ADD COLUMN IF NOT EXISTS badge_text text,
-  ADD COLUMN IF NOT EXISTS badge_color text;
+  ADD COLUMN IF NOT EXISTS badge_color text,
+  ADD COLUMN IF NOT EXISTS card_image_url text,
+  ADD COLUMN IF NOT EXISTS card_overlay text default 'medium';

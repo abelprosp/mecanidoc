@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { getSiteOriginFromRequest } from '@/lib/site-origin';
 
-export const PUBLIC_IMAGE_BUCKETS = new Set(['product-images', 'brand-logos']);
+export const PUBLIC_IMAGE_BUCKETS = new Set(['product-images', 'brand-logos', 'subcategory-heroes']);
 
 /** Caminho público relativo: /imagem/{bucket}/... */
 export function buildSiteImagePublicPath(bucket: string, objectPath: string): string {

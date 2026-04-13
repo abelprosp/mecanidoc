@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
-import { Settings, Trash2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase";
+import { Settings, Trash2, Loader2, ImageIcon } from "lucide-react";
+
+type HeroOverlay = "strong" | "medium" | "soft";
 
 export default function SubcategoriesSection() {
   const supabase = createClient();
@@ -10,7 +12,11 @@ export default function SubcategoriesSection() {
   const [loading, setLoading] = useState(true);
   const [editingSub, setEditingSub] = useState<any>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [filterParent, setFilterParent] = useState<string>('');
+  const [filterParent, setFilterParent] = useState<string>("");
+  const [heroImageUrl, setHeroImageUrl] = useState("");
+  const [heroOverlay, setHeroOverlay] = useState<HeroOverlay>("medium");
+  const [ingestHeroBusy, setIngestHeroBusy] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const fetchSubcategories = async () => {
     setLoading(true);
@@ -27,13 +33,53 @@ export default function SubcategoriesSection() {
     fetchSubcategories();
   }, [filterParent]);
 
+  useEffect(() => {
+    if (editingSub) {
+      setHeroImageUrl((editingSub.hero_image_url as string) || "");
+      const o = String(editingSub.hero_overlay || "medium").toLowerCase();
+      setHeroOverlay(o === "strong" || o === "soft" ? o : "medium");
+    }
+  }, [editingSub]);
+
+  const ingestHeroFromUrl = async () => {
+    const slugInput = formRef.current?.elements.namedItem("slug") as HTMLInputElement | null;
+    const slug = (slugInput?.value || editingSub?.slug || "").trim();
+    const url = heroImageUrl.trim();
+    if (!slug) {
+      alert("Indiquez le slug avant d'importer l'image.");
+      return;
+    }
+    if (!url) {
+      alert("Indiquez l'URL de l'image à importer.");
+      return;
+    }
+    setIngestHeroBusy(true);
+    try {
+      const res = await fetch("/api/admin/ingest-image-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, kind: "subcategory", subcategorySlug: slug }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Échec de l'import");
+      if (!data.url || typeof data.url !== "string") throw new Error("Réponse serveur invalide");
+      setHeroImageUrl(data.url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setIngestHeroBusy(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent, subData: any) => {
     e.preventDefault();
     const data = {
       ...subData,
-      sort_order: parseInt(subData.sort_order) || 0,
-      is_active: subData.is_active === 'true' || subData.is_active === true,
-      product_category_filter: subData.product_category_filter || subData.parent_category
+      sort_order: parseInt(subData.sort_order, 10) || 0,
+      is_active: subData.is_active === "true" || subData.is_active === true,
+      product_category_filter: subData.product_category_filter || subData.parent_category,
+      hero_image_url: heroImageUrl.trim() || null,
+      hero_overlay: heroOverlay,
     };
     
     if (subData.id) {
@@ -61,7 +107,17 @@ export default function SubcategoriesSection() {
         <button
           onClick={() => {
             setIsAdding(true);
-            setEditingSub({ name: '', slug: '', parent_category: 'Auto', product_category_filter: 'Auto', icon_name: '', sort_order: 0, is_active: true });
+            setEditingSub({
+              name: "",
+              slug: "",
+              parent_category: "Auto",
+              product_category_filter: "Auto",
+              icon_name: "",
+              sort_order: 0,
+              is_active: true,
+              hero_image_url: "",
+              hero_overlay: "medium",
+            });
           }}
           className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base w-full sm:w-auto"
         >
@@ -199,6 +255,7 @@ export default function SubcategoriesSection() {
               </button>
             </div>
             <form
+              ref={formRef}
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
@@ -256,12 +313,55 @@ export default function SubcategoriesSection() {
                     <option value="Camion">Camion</option>
                     <option value="Tracteurs">Tracteurs</option>
                   </select>
-                  <p className="text-[10px] text-gray-400 mt-1">Tipo de produto a mostrar nesta página</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Type de produits filtrés sur la page</p>
                 </div>
               </div>
+
+              <div className="rounded-xl border border-gray-200 bg-slate-50/80 p-4 space-y-3">
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                  <ImageIcon size={14} /> Hero (bandeau + formulaire)
+                </p>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Image de fond (URL)</label>
+                  <input
+                    type="text"
+                    value={heroImageUrl}
+                    onChange={(e) => setHeroImageUrl(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
+                    placeholder="https://… ou URL /imagem/… après import"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Superposition sur la photo</label>
+                    <select
+                      value={heroOverlay}
+                      onChange={(e) => setHeroOverlay(e.target.value as HeroOverlay)}
+                      className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
+                    >
+                      <option value="strong">Forte (texte très lisible)</option>
+                      <option value="medium">Moyenne (recommandé)</option>
+                      <option value="soft">Légère (photo plus visible)</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={ingestHeroFromUrl}
+                    disabled={ingestHeroBusy}
+                    className="shrink-0 bg-slate-800 text-white px-3 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+                  >
+                    {ingestHeroBusy ? "Import…" : "Importer depuis URL"}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  Renseignez le <strong>slug</strong> puis collez une URL externe et cliquez sur « Importer » pour
+                  héberger l&apos;image sur votre domaine. Laissez vide pour l&apos;image par défaut du site.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Ícone (opcional)</label>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Icône (optionnel)</label>
                   <input
                     name="icon_name"
                     type="text"

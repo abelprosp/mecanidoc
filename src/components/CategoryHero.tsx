@@ -15,15 +15,35 @@ function specDimEq(a: unknown, b: unknown): boolean {
   return String(a ?? '').trim() === String(b ?? '').trim();
 }
 
+export type HeroOverlayStrength = "strong" | "medium" | "soft";
+
+const HERO_OVERLAY_GRADIENT: Record<HeroOverlayStrength, string> = {
+  strong: "from-black/90 via-black/70 to-black/40",
+  medium: "from-black/85 via-black/55 to-black/25",
+  soft: "from-black/65 via-black/40 to-black/15",
+};
+
 interface CategoryHeroProps {
   title: string;
   subtitle?: string;
   image?: string;
+  /** Voile sur la photo de fond (sous-catégories menu) */
+  overlayStrength?: HeroOverlayStrength | string | null;
   category?: string;
   paTipo?: string | null;
 }
 
-export default function CategoryHero({ title, subtitle, image, category, paTipo }: CategoryHeroProps) {
+export default function CategoryHero({
+  title,
+  subtitle,
+  image,
+  overlayStrength,
+  category,
+  paTipo,
+}: CategoryHeroProps) {
+  const k = String(overlayStrength || "medium").toLowerCase();
+  const overlayGrad =
+    k === "strong" ? HERO_OVERLAY_GRADIENT.strong : k === "soft" ? HERO_OVERLAY_GRADIENT.soft : HERO_OVERLAY_GRADIENT.medium;
   const [allSpecs, setAllSpecs] = useState<any[]>([]);
   const [selected, setSelected] = useState({
     width: '',
@@ -178,7 +198,7 @@ export default function CategoryHero({ title, subtitle, image, category, paTipo 
           alt={title} 
           className="w-full h-full object-cover opacity-60"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25" />
+        <div className={`absolute inset-0 bg-gradient-to-r ${overlayGrad}`} />
       </div>
 
       <div className="relative z-10 px-5 sm:px-8 md:px-12 lg:px-14 py-6 md:py-10">

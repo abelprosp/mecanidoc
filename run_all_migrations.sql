@@ -404,6 +404,9 @@ alter table public.menu_subcategories add column if not exists product_category_
 update public.menu_subcategories set product_category_filter = case when parent_category = 'Auto' then 'Auto' when parent_category = 'Moto' then 'Moto' when parent_category = 'Camion' then 'Camion' when parent_category = 'Tracteur' then 'Tracteurs' else 'Auto' end where product_category_filter is null;
 comment on column public.menu_subcategories.product_category_filter is 'Categoria de produto a filtrar nesta subcategoria (Auto, Moto, Camion, Tracteurs)';
 
+alter table public.menu_subcategories add column if not exists hero_image_url text;
+alter table public.menu_subcategories add column if not exists hero_overlay text default 'medium';
+
 create table if not exists public.category_pages (
   id uuid default gen_random_uuid() primary key,
   slug text unique not null,
@@ -467,6 +470,8 @@ comment on table public.promotions is 'Promoções e publicidade exibidas no sit
 alter table public.promotions add column if not exists parent_category text;
 alter table public.promotions add column if not exists badge_text text;
 alter table public.promotions add column if not exists badge_color text;
+alter table public.promotions add column if not exists card_image_url text;
+alter table public.promotions add column if not exists card_overlay text default 'medium';
 
 -- -----------------------------------------------------------------------------
 -- 13. Vincular produtos existentes a marcas (brand_id)

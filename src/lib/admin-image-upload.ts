@@ -8,6 +8,8 @@ export const ALLOWED_IMAGE_MIMES = new Set([
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_BRAND_LOGO_BYTES = 2 * 1024 * 1024;
+/** Hero sous-catégorie (fond large) */
+export const MAX_SUBCATEGORY_HERO_BYTES = 8 * 1024 * 1024;
 
 export function extFromMime(mime: string): string {
   const map: Record<string, string> = {
