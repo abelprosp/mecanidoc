@@ -127,9 +127,14 @@ export default function PromotionsSection() {
       <p className="text-gray-600 text-sm mb-6 leading-relaxed">
         <strong>Catégorie mère vide</strong> : la promotion s&apos;affiche dans le <strong>bandeau orange</strong> en haut
         du site. Avec <strong>Auto, Moto, Camion ou Tracteurs</strong> : elle apparaît dans le{" "}
-        <strong>carrousel d&apos;offres</strong> sur l&apos;accueil et les pages concernées, au-dessus des meilleures
-        ventes. Pour le carrousel, vous pouvez ajouter une <strong>image de fond</strong> avec un voile pour garder le
-        texte lisible.
+        <strong>carrousel d&apos;offres</strong> au-dessus des meilleures ventes sur :{" "}
+        <strong>Auto</strong> → page d&apos;accueil <code className="text-xs bg-gray-100 px-1 rounded">/</code> ;{" "}
+        <strong>Moto</strong> → <code className="text-xs bg-gray-100 px-1 rounded">/moto</code> ;{" "}
+        <strong>Camion</strong> → <code className="text-xs bg-gray-100 px-1 rounded">/camion</code> ;{" "}
+        <strong>Tracteurs</strong> → <code className="text-xs bg-gray-100 px-1 rounded">/tracteurs</code> ; et les pages{" "}
+        <code className="text-xs bg-gray-100 px-1 rounded">/categorie/…</code> rattachées à cette famille. Sur l&apos;accueil{" "}
+        <code className="text-xs bg-gray-100 px-1 rounded">/</code>, un carrousel est affiché pour chaque famille qui a au moins une promotion active.
+        Pour le carrousel, vous pouvez ajouter une <strong>image de fond</strong> avec un voile pour garder le texte lisible.
       </p>
       {errorMsg && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMsg}</div>
@@ -245,8 +250,12 @@ export default function PromotionsSection() {
                   name="link_url"
                   defaultValue={editing?.link_url}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="Ex. : /categorie/pneus-auto ou https://…"
+                  placeholder="Vide = page Recherche filtrée (catégorie + promo). Sinon URL interne ou https://…"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Si le champ est vide, un clic sur la carte ouvre <strong>/search</strong> avec la catégorie mère et
+                  l&apos;identifiant de la promotion.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">Catégorie mère (carrousel)</label>

@@ -55,16 +55,17 @@ export function applySpecsFieldFilters(query: any, f: SpecsFilterSlice) {
 
 /** Filtro opcional por subcategoria (coluna `pa_tipo`), alinhado ao menu. */
 export function applyPaTipoToQuery(query: any, paTipo: string | null | undefined) {
-  const t = paTipo?.trim();
+  const t = paTipo?.trim().replace(/\s+/g, " ");
   if (!t) return query;
-  return query.ilike('pa_tipo', t);
+  return query.ilike("pa_tipo", t);
 }
 
 export function productMatchesPaTipo(
   productPaTipo: string | null | undefined,
   filterPaTipo: string
 ): boolean {
-  const f = filterPaTipo.trim();
+  const f = filterPaTipo.trim().replace(/\s+/g, " ");
   if (!f) return true;
-  return (productPaTipo || '').trim().toLowerCase() === f.toLowerCase();
+  const p = (productPaTipo || "").trim().replace(/\s+/g, " ");
+  return p.toLowerCase() === f.toLowerCase();
 }

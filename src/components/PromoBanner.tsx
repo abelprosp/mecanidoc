@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { buildPromotionSearchHref } from '@/lib/promotion-search-url';
 import { Tag } from 'lucide-react';
 
 export default function PromoBanner() {
@@ -59,18 +60,27 @@ export default function PromoBanner() {
                 )}
               </span>
             );
-            if (p.link_url) {
+            const href = p.link_url?.trim()
+              ? p.link_url.trim()
+              : buildPromotionSearchHref({ id: p.id, parent_category: p.parent_category });
+            if (/^https?:\/\//i.test(href)) {
               return (
-                <Link
+                <a
                   key={p.id}
-                  href={p.link_url}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="hover:underline focus:outline-none focus:underline"
                 >
                   {content}
-                </Link>
+                </a>
               );
             }
-            return <div key={p.id}>{content}</div>;
+            return (
+              <Link key={p.id} href={href} className="hover:underline focus:outline-none focus:underline">
+                {content}
+              </Link>
+            );
           })}
         </div>
       </div>

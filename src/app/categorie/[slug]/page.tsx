@@ -11,6 +11,7 @@ import BestSellers from "@/components/BestSellers";
 import WarrantyBanner from "@/components/WarrantyBanner";
 import FAQ from "@/components/FAQ";
 import { useParams } from 'next/navigation';
+import { uiCategoryFromDbField, uiCategoryFromSlugHeuristic } from '@/lib/category-page-routing';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -19,65 +20,6 @@ export default function CategoryPage() {
   // Helper to format slug to display title
   const formatTitle = (slug: string) => {
     return slug.replace(/-/g, ' ').toUpperCase();
-  };
-
-  const SLUG_CATEGORY_FALLBACK: Record<string, 'Auto' | 'Moto' | 'Camion' | 'Tracteurs'> = {
-    // Auto
-    'pneus-4-saisons': 'Auto',
-    'pneus-4x4suv': 'Auto',
-    'pneus-camionnette': 'Auto',
-    'pneus-camping': 'Auto',
-    'pneus-ete-auto': 'Auto',
-    'pneus-hiver': 'Auto',
-    'pneus-voiture': 'Auto',
-    'pneus-voiture-electrique': 'Auto',
-    'typec': 'Auto',
-    // Moto
-    'chopper-cruiser': 'Moto',
-    'pneus-circuit-et-piste': 'Moto',
-    'pneus-cross-enduro-trial': 'Moto',
-    'pneus-custom-et-collection': 'Moto',
-    'pneus-moto-sport-et-route': 'Moto',
-    'pneus-scooter': 'Moto',
-    'pneus-trail': 'Moto',
-    'quad-vehicule-tout-terrain': 'Moto',
-    'sport-tourisme-diagonal': 'Moto',
-    'sport-tourisme-radial': 'Moto',
-    // Camion
-    'pneus-autocar-autobus': 'Camion',
-    'pneus-chantier': 'Camion',
-    'pneus-longue-distance': 'Camion',
-    'pneus-regionaux': 'Camion',
-    // Tracteurs
-    'pneus-avant-tracteur': 'Tracteurs',
-    'pneus-espaces-verts': 'Tracteurs',
-    'pneus-industriel-et-manutention': 'Tracteurs',
-    'pneus-remorque-agricole': 'Tracteurs',
-    'pneus-roue-motrice': 'Tracteurs',
-    'tracteurs': 'Tracteurs',
-  };
-
-  // Helper to map slug to DB category
-  const getCategoryFilter = (slug: string) => {
-    const normalizedSlug = (slug || '').trim().toLowerCase();
-    const staticFallback = SLUG_CATEGORY_FALLBACK[normalizedSlug];
-    if (staticFallback) return staticFallback;
-
-    if (normalizedSlug.includes('moto')) return 'Moto';
-    if (normalizedSlug.includes('camion')) return 'Camion';
-    if (normalizedSlug.includes('agricole') || normalizedSlug.includes('tracteur')) return 'Tracteurs';
-    return 'Auto'; // Default
-  };
-
-  const normalizeProductCategory = (value?: string | null) => {
-    const normalized = (value || '').trim().toLowerCase();
-    if (!normalized) return null;
-    if (normalized === 'moto') return 'Moto';
-    if (normalized === 'camion') return 'Camion';
-    if (normalized === 'tracteur' || normalized === 'tracteurs' || normalized === 'agricole') {
-      return 'Tracteurs';
-    }
-    return 'Auto';
   };
 
   const [pageData, setPageData] = useState<any>(null);
@@ -108,10 +50,10 @@ export default function CategoryPage() {
   const heroImage = subcategoryData?.hero_image_url || pageData?.hero_image;
   const heroOverlay = subcategoryData?.hero_overlay || "medium";
   const categoryFilter =
-    normalizeProductCategory(subcategoryData?.product_category_filter) ||
-    normalizeProductCategory(subcategoryData?.parent_category) ||
-    normalizeProductCategory(pageData?.product_category_filter) ||
-    getCategoryFilter(slug);
+    uiCategoryFromDbField(subcategoryData?.product_category_filter) ||
+    uiCategoryFromDbField(subcategoryData?.parent_category) ||
+    uiCategoryFromDbField(pageData?.product_category_filter) ||
+    uiCategoryFromSlugHeuristic(slug);
   // Se for subcategoria do menu, usar o nome como pa_tipo para filtrar produtos
   const paTipoFilter = subcategoryData?.name || null;
   const promoBanners = pageData?.promo_banners || [];

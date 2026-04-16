@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
+import { buildPromotionSearchHref } from "@/lib/promotion-search-url";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 const CATEGORY_ORDER = ["Auto", "Moto", "Camion", "Tracteurs"] as const;
@@ -31,11 +32,11 @@ const OVERLAY_GRADIENT: Record<string, string> = {
 function normalizeParentCategory(raw: string | null | undefined): ParentCategory | null {
   const t = (raw || "").trim();
   if (!t) return null;
-  const l = t.toLowerCase();
-  if (l === "auto") return "Auto";
-  if (l === "moto") return "Moto";
-  if (l === "camion") return "Camion";
-  if (l === "tracteur" || l === "tracteurs") return "Tracteurs";
+  const l = t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (l === "auto" || l === "automobile" || l === "voiture") return "Auto";
+  if (l === "moto" || l === "motos") return "Moto";
+  if (l === "camion" || l === "camions" || l === "poids lourd" || l === "poids lourds") return "Camion";
+  if (l === "tracteur" || l === "tracteurs" || l === "agricole" || l === "agricoles") return "Tracteurs";
   return null;
 }
 
@@ -123,7 +124,12 @@ function OfferCard({ p, index }: { p: PromoRow; index: number }) {
     );
   }
 
-  return <div className={wrap}>{inner}</div>;
+  const defaultHref = buildPromotionSearchHref({ id: p.id, parent_category: p.parent_category });
+  return (
+    <Link href={defaultHref} className={`${wrap} cursor-pointer`}>
+      {inner}
+    </Link>
+  );
 }
 
 function OffersCarouselRow({ category, items }: { category: ParentCategory; items: PromoRow[] }) {

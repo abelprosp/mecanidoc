@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -16,6 +16,7 @@ import {
 } from '@/lib/product-query-helpers';
 
 function SearchContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
   const [products, setProducts] = useState<any[]>([]);
@@ -23,6 +24,11 @@ function SearchContent() {
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
   const [dimensionSpecs, setDimensionSpecs] = useState<any[]>([]);
   const [brandList, setBrandList] = useState<{ id: string | null; name: string }[]>([]);
+  const [promoBanner, setPromoBanner] = useState<{
+    title: string;
+    discount_text?: string | null;
+    description?: string | null;
+  } | null>(null);
 
   const [filters, setFilters] = useState({
     category: searchParams.get('category') || 'Toutes',
@@ -325,6 +331,45 @@ function SearchContent() {
     }));
   }, [searchParams]);
 
+  const promoId = searchParams.get('promo_id');
+
+  useEffect(() => {
+    if (!promoId?.trim()) {
+      setPromoBanner(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('promotions')
+        .select('title, discount_text, description')
+        .eq('id', promoId.trim())
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setPromoBanner({ title: 'Offre promotionnelle' });
+        return;
+      }
+      setPromoBanner({
+        title: data.title,
+        discount_text: data.discount_text,
+        description: data.description,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- client Supabase instable entre renders
+  }, [promoId]);
+
+  const dismissPromoBanner = () => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.delete('promo_id');
+    const qs = p.toString();
+    router.replace(qs ? `/search?${qs}` : '/search');
+    setPromoBanner(null);
+  };
+
   return (
     <div className="layout-container py-4 md:py-8 flex flex-col md:flex-row gap-8">
       
@@ -463,6 +508,27 @@ function SearchContent() {
 
       {/* Product Grid */}
       <div className="flex-1">
+        {promoBanner && (
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-[#0066CC]/25 bg-[#0066CC]/8 px-4 py-3 text-sm text-gray-900">
+            <div className="min-w-0">
+              <p className="font-bold text-[#0066CC]">Promotion</p>
+              <p className="mt-0.5 font-semibold text-gray-900">{promoBanner.title}</p>
+              {promoBanner.discount_text ? (
+                <p className="mt-1 text-base font-bold text-gray-800">{promoBanner.discount_text}</p>
+              ) : null}
+              {promoBanner.description ? (
+                <p className="mt-1 text-gray-600 leading-snug">{promoBanner.description}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={dismissPromoBanner}
+              className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
         <div className="mb-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-gray-800">
             Résultats de recherche 
