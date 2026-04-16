@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { Loader2, Tag, Trash2, Plus, ImageIcon } from "lucide-react";
 
@@ -13,6 +13,10 @@ const OVERLAY_OPTIONS = [
 export default function PromotionsSection() {
   const supabase = createClient();
   const [promotions, setPromotions] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [productSearch, setProductSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
@@ -39,6 +43,54 @@ export default function PromotionsSection() {
     fetchPromotions();
   }, []);
 
+  const buildPromoProductsLink = (category: string, productIds: string[]) => {
+    const params = new URLSearchParams();
+    params.set("category", category || "Toutes");
+    params.set("product_ids", productIds.join(","));
+    return `/search?${params.toString()}`;
+  };
+
+  const parseProductIdsFromLink = (linkUrl?: string | null): string[] => {
+    if (!linkUrl?.trim()) return [];
+    const raw = linkUrl.trim();
+    if (!raw.startsWith("/search?")) return [];
+    const query = raw.split("?")[1] || "";
+    const ids = new URLSearchParams(query).get("product_ids") || "";
+    return ids
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+  };
+
+  const fetchProducts = async (parentCategory?: string | null) => {
+    setProductsLoading(true);
+    let query = supabase
+      .from("products")
+      .select("id, name, brand, category")
+      .eq("is_active", true)
+      .order("name", { ascending: true })
+      .limit(400);
+    const cat = (parentCategory || "").trim();
+    if (cat) {
+      if (cat === "Tracteurs") {
+        query = query.or("category.ilike.Tracteur,category.ilike.Tracteurs");
+      } else {
+        query = query.ilike("category", cat);
+      }
+    }
+    const { data } = await query;
+    setProducts(data || []);
+    setProductsLoading(false);
+  };
+
+  const selectedProductsLabel = useMemo(() => {
+    const map = new Map(products.map((p) => [p.id, p]));
+    return selectedProductIds
+      .map((id) => map.get(id))
+      .filter(Boolean)
+      .map((p: any) => `${p.name}${p.brand ? ` (${p.brand})` : ""}`);
+  }, [products, selectedProductIds]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -48,11 +100,17 @@ export default function PromotionsSection() {
     let overlayRaw = ((formData.get("card_overlay") as string) || "medium").trim().toLowerCase();
     if (!["strong", "medium", "soft"].includes(overlayRaw)) overlayRaw = "medium";
 
+    const linkRaw = ((formData.get("link_url") as string) || "").trim();
+    const finalLink =
+      !linkRaw && selectedProductIds.length > 0
+        ? buildPromoProductsLink(parentRaw || "Toutes", selectedProductIds)
+        : linkRaw || null;
+
     const payload = {
       title: formData.get("title") as string,
       discount_text: (formData.get("discount_text") as string) || null,
       description: (formData.get("description") as string) || null,
-      link_url: (formData.get("link_url") as string) || null,
+      link_url: finalLink,
       is_active: formData.get("is_active") === "on",
       start_date: (formData.get("start_date") as string) || null,
       end_date: (formData.get("end_date") as string) || null,
@@ -79,6 +137,8 @@ export default function PromotionsSection() {
     }
     setEditing(null);
     setIsAdding(false);
+    setSelectedProductIds([]);
+    setProductSearch("");
     fetchPromotions();
   };
 
@@ -116,7 +176,11 @@ export default function PromotionsSection() {
               is_active: true,
               sort_order: promotions.length,
               card_overlay: "medium",
+              parent_category: "",
             });
+            setSelectedProductIds([]);
+            setProductSearch("");
+            fetchProducts("");
           }}
           className="bg-[#0066CC] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"
         >
@@ -175,7 +239,12 @@ export default function PromotionsSection() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setEditing(p)}
+                onClick={() => {
+                  setEditing(p);
+                  setSelectedProductIds(parseProductIdsFromLink(p.link_url));
+                  setProductSearch("");
+                  fetchProducts(p.parent_category);
+                }}
                 className="text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded text-sm font-medium"
               >
                 Modifier
@@ -263,6 +332,11 @@ export default function PromotionsSection() {
                   name="parent_category"
                   defaultValue={editing?.parent_category || ""}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSelectedProductIds([]);
+                    fetchProducts(next);
+                  }}
                 >
                   <option value="">— Bandeau général uniquement (pas de carrousel)</option>
                   <option value="Auto">Auto</option>
@@ -270,6 +344,59 @@ export default function PromotionsSection() {
                   <option value="Camion">Camion</option>
                   <option value="Tracteurs">Tracteurs</option>
                 </select>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Produits de la promotion</p>
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Rechercher un produit…"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+                <div className="max-h-52 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 bg-gray-50">
+                  {productsLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500 px-1 py-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      Chargement des produits...
+                    </div>
+                  ) : (
+                    products
+                      .filter((p) => {
+                        const q = productSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return `${p.name || ""} ${p.brand || ""}`.toLowerCase().includes(q);
+                      })
+                      .map((p) => (
+                        <label key={p.id} className="flex items-start gap-2 rounded px-2 py-1 hover:bg-white">
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.includes(p.id)}
+                            onChange={(e) => {
+                              setSelectedProductIds((prev) =>
+                                e.target.checked ? [...prev, p.id] : prev.filter((id) => id !== p.id)
+                              );
+                            }}
+                            className="mt-1"
+                          />
+                          <span className="text-xs text-gray-700">
+                            {p.name} {p.brand ? <strong>({p.brand})</strong> : null}
+                          </span>
+                        </label>
+                      ))
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {selectedProductIds.length > 0
+                    ? `${selectedProductIds.length} produit(s) sélectionné(s).`
+                    : "Aucun produit sélectionné : la promo ouvre la recherche générale de la catégorie."}
+                </p>
+                {selectedProductsLabel.length > 0 && (
+                  <div className="text-xs text-gray-600 max-h-20 overflow-y-auto">
+                    {selectedProductsLabel.slice(0, 6).join(" • ")}
+                    {selectedProductsLabel.length > 6 ? " • ..." : ""}
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">

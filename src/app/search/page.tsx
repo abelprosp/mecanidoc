@@ -29,6 +29,14 @@ function SearchContent() {
     discount_text?: string | null;
     description?: string | null;
   } | null>(null);
+  const promoProductIds = useMemo(
+    () =>
+      (searchParams.get('product_ids') || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean),
+    [searchParams]
+  );
 
   const [filters, setFilters] = useState({
     category: searchParams.get('category') || 'Toutes',
@@ -297,6 +305,11 @@ function SearchContent() {
         error = result.error;
       }
 
+      if (promoProductIds.length > 0) {
+        const ids = new Set(promoProductIds);
+        data = data.filter((p) => ids.has(String(p.id)));
+      }
+
       if (error) {
         console.error('Error fetching products:', error);
       } else {
@@ -310,7 +323,7 @@ function SearchContent() {
     };
 
     fetchProducts();
-  }, [filters, searchParams]); // Re-run when filters or URL params change
+  }, [filters, searchParams, promoProductIds]); // Re-run when filters or URL params change
 
   // Update filters when URL params change (e.g. from Hero)
   useEffect(() => {
@@ -365,6 +378,7 @@ function SearchContent() {
   const dismissPromoBanner = () => {
     const p = new URLSearchParams(searchParams.toString());
     p.delete('promo_id');
+    p.delete('product_ids');
     const qs = p.toString();
     router.replace(qs ? `/search?${qs}` : '/search');
     setPromoBanner(null);
@@ -527,6 +541,11 @@ function SearchContent() {
             >
               Fermer
             </button>
+          </div>
+        )}
+        {promoProductIds.length > 0 && (
+          <div className="mb-4 rounded-xl border border-emerald-300/70 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
+            Filtre promo actif: {promoProductIds.length} produit(s) sélectionné(s) dans cette offre.
           </div>
         )}
         <div className="mb-4 flex justify-between items-center">
