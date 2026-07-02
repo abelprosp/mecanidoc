@@ -4,15 +4,23 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { calculateFinalPrice } from '@/lib/price-calculator';
 
+function toPriceNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 /**
  * Hook para calcular o preço final de um produto com todas as taxas aplicadas
  */
-export function useProductPrice(basePrice: number, category: string = 'Auto') {
-  const [finalPrice, setFinalPrice] = useState(basePrice);
+export function useProductPrice(basePrice: number | string, category: string = 'Auto') {
+  const numericBase = toPriceNumber(basePrice);
+  const [finalPrice, setFinalPrice] = useState(numericBase);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
+    setFinalPrice(numericBase);
+
     const fetchTaxesAndCalculate = async () => {
       try {
         const { data: taxes, error } = await supabase
@@ -22,7 +30,7 @@ export function useProductPrice(basePrice: number, category: string = 'Auto') {
           .order('sort_order', { ascending: true });
 
         if (!error && taxes?.length) {
-          const calculatedPrice = calculateFinalPrice(basePrice, category, taxes);
+          const calculatedPrice = calculateFinalPrice(numericBase, category, taxes);
           setFinalPrice(calculatedPrice);
         }
       } catch {
@@ -32,7 +40,7 @@ export function useProductPrice(basePrice: number, category: string = 'Auto') {
     };
 
     fetchTaxesAndCalculate();
-  }, [basePrice, category]);
+  }, [numericBase, category]);
 
   return { finalPrice, loading };
 }

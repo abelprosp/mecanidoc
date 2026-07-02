@@ -1,36 +1,24 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { getSessionUserFromCookies } from '@/lib/auth/session';
+import { createServerDbClient, type DbClient } from '@/lib/db/client';
 
-export async function createServerSupabaseClient() {
-  const cookieStore = await cookies()
+export async function createServerSupabaseClient(): Promise<DbClient> {
+  const session = await getSessionUserFromCookies();
+  const client = await createServerDbClient(session?.id ?? null);
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const auth = client.auth as {
+    getUser: () => Promise<{ data: { user: { id: string; email: string } | null }; error: null }>;
+    getSession: () => Promise<{ data: { session: { user: { id: string; email: string } } | null }; error: null }>;
+  };
 
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables. Please check your .env file.');
-  }
+  auth.getUser = async () => ({
+    data: { user: session ? { id: session.id, email: session.email } : null },
+    error: null,
+  });
 
-  return createServerClient(
-    url,
-    key,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-      },
-    }
-  )
+  auth.getSession = async () => ({
+    data: { session: session ? { user: { id: session.id, email: session.email } } : null },
+    error: null,
+  });
+
+  return client;
 }

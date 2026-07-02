@@ -1,5 +1,5 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminDbClient } from '@/lib/db/client';
 import { requireSupplierOrMasterUser } from '@/lib/admin-auth-server';
 import { importProductsFromCsvText } from '@/lib/import-products-from-csv';
 
@@ -9,22 +9,12 @@ export async function POST(_request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   const sftpHost = process.env.SFTP_HOST;
   const sftpPort = Number.parseInt(process.env.SFTP_PORT || '22', 10);
   const sftpUser = process.env.SFTP_USER;
   const sftpPassword = process.env.SFTP_PASSWORD;
   const sftpPrivateKey = process.env.SFTP_PRIVATE_KEY;
   const sftpProductsPath = process.env.SFTP_PRODUCTS_PATH;
-
-  if (!supabaseUrl || !serviceKey) {
-    return NextResponse.json(
-      { error: 'Configuracao ausente: NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.' },
-      { status: 503 }
-    );
-  }
 
   if (!sftpHost || !sftpUser || !sftpProductsPath) {
     return NextResponse.json(
@@ -40,7 +30,7 @@ export async function POST(_request: NextRequest) {
     );
   }
 
-  const admin = createClient(supabaseUrl, serviceKey);
+  const admin = createAdminDbClient();
   const logs: string[] = [];
 
   // import dinâmico: ssh2 tem código nativo; ajuda o bundler (Turbopack/Vercel).

@@ -27,7 +27,7 @@ export default function PromoBanner() {
         }
         const list = data || [];
         const now = new Date();
-        const active = list.filter((p) => {
+        const active = list.filter((p: any) => {
           if (String(p.parent_category || '').trim()) return false;
           if (p.start_date && new Date(p.start_date) > now) return false;
           if (p.end_date && new Date(p.end_date) < now) return false;

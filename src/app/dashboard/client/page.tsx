@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  Package, MapPin, CreditCard, Heart, LogOut, Loader2, Save, User 
+  Package, MapPin, CreditCard, Heart, LogOut, Loader2, Save, User, ExternalLink, Truck
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -68,6 +68,21 @@ export default function ClientDashboard() {
               name,
               images
             )
+          ),
+          order_shipments (
+            id,
+            carrier_service,
+            parcel_number,
+            tracking_url,
+            status_message,
+            estimated_delivery_date,
+            date_shipped
+          ),
+          supplier_orders (
+            customer_order_id,
+            supplier_order_ids,
+            status,
+            error_message
           )
         `)
         .eq('user_id', user.id)
@@ -216,6 +231,47 @@ export default function ClientDashboard() {
                           ))
                         ) : (
                           <p className="text-sm text-gray-500 italic">Détails des articles non disponibles.</p>
+                        )}
+
+                        {order.order_shipments?.length > 0 && (
+                          <div className="mt-6 border-t border-gray-100 pt-4">
+                            <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                              <Truck size={16} /> Suivi de livraison
+                            </h4>
+                            <div className="space-y-3">
+                              {order.order_shipments.map((shipment: any) => (
+                                <div key={shipment.id} className="rounded-lg border border-gray-200 p-3 text-sm text-gray-600">
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                    {shipment.carrier_service && (
+                                      <span><span className="text-gray-500">Transporteur:</span> {shipment.carrier_service}</span>
+                                    )}
+                                    {shipment.parcel_number && (
+                                      <span><span className="text-gray-500">Colis:</span> {shipment.parcel_number}</span>
+                                    )}
+                                    {shipment.status_message && (
+                                      <span><span className="text-gray-500">Statut:</span> {shipment.status_message}</span>
+                                    )}
+                                  </div>
+                                  {shipment.tracking_url && (
+                                    <a
+                                      href={shipment.tracking_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"
+                                    >
+                                      Suivre le colis <ExternalLink size={14} />
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {order.estimated_delivery_date && (
+                          <p className="text-sm text-gray-500 mt-4">
+                            Livraison estimée : {new Date(order.estimated_delivery_date).toLocaleDateString()}
+                          </p>
                         )}
                       </div>
                     </div>

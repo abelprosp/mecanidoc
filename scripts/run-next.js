@@ -12,8 +12,10 @@ process.chdir(projectRoot);
 process.env.NODE_PATH = nodeModules;
 
 const cmd = process.argv[2] || 'dev';
+const port = process.env.PORT || '3002';
 const isWin = process.platform === 'win32';
-const child = spawn('npx', ['next', cmd], {
+const nextArgs = cmd === 'dev' ? ['next', cmd, '-p', port] : ['next', cmd];
+const child = spawn('npx', nextArgs, {
   stdio: 'inherit',
   env: { ...process.env, NODE_PATH: nodeModules },
   cwd: projectRoot,
@@ -23,3 +25,8 @@ const child = spawn('npx', ['next', cmd], {
 child.on('close', (code) => {
   process.exit(code ?? 0);
 });
+
+if (cmd === 'dev') {
+  console.log(`\n  MecaniDoc dev → http://localhost:${port}`);
+  console.log(`  Pneus moto (exemplo) → http://localhost:${port}/moto\n`);
+}

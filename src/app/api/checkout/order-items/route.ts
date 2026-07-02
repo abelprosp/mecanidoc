@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Client } from 'pg';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { getDatabaseUrl } from '@/lib/db/pool';
 
-/**
- * Insere order_items via conexão direta PostgreSQL, contornando o schema cache do Supabase.
- * Requer SUPABASE_DB_URL no .env (Connection string do Dashboard > Settings > Database).
- */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -19,21 +17,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'orderId and items required' }, { status: 400 });
     }
 
-    const dbUrl = process.env.SUPABASE_DB_URL;
-    if (!dbUrl) {
-      console.error('SUPABASE_DB_URL not set');
-      return NextResponse.json(
-        { error: 'Server config: add SUPABASE_DB_URL to .env (Supabase Dashboard > Settings > Database > Connection string)' },
-        { status: 503 }
-      );
-    }
-
-    const { Client } = await import('pg');
+    const dbUrl = getDatabaseUrl();
     const client = new Client({ connectionString: dbUrl });
     await client.connect();
 
     try {
-      // Criar tabela se não existir (sem FK para não falhar; evita 404 do schema cache)
       await client.query(`
         create table if not exists public.order_items (
           id uuid default gen_random_uuid() primary key,
@@ -46,12 +34,10 @@ export async function POST(request: NextRequest) {
         )
       `);
 
-      // Remover FK em product_id se existir (permite inserir mesmo que o produto já não exista)
       await client.query(`
         alter table public.order_items drop constraint if exists order_items_product_id_fkey;
       `).catch(() => {});
 
-      // Verificar se o pedido pertence ao utilizador
       const orderCheck = await client.query(
         'select user_id from public.orders where id = $1',
         [orderId]
@@ -79,7 +65,7 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('order-items API error:', err);
     return NextResponse.json(
-      { error: message.includes('relation') ? 'Tabela orders não existe. Execute ensure_orders_columns.sql no Supabase.' : message },
+      { error: message.includes('relation') ? 'Tabela orders não existe. Execute as migrações PostgreSQL.' : message },
       { status: 500 }
     );
   }

@@ -92,12 +92,12 @@ export default function SupplierDashboard() {
       const { data: salesData } = await supabase
         .from('order_items')
         .select('*, orders(total_amount, created_at, status, payment_status)')
-        .in('product_id', productsData?.map(p => p.id) || []);
+        .in('product_id', productsData?.map((p: any) => p.id) || []);
       
       // Calculate Stats
-      const activeProducts = (productsData || []).filter(p => p.is_active).length;
-      const lowStock = (productsData || []).filter(p => (p.stock_quantity || 0) < 10 && (p.stock_quantity || 0) > 0).length;
-      const totalRevenue = (salesData || []).reduce((sum, item) => {
+      const activeProducts = (productsData || []).filter((p: any) => p.is_active).length;
+      const lowStock = (productsData || []).filter((p: any) => (p.stock_quantity || 0) < 10 && (p.stock_quantity || 0) > 0).length;
+      const totalRevenue = (salesData || []).reduce((sum: number, item: any) => {
         const ord = item.orders;
         const paid =
           ord?.payment_status === 'paid' ||
@@ -110,7 +110,7 @@ export default function SupplierDashboard() {
       }, 0);
       const paidLineIds = new Set(
         (salesData || [])
-          .filter((item) => {
+          .filter((item: any) => {
             const ord = item.orders;
             return (
               ord?.payment_status === 'paid' ||
@@ -118,7 +118,7 @@ export default function SupplierDashboard() {
               ord?.status === 'delivered'
             );
           })
-          .map((item) => item.order_id)
+          .map((item: any) => item.order_id)
       );
       const totalSales = paidLineIds.size;
 

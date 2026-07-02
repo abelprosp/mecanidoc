@@ -140,20 +140,24 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Specs - Dimension with load and speed index */}
-      <p className="text-gray-900 text-sm font-semibold mb-3">
-        <span>{specs.width}/{specs.height}R{specs.diameter} {specs.load_index || ''}{specs.speed_index || ''}</span>
-        {specs.autres_categories && specs.autres_categories.length > 0 && (
-          <>
-            {' '}
-            {specs.autres_categories.map((cat: string, index: number) => (
-              <React.Fragment key={index}>
-                {index > 0 && ', '}
-                <CategoryTooltip category={cat} />
-              </React.Fragment>
-            ))}
-          </>
-        )}
-      </p>
+      {specs.width && specs.height && specs.diameter ? (
+        <p className="text-gray-900 text-sm font-semibold mb-3">
+          <span>{specs.width}/{specs.height}R{specs.diameter} {specs.load_index || ''}{specs.speed_index || ''}</span>
+          {specs.autres_categories && specs.autres_categories.length > 0 && (
+            <>
+              {' '}
+              {specs.autres_categories.map((cat: string, index: number) => (
+                <React.Fragment key={index}>
+                  {index > 0 && ', '}
+                  <CategoryTooltip category={cat} />
+                </React.Fragment>
+              ))}
+            </>
+          )}
+        </p>
+      ) : (
+        <p className="text-gray-400 text-xs mb-3">Medidas disponíveis em breve</p>
+      )}
 
       {/* Badges (Season/Category) */}
       <div className="flex gap-2 mb-4 w-full justify-center">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fulfillNeumaticosAndresOrder } from '@/lib/neumaticos-andres/fulfill-order';
+import { getNaIntegrationSettings, getSupabaseAdmin } from '@/lib/neumaticos-andres/server-helpers';
 import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
-import { createClient } from '@supabase/supabase-js';
 
 // Tipo Stripe opcional
 type StripeEvent = {
@@ -10,13 +11,8 @@ type StripeEvent = {
   };
 };
 
-function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for webhook.');
-  }
-  return createClient(supabaseUrl, supabaseServiceKey);
+function getSupabaseAdminForWebhook() {
+  return getSupabaseAdmin();
 }
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -61,7 +57,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdminForWebhook();
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -80,6 +76,18 @@ export async function POST(request: NextRequest) {
             .from('orders')
             .update(updatePayload)
             .eq('id', orderId);
+
+          try {
+            const naSettings = await getNaIntegrationSettings();
+            if (naSettings?.na_integration_enabled && naSettings?.na_auto_fulfill !== false) {
+              const result = await fulfillNeumaticosAndresOrder(supabase, orderId, naSettings);
+              if (!result.ok && !result.skipped) {
+                console.error('Neumáticos Andrés fulfillment failed:', result.error);
+              }
+            }
+          } catch (fulfillError) {
+            console.error('Neumáticos Andrés fulfillment error:', fulfillError);
+          }
         }
         break;
       }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminDbClient } from '@/lib/db/client';
 import { randomUUID } from 'crypto';
 import {
   ALLOWED_IMAGE_MIMES,
@@ -65,17 +65,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (profile?.role !== 'master') {
+  if ((profile as { role?: string } | null)?.role !== 'master') {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
-    return NextResponse.json(
-      { error: 'Configuration serveur : SUPABASE_SERVICE_ROLE_KEY ou URL manquant.' },
-      { status: 503 }
-    );
   }
 
   let body: Body;
@@ -140,11 +131,8 @@ export async function POST(request: NextRequest) {
   const ext = extFromMime(mime);
   const path = `${storageFolder}/${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`;
 
-  const admin = createClient(supabaseUrl, serviceKey);
-  const { error: uploadError } = await admin.storage.from(bucket).upload(path, buffer, {
-    contentType: mime,
-    upsert: false,
-  });
+  const admin = createAdminDbClient();
+  const { error: uploadError } = await admin.storage.from(bucket).upload(path, buffer, { contentType: mime });
 
   if (uploadError) {
     console.error('ingest-image-url upload:', uploadError);
@@ -152,7 +140,7 @@ export async function POST(request: NextRequest) {
       {
         error:
           uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')
-            ? `Bucket « ${bucket} » introuvable. Exécutez le SQL storage correspondant.`
+            ? `Bucket « ${bucket} » introuvable.`
             : uploadError.message || 'Échec du téléversement',
       },
       { status: 500 }

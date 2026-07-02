@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     // Buscar informações adicionais do Stripe para pedidos pagos (apenas se Stripe estiver configurado)
     const stripe = isStripeConfigured() ? await getStripe() : null;
     const ordersWithStripeData = await Promise.all(
-      (orders || []).map(async (order) => {
+      ((orders as any[]) || []).map(async (order: any) => {
         if (stripe && order.stripe_payment_intent_id && order.payment_status === 'paid') {
           try {
             const paymentIntent = await stripe.paymentIntents.retrieve(

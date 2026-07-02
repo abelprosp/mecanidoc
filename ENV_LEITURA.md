@@ -31,3 +31,27 @@
 - Confirme no **Supabase Dashboard** > **Authentication** > **Users** que o utilizador existe e que o email está **confirmado**.
 - Confirme que a **anon key** no `.env` é a do mesmo projeto que a URL (Dashboard > Project Settings > API).
 - Teste o login com a mesma senha que definiu no Supabase (ou use “Reset password” no Dashboard).
+
+## Neumáticos Andrés (integração API)
+
+Variáveis **só no servidor** (sem `NEXT_PUBLIC_`):
+
+```env
+NEUMATICOS_ANDRES_LOGIN=login_fornecido_pelo_andres
+NEUMATICOS_ANDRES_PASSWORD=password_fornecido_pelo_andres
+NEUMATICOS_ANDRES_BASE_URL=https://backend-pre2.genasa.es
+NEUMATICOS_ANDRES_TEST_MODE=1
+CRON_SECRET=um_segredo_longo_aleatorio
+```
+
+- **Teste:** `NEUMATICOS_ANDRES_BASE_URL=https://backend-pre2.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=1`
+- **Produção:** `https://backend.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=0`
+
+### Ordem de ativação
+
+1. Executar `create_neumaticos_andres_integration.sql` no Supabase SQL Editor
+2. Adicionar as variáveis acima ao `.env` e reiniciar `npm run dev`
+3. Admin → **Neumáticos Andrés** → clicar **Verificar setup** e **Testar conexão**
+4. Marcar produtos: coluna CSV `external_supplier=neumaticos_andres` ou executar `mark_products_neumaticos_andres.sql`
+5. Clicar **Sync stock & prix**
+6. Ativar integração e fazer um pedido de teste (Stripe em modo teste)

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ExternalLink, Truck } from "lucide-react";
 
 function euros(n: number | string | null | undefined) {
   const v = Number(n);
@@ -22,6 +23,14 @@ function paymentLabel(status: string | null | undefined) {
   return status || "—";
 }
 
+function fulfillmentLabel(status: string | null | undefined) {
+  if (status === "submitted") return "Envoyée au fournisseur";
+  if (status === "error") return "Erreur fournisseur";
+  if (status === "pending") return "En attente";
+  if (status === "none") return "—";
+  return status || "—";
+}
+
 export default function OrderPurchaseDetails({
   order,
   compact = false,
@@ -34,6 +43,8 @@ export default function OrderPurchaseDetails({
   supplierView?: boolean;
 }) {
   const items = order.order_items || [];
+  const shipments = order.order_shipments || [];
+  const supplierOrder = order.supplier_orders?.[0] || order.supplier_order || null;
   const linesSubtotal = items.reduce(
     (s: number, it: any) =>
       s + Number(it.price || 0) * Number(it.quantity || 0),
@@ -116,7 +127,69 @@ export default function OrderPurchaseDetails({
                 <span className="text-gray-500">Livraison :</span>{" "}
                 {deliveryLabel(order.delivery_type)} — {euros(delivery)}
               </li>
+              {order.estimated_delivery_date ? (
+                <li>
+                  <span className="text-gray-500">Livraison estimée :</span>{" "}
+                  {new Date(order.estimated_delivery_date).toLocaleDateString()}
+                </li>
+              ) : null}
+              {order.supplier_fulfillment_status ? (
+                <li>
+                  <span className="text-gray-500">Fournisseur :</span>{" "}
+                  {fulfillmentLabel(order.supplier_fulfillment_status)}
+                </li>
+              ) : null}
+              {supplierOrder?.customer_order_id ? (
+                <li>
+                  <span className="text-gray-500">Réf. fournisseur :</span>{" "}
+                  {supplierOrder.customer_order_id}
+                </li>
+              ) : null}
             </ul>
+          </div>
+        </div>
+      )}
+
+      {shipments.length > 0 && (
+        <div>
+          <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <Truck size={16} /> Suivi de livraison
+          </h4>
+          <div className="space-y-3">
+            {shipments.map((shipment: any) => (
+              <div
+                key={shipment.id}
+                className="rounded-lg border border-gray-200 bg-white p-3 text-gray-600"
+              >
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {shipment.carrier_service ? (
+                    <span>
+                      <span className="text-gray-500">Transporteur :</span> {shipment.carrier_service}
+                    </span>
+                  ) : null}
+                  {shipment.parcel_number ? (
+                    <span>
+                      <span className="text-gray-500">Colis :</span> {shipment.parcel_number}
+                    </span>
+                  ) : null}
+                  {shipment.status_message ? (
+                    <span>
+                      <span className="text-gray-500">Statut :</span> {shipment.status_message}
+                    </span>
+                  ) : null}
+                </div>
+                {shipment.tracking_url ? (
+                  <a
+                    href={shipment.tracking_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"
+                  >
+                    Suivre le colis <ExternalLink size={14} />
+                  </a>
+                ) : null}
+              </div>
+            ))}
           </div>
         </div>
       )}

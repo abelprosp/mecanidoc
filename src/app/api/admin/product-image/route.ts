@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminDbClient } from '@/lib/db/client';
 import { randomUUID } from 'crypto';
 import { ALLOWED_IMAGE_MIMES, extFromMime, MAX_PRODUCT_IMAGE_BYTES } from '@/lib/admin-image-upload';
 import { buildAbsoluteSiteImageUrl } from '@/lib/site-image-url';
@@ -24,17 +24,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (profile?.role !== 'master') {
+  if ((profile as { role?: string } | null)?.role !== 'master') {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
-    return NextResponse.json(
-      { error: 'Configuration serveur : SUPABASE_SERVICE_ROLE_KEY ou URL manquant.' },
-      { status: 503 }
-    );
   }
 
   let formData: FormData;
@@ -68,26 +59,14 @@ export async function POST(request: NextRequest) {
 
   const ext = extFromMime(mime);
   const path = `${productId}/${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`;
-
-  const admin = createClient(supabaseUrl, serviceKey);
+  const admin = createAdminDbClient();
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  const { error: uploadError } = await admin.storage.from(BUCKET).upload(path, buffer, {
-    contentType: mime,
-    upsert: false,
-  });
+  const { error: uploadError } = await admin.storage.from(BUCKET).upload(path, buffer, { contentType: mime });
 
   if (uploadError) {
     console.error('product-image upload:', uploadError);
-    return NextResponse.json(
-      {
-        error:
-          uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')
-            ? 'Bucket « product-images » introuvable. Exécutez supabase_storage_product_images.sql dans le SQL Editor.'
-            : uploadError.message || 'Échec du téléversement',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: uploadError.message || 'Échec du téléversement' }, { status: 500 });
   }
 
   const url = buildAbsoluteSiteImageUrl(request, BUCKET, path);

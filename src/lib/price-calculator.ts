@@ -15,7 +15,7 @@ export function calculateFinalPrice(
     is_active: boolean;
   }> = []
 ): number {
-  let finalPrice = basePrice;
+  let finalPrice = Number(basePrice) || 0;
 
   const normalizedCategory = normalizeTaxCategory(category);
 
@@ -29,11 +29,9 @@ export function calculateFinalPrice(
   // Aplicar cada taxa na ordem
   for (const tax of applicableTaxes) {
     if (tax.is_percentage) {
-      // Taxa percentual: adiciona X% ao preço
-      finalPrice = finalPrice * (1 + tax.rate / 100);
+      finalPrice = finalPrice * (1 + Number(tax.rate) / 100);
     } else {
-      // Taxa fixa: adiciona valor fixo
-      finalPrice = finalPrice + tax.rate;
+      finalPrice = finalPrice + Number(tax.rate);
     }
   }
 

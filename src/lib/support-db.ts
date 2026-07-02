@@ -1,18 +1,13 @@
 import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
+import { getDatabaseUrl } from '@/lib/db/pool';
 
 let pool: Pool | null = null;
 let schemaReady = false;
 
 export function getSupportPool() {
   if (pool) return pool;
-
-  const connectionString = process.env.SUPABASE_DB_URL;
-  if (!connectionString) {
-    throw new Error('SUPABASE_DB_URL não configurado.');
-  }
-
-  pool = new Pool({ connectionString });
+  pool = new Pool({ connectionString: getDatabaseUrl() });
   return pool;
 }
 
@@ -97,19 +92,6 @@ export async function ensureSupportSchema() {
       imap_mailbox text default 'INBOX',
       updated_at timestamptz not null default timezone('utc'::text, now())
     );
-
-    alter table public.support_mail_settings enable row level security;
-
-    drop policy if exists "Master full access support_mail_settings" on public.support_mail_settings;
-    create policy "Master full access support_mail_settings"
-      on public.support_mail_settings
-      for all
-      using (
-        exists (select 1 from public.profiles where id = auth.uid() and role = 'master')
-      )
-      with check (
-        exists (select 1 from public.profiles where id = auth.uid() and role = 'master')
-      );
   `);
 
   schemaReady = true;
@@ -128,7 +110,6 @@ export type SupportMailSettings = {
   imap_mailbox: string | null;
 };
 
-/** Lê a primeira linha (pool Postgres; usado nas API routes). */
 export async function getSupportMailSettings(): Promise<SupportMailSettings | null> {
   const db = getSupportPool();
   const { rows } = await db.query(
@@ -144,4 +125,3 @@ export async function getSupportMailSettings(): Promise<SupportMailSettings | nu
 export function makeId(prefix: string) {
   return `${prefix}_${randomUUID()}`;
 }
-

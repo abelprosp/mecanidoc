@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 
-/**
- * Só para desenvolvimento: mostra qual Supabase URL está a ser usada.
- * Acede a http://localhost:3000/api/debug-env para verificar.
- */
+/** Só para desenvolvimento: confirma variáveis de ambiente críticas. */
 export async function GET() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(não definido)';
-  const isNew = url.includes('ihfnjelbqspgawjjnoqc');
-  const isOld = url.includes('yjdoprfjgaeyvvyhpihd');
+  const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '(não definido)';
+  const hasAuthSecret = Boolean(process.env.AUTH_SECRET || process.env.JWT_SECRET);
+  const uploadDir = process.env.UPLOAD_DIR || './uploads';
+
   return NextResponse.json({
-    NEXT_PUBLIC_SUPABASE_URL: url,
-    projeto: isNew ? 'ihfnjelbqspgawjjnoqc (novo)' : isOld ? 'yjdoprfjgaeyvvyhpihd (antigo)' : 'outro',
-    dica: isOld ? 'Ainda está o antigo. Apaga a pasta .next, confirma que não tens .env.local com o antigo, e reinicia npm run dev.' : null,
+    DATABASE_URL: dbUrl.replace(/:[^:@]+@/, ':***@'),
+    AUTH_SECRET: hasAuthSecret ? 'definido' : '(não definido — necessário para login)',
+    UPLOAD_DIR: uploadDir,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? '(não definido)',
   });
 }

@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DbClient } from '@/lib/db/client';
 
 type CsvRow = Record<string, string | undefined>;
 
@@ -48,7 +48,7 @@ export type ImportProductsResult = {
  */
 export async function importProductsFromCsvText(
   csvText: string,
-  admin: SupabaseClient,
+  admin: DbClient,
   userId: string,
   logs: string[]
 ): Promise<ImportProductsResult> {
@@ -112,6 +112,15 @@ export async function importProductsFromCsvText(
         brand: brandName || null,
         brand_id: brandId,
         ean: row['EAN'] || null,
+        external_supplier: (() => {
+          const raw = (row['external_supplier'] || row['fournisseur_externe'] || '')
+            .trim()
+            .toLowerCase();
+          if (raw === 'neumaticos_andres' || raw === 'na' || raw === 'andres') {
+            return 'neumaticos_andres';
+          }
+          return null;
+        })(),
         shipping_cost: parseNumber(row["prix d'expédition"] || row["prix d'expedition"], 0),
         category,
         pa_tipo: paTipo,

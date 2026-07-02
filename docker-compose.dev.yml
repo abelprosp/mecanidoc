@@ -1,0 +1,23 @@
+# Só PostgreSQL para desenvolvimento local (npm run dev)
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mecanidoc-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mecanidoc
+      POSTGRES_PASSWORD: mecanidoc
+      POSTGRES_DB: mecanidoc
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mecanidoc -d mecanidoc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_dev_data:

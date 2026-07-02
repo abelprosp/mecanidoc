@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mecanidoc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mecanidoc
+      POSTGRES_PASSWORD: mecanidoc
+      POSTGRES_DB: mecanidoc
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mecanidoc -d mecanidoc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mecanidoc-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production-use-openssl-rand-hex-32}
+      UPLOAD_DIR: /app/uploads
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEUMATICOS_ANDRES_LOGIN: ${NEUMATICOS_ANDRES_LOGIN:-}
+      NEUMATICOS_ANDRES_PASSWORD: ${NEUMATICOS_ANDRES_PASSWORD:-}
+      NEUMATICOS_ANDRES_BASE_URL: ${NEUMATICOS_ANDRES_BASE_URL:-https://backend-pre2.genasa.es}
+      NEUMATICOS_ANDRES_TEST_MODE: ${NEUMATICOS_ANDRES_TEST_MODE:-1}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CRON_SECRET: ${CRON_SECRET:-local-cron-secret}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  uploads_data:

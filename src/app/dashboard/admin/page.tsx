@@ -14,6 +14,7 @@ import SubcategoriesSectionComponent from './SubcategoriesSection';
 import PromotionsSection from './PromotionsSection';
 import SupportChatSection from './SupportChatSection';
 import SupportInboxSection from './SupportInboxSection';
+import NeumaticosAndresSection from './NeumaticosAndresSection';
 
 /** URL externe ou Storage → copie vers bucket et URL du site (/imagem/...). */
 async function normalizeAdminImageUrl(
@@ -75,6 +76,7 @@ export default function AdminDashboard() {
       case 'subcategories': return <SubcategoriesSectionComponent />;
       case 'promotions': return <PromotionsSection />;
       case 'settings': return <SettingsSection />;
+      case 'neumaticos-andres': return <NeumaticosAndresSection />;
       case 'approvals': return <ApprovalsSection />;
       case 'support-chat': return <SupportChatSection />;
       case 'support-inbox': return <SupportInboxSection />;
@@ -100,6 +102,7 @@ export default function AdminDashboard() {
     { id: 'faqs', icon: FileText, label: 'FAQs' },
     { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },
+    { id: 'neumaticos-andres', icon: Truck, label: 'Neumáticos Andrés' },
     { id: 'approvals', icon: CheckCircle, label: 'Approbations' },
     { id: 'support-chat', icon: MessageSquare, label: 'Support Chat' },
     { id: 'support-inbox', icon: Inbox, label: 'Inbox Email' },
@@ -234,7 +237,7 @@ function OverviewSection() {
     const fetchStats = async () => {
       try {
         const { data: orders } = await supabase.from('orders').select('total_amount');
-        const revenue = orders?.reduce((acc, order) => acc + (Number(order.total_amount) || 0), 0) || 0;
+        const revenue = orders?.reduce((acc: number, order: any) => acc + (Number(order.total_amount) || 0), 0) || 0;
         const ordersCount = orders?.length || 0;
         const { count: clientsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'customer');
         const { count: pendingGarages } = await supabase.from('garages').select('*', { count: 'exact', head: true }).eq('is_approved', false);
@@ -1079,11 +1082,11 @@ function BrandsSection() {
     
     if (products && existingBrands) {
       // Criar um set de marcas existentes (normalizado para lowercase)
-      const existingNames = new Set(existingBrands.map(b => b.name?.toLowerCase().trim()));
+      const existingNames = new Set(existingBrands.map((b: any) => b.name?.toLowerCase().trim()));
       
       // Encontrar marcas únicas dos produtos que não existem
       const productBrands = new Set<string>();
-      products.forEach(p => {
+      products.forEach((p: any) => {
         if (p.brand && p.brand.trim()) {
           const brandName = p.brand.trim();
           if (!existingNames.has(brandName.toLowerCase())) {

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { User } from "@supabase/supabase-js";
+type AuthUser = { id: string; email?: string };
 
 type UserRole = 'master' | 'garage' | 'supplier' | 'company' | 'customer';
 
@@ -14,7 +14,7 @@ interface Profile {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();

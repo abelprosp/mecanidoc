@@ -204,7 +204,7 @@ function SearchContent() {
         // Se encontrou produtos nos testes, usar esses resultados também
         if (testData2 && testData2.length > 0) {
           // Buscar os produtos completos
-          const productIds = testData2.map(p => p.id);
+          const productIds = testData2.map((p: any) => p.id);
           const { data: fullProducts } = await supabase
             .from('products')
             .select('*, brands(id, name, logo_url)')
@@ -215,12 +215,12 @@ function SearchContent() {
             // Aplicar filtro de categoria no resultado se necessário
             let filtered = fullProducts;
             if (filters.category && filters.category !== 'Toutes') {
-              filtered = filtered.filter((p) =>
+              filtered = filtered.filter((p: any) =>
                 productMatchesUiCategory(p.category, filters.category)
               );
             }
             if (filters.pa_tipo?.trim()) {
-              filtered = filtered.filter((p) =>
+              filtered = filtered.filter((p: any) =>
                 productMatchesPaTipo(p.pa_tipo, filters.pa_tipo)
               );
             }
@@ -296,10 +296,10 @@ function SearchContent() {
         const result = await query;
         let rows = result.data || [];
         if (filters.category && filters.category !== 'Toutes') {
-          rows = rows.filter((p) => productMatchesUiCategory(p.category, filters.category));
+          rows = rows.filter((p: any) => productMatchesUiCategory(p.category, filters.category));
         }
         if (filters.pa_tipo?.trim()) {
-          rows = rows.filter((p) => productMatchesPaTipo(p.pa_tipo, filters.pa_tipo));
+          rows = rows.filter((p: any) => productMatchesPaTipo(p.pa_tipo, filters.pa_tipo));
         }
         data = rows;
         error = result.error;

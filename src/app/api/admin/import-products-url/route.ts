@@ -1,5 +1,5 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminDbClient } from '@/lib/db/client';
 import { requireSupplierOrMasterUser } from '@/lib/admin-auth-server';
 import { importProductsFromCsvText } from '@/lib/import-products-from-csv';
 
@@ -41,15 +41,6 @@ export async function POST(request: NextRequest) {
   const auth = await requireSupplierOrMasterUser();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
-    return NextResponse.json(
-      { error: 'Configuracao ausente: NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.' },
-      { status: 503 }
-    );
   }
 
   let body: { url?: string };
@@ -105,15 +96,10 @@ export async function POST(request: NextRequest) {
     }
 
     const csvText = buf.toString('utf-8');
-    const admin = createClient(supabaseUrl, serviceKey);
-
+    const admin = createAdminDbClient();
     const result = await importProductsFromCsvText(csvText, admin, auth.user.id, logs);
 
-    return NextResponse.json({
-      ok: true,
-      ...result,
-      logs,
-    });
+    return NextResponse.json({ ok: true, ...result, logs });
   } catch (e: unknown) {
     const msg =
       e instanceof Error && e.name === 'AbortError'

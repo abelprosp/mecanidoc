@@ -41,13 +41,14 @@ import { useRouter } from 'next/navigation';
 import RelatedProducts from '@/components/RelatedProducts';
 import CategoryTooltip from '@/components/CategoryTooltip';
 
-function ProductPriceDisplay({ basePrice, category }: { basePrice: number; category?: string }) {
-  const { finalPrice, loading } = useProductPrice(basePrice || 0, category || 'Auto');
-  
+function ProductPriceDisplay({ basePrice, category }: { basePrice: number | string; category?: string }) {
+  const price = Number(basePrice) || 0;
+  const { finalPrice, loading } = useProductPrice(price, category || 'Auto');
+
   if (loading) {
-    return <span className="text-4xl font-bold text-[#003399]">€{basePrice.toFixed(2)}</span>;
+    return <span className="text-4xl font-bold text-[#003399]">€{price.toFixed(2)}</span>;
   }
-  
+
   return <span className="text-4xl font-bold text-[#003399]">€{finalPrice.toFixed(2)}</span>;
 }
 

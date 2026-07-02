@@ -6,14 +6,10 @@ const projectRoot = __dirname;
 
 const nextConfig = {
   turbopack: {},
+  output: 'standalone',
   outputFileTracingRoot: projectRoot,
   // ssh2 tem binários nativos: não empacotar (evita erro Turbopack no Vercel).
-  serverExternalPackages: ['ssh2', 'ssh2-sftp-client', 'cpu-features'],
-  // Garante que as variáveis de ambiente são lidas e expostas ao client (NEXT_PUBLIC_*)
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  },
+  serverExternalPackages: ['ssh2', 'ssh2-sftp-client', 'cpu-features', 'pg', 'bcryptjs'],
   webpack: (config) => {
     config.context = projectRoot;
     config.resolve = config.resolve || {};
