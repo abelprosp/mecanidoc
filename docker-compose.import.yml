@@ -1,0 +1,21 @@
+# Serviço auxiliar para correr scripts de import/enrich na VPS.
+# O Postgres Docker não expõe porta no host — este serviço liga via rede interna.
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.import.yml run --rm import node scripts/import-na-auto.mjs --limit=500
+#   npm run import:na-auto:vps -- --limit=500
+services:
+  import:
+    image: node:20-alpine
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
