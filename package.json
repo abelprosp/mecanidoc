@@ -20,6 +20,10 @@
     "seed:na-example": "node scripts/seed-neumaticos-andres-example.mjs",
     "import:na-products": "node scripts/import-na-products.mjs",
     "import:na-catalog": "node scripts/import-na-catalog.mjs",
+    "import:na-auto": "node scripts/import-na-auto.mjs",
+    "import:na-moto": "node scripts/import-na-moto.mjs",
+    "import:na-camion": "node scripts/import-na-camion.mjs",
+    "import:na-tracteur": "node scripts/import-na-tracteur.mjs",
     "fetch:na-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:eprel-images": "node scripts/fetch-eprel-images.mjs",
     "enrich:products": "node scripts/enrich-products.mjs"
