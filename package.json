@@ -24,6 +24,11 @@
     "import:na-moto": "node scripts/import-na-moto.mjs",
     "import:na-camion": "node scripts/import-na-camion.mjs",
     "import:na-tracteur": "node scripts/import-na-tracteur.mjs",
+    "import:na-auto:vps": "bash scripts/vps-import.sh import-na-auto.mjs",
+    "import:na-moto:vps": "bash scripts/vps-import.sh import-na-moto.mjs",
+    "import:na-camion:vps": "bash scripts/vps-import.sh import-na-camion.mjs",
+    "import:na-tracteur:vps": "bash scripts/vps-import.sh import-na-tracteur.mjs",
+    "enrich:products:vps": "bash scripts/vps-import.sh enrich-products.mjs",
     "fetch:na-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:eprel-images": "node scripts/fetch-eprel-images.mjs",
     "enrich:products": "node scripts/enrich-products.mjs"

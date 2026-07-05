@@ -413,7 +413,26 @@ export async function runNaCategoryImport(fixedCategory, argv = [], meta = {}) {
   if (!opts.dryRun) {
     const { Client } = pg;
     client = new Client({ connectionString: dbUrl });
-    await client.connect();
+    try {
+      await client.connect();
+    } catch (err) {
+      const masked = dbUrl.replace(/:[^:@/]+@/, ':***@');
+      const onLocalhost = /@(localhost|127\.0\.0\.1|::1)/.test(dbUrl);
+      let hint = '\nConfirme DATABASE_URL no .env e que o Postgres está a correr.';
+      if (onLocalhost) {
+        hint =
+          '\n\nNa VPS o Postgres Docker muitas vezes NÃO expõe a porta no host.' +
+          '\nOpção A — correr via rede Docker (recomendado):' +
+          '\n  npm run import:na-auto:vps -- --limit=500' +
+          '\n  ou: bash scripts/vps-import.sh import-na-auto.mjs --limit=500' +
+          '\n\nOpção B — expor Postgres no host (docker-compose.yml ports: "5432:5432")' +
+          '\n  e usar: DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc' +
+          (dbUrl.includes(':5433')
+            ? '\n\nNota: porta 5433 é só dev local — na VPS use 5432.'
+            : '');
+      }
+      throw new Error(`Não foi possível ligar à BD (${masked}): ${err.message}${hint}`);
+    }
   }
 
   const cleanupExit = setupGracefulExit(async () => {
