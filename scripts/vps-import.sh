@@ -4,8 +4,7 @@
 #
 # Uso:
 #   ./scripts/vps-import.sh import-na-auto.mjs --limit=500
-#   ./scripts/vps-import.sh import-na-moto.mjs --limit=150
-#   ./scripts/vps-import.sh enrich-products.mjs --supplier=neumaticos_andres
+#   npm run import:na-auto:vps -- --limit=500
 #
 set -euo pipefail
 
@@ -15,23 +14,20 @@ cd "$ROOT"
 SCRIPT="${1:?Informe o script (ex: import-na-auto.mjs)}"
 shift || true
 
-COMPOSE_FILES=(-f docker-compose.yml)
-[[ -f docker-compose.import.yml ]] && COMPOSE_FILES+=(-f docker-compose.import.yml)
-
-echo "→ VPS import via rede Docker (postgres:5432)"
-echo "→ node scripts/$SCRIPT $*"
-echo ""
-
-# Serviço "import" com env_file no compose (compatível com docker compose antigo)
-if [[ -f docker-compose.import.yml ]]; then
-  docker compose "${COMPOSE_FILES[@]}" --profile tools run --rm \
-    --entrypoint node \
-    import \
-    "scripts/$SCRIPT" "$@"
-  exit 0
+# Rede Docker do projeto (onde o container "postgres" é acessível)
+NETWORK=""
+if cid=$(docker compose ps -q postgres 2>/dev/null) && [[ -n "$cid" ]]; then
+  NETWORK=$(docker inspect "$cid" -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
+elif docker inspect mecanidoc-postgres &>/dev/null; then
+  NETWORK=$(docker inspect mecanidoc-postgres -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
 fi
 
-# Fallback: lê .env manualmente e passa cada variável com -e
+if [[ -z "$NETWORK" ]]; then
+  echo "Erro: não encontrei a rede Docker do Postgres. Confirme: docker compose ps" >&2
+  exit 1
+fi
+
+# Variáveis do .env / .env.local
 ENV_ARGS=(-e "DATABASE_URL=postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc")
 for f in .env .env.local; do
   [[ -f "$f" ]] || continue
@@ -49,10 +45,14 @@ for f in .env .env.local; do
   done < "$f"
 done
 
-docker compose run --rm \
+echo "→ VPS import | rede: $NETWORK | postgres:5432"
+echo "→ node scripts/$SCRIPT $*"
+echo ""
+
+docker run --rm \
+  --network "$NETWORK" \
   "${ENV_ARGS[@]}" \
   -v "$ROOT:/workspace" \
   -w /workspace \
-  --entrypoint node \
   node:20-alpine \
-  "scripts/$SCRIPT" "$@"
+  node "scripts/$SCRIPT" "$@"
