@@ -20,7 +20,8 @@
  *   DATABASE_URL
  *   NA_IMPORT_POST_CODE (default: 75001)
  */
-import { runNaCategoryImport, loadEnvFiles } from './lib/na-catalog-import.mjs';
+import { runNaCategoryImport } from './lib/na-catalog-import.mjs';
+import { loadEnvFiles } from './lib/load-env.mjs';
 
 loadEnvFiles();
 const argv = process.argv.slice(2);

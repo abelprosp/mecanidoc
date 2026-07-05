@@ -12,9 +12,10 @@
  *   npm run fetch:eprel-images -- --dry-run
  */
 import pg from 'pg';
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { loadEnvFiles } from './lib/load-env.mjs';
 import {
   fetchEprelProductByGtin,
   fetchEprelLabelPng,
@@ -23,30 +24,6 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-
-function loadEnvFiles() {
-  for (const f of ['.env', '.env.local']) {
-    const p = path.join(ROOT, f);
-    if (!existsSync(p)) continue;
-    let text = readFileSync(p, 'utf8');
-    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eq = trimmed.indexOf('=');
-      if (eq <= 0) continue;
-      const key = trimmed.slice(0, eq).trim();
-      let val = trimmed.slice(eq + 1).trim();
-      if (
-        (val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))
-      ) {
-        val = val.slice(1, -1);
-      }
-      process.env[key] = val;
-    }
-  }
-}
 
 loadEnvFiles();
 
