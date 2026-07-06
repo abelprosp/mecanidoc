@@ -10,7 +10,8 @@
  *   npm run fix:product-names
  *   npm run fix:product-names -- --supplier=neumaticos_andres
  *   npm run fix:product-names -- --force
- *   npm run fix:product-names -- --dry-run
+ *   npm run fix:product-names -- --delay=2500
+ *   npm run fix:product-names -- --skip-gtinhub
  *   npm run fix:product-names:vps -- --supplier=neumaticos_andres
  *
  * Env: DATABASE_URL, GTINHUB_API_KEY (opcional)
@@ -26,6 +27,7 @@ import {
   parseScriptArgs,
   parseTireSpecsFromText,
 } from './lib/product-enrich.mjs';
+import { flushGtinCache } from './lib/gtin-cache.mjs';
 
 loadEnvFiles();
 
@@ -33,7 +35,8 @@ const { Client } = pg;
 
 const REASON_MSG = {
   gtinhub_desativado: 'GTINHub desativado (remova SKIP_GTINHUB=1 do .env)',
-  gtinhub_rate_limit: 'GTINHub rate limit — aguarde e tente de novo',
+  gtinhub_rate_limit: 'GTINHub rate limit — use --delay=2000 ou --skip-gtinhub (só EPREL)',
+  gtinhub_rate_limit_eprel_vazio: 'GTINHub bloqueou e EPREL não tem este EAN — tente mais tarde com --delay=3000',
   gtinhub_produto_errado: 'GTINHub devolveu produto que não é pneu (EAN errado no fornecedor)',
   upc_produto_errado: 'UPC devolveu produto que não é pneu',
   nome_nao_parece_pneu: 'encontrado mas nome sem medidas de pneu',
@@ -80,10 +83,8 @@ async function main() {
     const targets = opts.force ? rows : rows.filter((r) => isGenericProductName(r.name));
 
     console.log(`Produtos com EAN: ${rows.length} | a corrigir: ${targets.length}`);
-    console.log('Fontes: GTINHub → UPCitemdb → EPREL (fallback)\n');
-    if (process.env.SKIP_GTINHUB === '1') {
-      console.log('Aviso: SKIP_GTINHUB=1 no .env — este script ignora essa flag e usa GTINHub mesmo assim.\n');
-    }
+    console.log(`Fontes: cache → GTINHub → EPREL → UPC | intervalo ${opts.delayMs}ms\n`);
+    if (opts.skipGtinHub) console.log('Modo --skip-gtinhub: só EPREL + UPC (evita rate limit GTINHub)\n');
     if (opts.dryRun) console.log('Modo dry-run — nada será gravado.\n');
 
     let ok = 0;
@@ -94,7 +95,11 @@ async function main() {
       if (stopping) break;
 
       const ean = normalizeGtin(product.ean);
-      const { detail, reason } = await fetchOriginalNameByGtin(ean, { useEprel: true });
+      const { detail, reason, fromCache } = await fetchOriginalNameByGtin(ean, {
+        useEprel: true,
+        skipGtinHub: opts.skipGtinHub,
+        useCache: !opts.noCache,
+      });
 
       if (!detail?.name) {
         notFound++;
@@ -160,7 +165,8 @@ async function main() {
       );
 
       ok++;
-      console.log(`✓ ${ean} via ${detail.source}`);
+      const via = fromCache ? `${detail.source} (cache)` : detail.source;
+      console.log(`✓ ${ean} via ${via}`);
       console.log(`  ${product.name?.slice(0, 70)}`);
       console.log(`  → ${detail.name?.slice(0, 90)}\n`);
 
@@ -172,9 +178,12 @@ async function main() {
     console.log(`Já com nome real (ignorados): ${rows.length - targets.length + skip}`);
     console.log(`Não encontrados: ${notFound}`);
     if (notFound > 0) {
-      console.log('\nDica: pneus sem GTINHub/UPC podem ser enriquecidos com EPREL:');
-      console.log('  npm run enrich:eprel -- --supplier=neumaticos_andres');
+      console.log('\nDicas:');
+      console.log('  npm run fix:product-names:vps -- --delay=2500   # mais lento, menos rate limit');
+      console.log('  npm run fix:product-names:vps -- --skip-gtinhub  # só EPREL (auto)');
+      console.log('  npm run enrich:eprel:vps -- --supplier=neumaticos_andres');
     }
+    flushGtinCache();
   } finally {
     await client.end();
   }

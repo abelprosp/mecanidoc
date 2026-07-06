@@ -2,12 +2,16 @@
  * Utilitários partilhados para enriquecer nomes e dados de pneus por EAN.
  */
 import { fetchEprelProductByGtin } from './eprel-client.mjs';
+import { getGtinCache, setGtinCache, sleep } from './gtin-cache.mjs';
 
 const GTINHUB = (process.env.GTINHUB_BASE_URL || 'https://gtinhub.com/api/v1').replace(/\/$/, '');
 const UPC_TRIAL = 'https://api.upcitemdb.com/prod/trial/lookup';
 
 const GENERIC_BRANDS =
-  'mitas|continental|nexen|hankook|barum|pirelli|kumho|kleber|triangle|mrf|sava|dunlop|metzeler|goodyear|bridgestone|michelin|falken|gitigroup';
+  'mitas|continental|nexen|hankook|barum|pirelli|kumho|kleber|triangle|mrf|sava|dunlop|metzeler|goodyear|bridgestone|michelin|falken|gitigroup|roadstone|sava|kleber';
+
+/** Pausa global após rate limit do GTINHub (ms). */
+let gtinHubCooldownUntil = 0;
 
 export function normalizeGtin(raw) {
   return String(raw || '').replace(/\D/g, '');
@@ -57,7 +61,6 @@ export function isGenericProductName(name) {
   if (/·\s*ref\.\s*\d+/i.test(n)) return true;
   if (new RegExp(`^(${GENERIC_BRANDS})\\s+pneu\\b`, 'i').test(n)) return true;
 
-  // Sem medida nem indício de pneu → tratar como genérico/incerto
   if (!looksLikeTireName(n)) return true;
 
   return false;
@@ -70,34 +73,68 @@ export function applyParsedSpecs(detail) {
   return { ...detail, specs: { ...(detail.specs || {}), ...parsed } };
 }
 
-async function fetchFromGtinHub(gtin, { ignoreSkip = false } = {}) {
-  if (!ignoreSkip && process.env.SKIP_GTINHUB === '1') return { skipped: true };
+function gtinHubHeaders() {
   const headers = { Accept: 'application/json' };
   if (process.env.GTINHUB_API_KEY) headers['X-API-Key'] = process.env.GTINHUB_API_KEY;
-  try {
-    const res = await fetch(`${GTINHUB}/product/${gtin}`, { headers });
-    if (res.status === 429) return { rateLimited: true };
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (!json.found || !json.product?.name) return null;
-    const p = json.product;
-    return applyParsedSpecs({
-      source: 'gtinhub',
-      name: p.name.trim(),
-      brand: p.brand || null,
-      description: p.description || null,
-      category: p.category || null,
-      imageUrl: p.image_url || null,
-      specs: {},
-    });
-  } catch {
-    return null;
+  return headers;
+}
+
+async function fetchFromGtinHubOnce(gtin) {
+  const res = await fetch(`${GTINHUB}/product/${gtin}`, { headers: gtinHubHeaders() });
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get('retry-after'));
+    return { rateLimited: true, retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : null };
   }
+  if (!res.ok) return null;
+  const json = await res.json();
+  if (!json.found || !json.product?.name) return null;
+  const p = json.product;
+  return applyParsedSpecs({
+    source: 'gtinhub',
+    name: p.name.trim(),
+    brand: p.brand || null,
+    description: p.description || null,
+    category: p.category || null,
+    imageUrl: p.image_url || null,
+    specs: {},
+  });
+}
+
+async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 3 } = {}) {
+  if (!ignoreSkip && process.env.SKIP_GTINHUB === '1') return { skipped: true };
+
+  if (Date.now() < gtinHubCooldownUntil) {
+    return { rateLimited: true, inCooldown: true };
+  }
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await fetchFromGtinHubOnce(gtin);
+      if (!result?.rateLimited) return result;
+
+      const waitMs = result.retryAfterMs ?? Math.min(15000, 3000 * 2 ** attempt);
+      if (attempt < maxRetries) {
+        await sleep(waitMs);
+        continue;
+      }
+
+      gtinHubCooldownUntil = Date.now() + Math.max(waitMs, 45000);
+      return { rateLimited: true };
+    } catch {
+      if (attempt < maxRetries) {
+        await sleep(2000 * (attempt + 1));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
 }
 
 async function fetchFromUpcItemDb(gtin) {
   try {
     const res = await fetch(`${UPC_TRIAL}?upc=${gtin}`, { headers: { Accept: 'application/json' } });
+    if (res.status === 429) return { rateLimited: true };
     if (!res.ok) return null;
     const item = (await res.json()).items?.[0];
     if (!item?.title) return null;
@@ -119,47 +156,70 @@ function isUsableTireDetail(detail) {
   return Boolean(detail?.name && !isGenericProductName(detail.name) && looksLikeTireName(detail.name));
 }
 
-/**
- * Busca o nome comercial original por EAN.
- * Ordem: GTINHub → UPCitemdb → EPREL (opcional)
- * @returns {{ detail: object|null, reason: string|null }}
- */
-export async function fetchOriginalNameByGtin(gtin, { useEprel = false, ignoreGtinHubSkip = true } = {}) {
-  const normalized = normalizeGtin(gtin);
-  if (normalized.length < 8) return { detail: null, reason: 'ean_invalido' };
-
-  const hub = await fetchFromGtinHub(normalized, { ignoreSkip: ignoreGtinHubSkip });
-  if (hub?.skipped) {
-    return { detail: null, reason: 'gtinhub_desativado' };
-  }
-  if (hub?.rateLimited) {
-    return { detail: null, reason: 'gtinhub_rate_limit' };
-  }
-  if (isUsableTireDetail(hub)) return { detail: hub, reason: null };
-  if (hub?.name && !looksLikeTireName(hub.name)) {
-    return { detail: null, reason: 'gtinhub_produto_errado' };
-  }
-
-  const upc = await fetchFromUpcItemDb(normalized);
-  if (isUsableTireDetail(upc)) return { detail: upc, reason: null };
-  if (upc?.name && !looksLikeTireName(upc.name)) {
-    return { detail: null, reason: 'upc_produto_errado' };
-  }
-
-  if (useEprel) {
-    const eprel = await fetchEprelNameByGtin(normalized);
-    if (isUsableTireDetail(eprel)) return { detail: eprel, reason: null };
-    if (eprel) return { detail: null, reason: 'eprel_sem_nome_util' };
-    return { detail: null, reason: 'eprel_nao_encontrado' };
-  }
-
-  if (hub?.name || upc?.name) return { detail: null, reason: 'nome_nao_parece_pneu' };
-  return { detail: null, reason: 'nao_encontrado' };
+function pickReason({ hub, upc, eprel, useEprel }) {
+  if (hub?.skipped) return 'gtinhub_desativado';
+  if (hub?.rateLimited && !useEprel) return 'gtinhub_rate_limit';
+  if (hub?.name && !looksLikeTireName(hub.name)) return 'gtinhub_produto_errado';
+  if (upc?.name && !looksLikeTireName(upc.name)) return 'upc_produto_errado';
+  if (useEprel && eprel && !isUsableTireDetail(eprel)) return 'eprel_sem_nome_util';
+  if (useEprel && !eprel && hub?.rateLimited) return 'gtinhub_rate_limit_eprel_vazio';
+  if (useEprel) return 'eprel_nao_encontrado';
+  if (hub?.rateLimited) return 'gtinhub_rate_limit';
+  return 'nao_encontrado';
 }
 
 /**
- * Busca nome comercial via EPREL (script separado).
+ * Busca o nome comercial original por EAN.
+ * Ordem: cache → GTINHub → EPREL → UPC
  */
+export async function fetchOriginalNameByGtin(
+  gtin,
+  { useEprel = false, ignoreGtinHubSkip = true, useCache = true, skipGtinHub = false } = {}
+) {
+  const normalized = normalizeGtin(gtin);
+  if (normalized.length < 8) return { detail: null, reason: 'ean_invalido' };
+
+  if (useCache) {
+    const cached = getGtinCache(normalized);
+    if (cached && isUsableTireDetail(cached)) {
+      return { detail: cached, reason: null, fromCache: true };
+    }
+  }
+
+  let hub = null;
+  if (!skipGtinHub) {
+    hub = await fetchFromGtinHub(normalized, { ignoreSkip: ignoreGtinHubSkip });
+    if (hub?.skipped) return { detail: null, reason: 'gtinhub_desativado' };
+    if (isUsableTireDetail(hub)) {
+      if (useCache) setGtinCache(normalized, hub);
+      return { detail: hub, reason: null };
+    }
+    if (hub?.name && !looksLikeTireName(hub.name)) {
+      return { detail: null, reason: 'gtinhub_produto_errado' };
+    }
+  }
+
+  let eprel = null;
+  if (useEprel) {
+    eprel = await fetchEprelNameByGtin(normalized);
+    if (isUsableTireDetail(eprel)) {
+      if (useCache) setGtinCache(normalized, eprel);
+      return { detail: eprel, reason: null };
+    }
+  }
+
+  const upc = await fetchFromUpcItemDb(normalized);
+  if (isUsableTireDetail(upc)) {
+    if (useCache) setGtinCache(normalized, upc);
+    return { detail: upc, reason: null };
+  }
+
+  return {
+    detail: null,
+    reason: pickReason({ hub, upc, eprel, useEprel }),
+  };
+}
+
 export async function fetchEprelNameByGtin(gtin) {
   if (!process.env.EPREL_API_KEY?.trim()) return null;
   const detail = await fetchEprelProductByGtin(gtin);
@@ -180,14 +240,18 @@ export function parseScriptArgs(argv) {
     force: false,
     supplier: 'neumaticos_andres',
     limit: 0,
-    delayMs: 300,
+    delayMs: Number(process.env.GTIN_LOOKUP_DELAY_MS || 1200),
     images: true,
     category: null,
+    skipGtinHub: false,
+    noCache: false,
   };
   for (const arg of argv) {
     if (arg === '--dry-run') opts.dryRun = true;
     if (arg === '--force') opts.force = true;
     if (arg === '--no-images') opts.images = false;
+    if (arg === '--skip-gtinhub') opts.skipGtinHub = true;
+    if (arg === '--no-cache') opts.noCache = true;
     if (arg.startsWith('--supplier=')) opts.supplier = arg.slice(11);
     if (arg.startsWith('--limit=')) opts.limit = Number(arg.slice(8));
     if (arg.startsWith('--delay=')) opts.delayMs = Number(arg.slice(8));
