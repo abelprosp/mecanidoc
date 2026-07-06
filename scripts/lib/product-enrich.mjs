@@ -34,6 +34,18 @@ export function parseTireSpecsFromText(text) {
   return specs;
 }
 
+/** Nome parece pneu (medidas ou palavras-chave do setor). */
+export function looksLikeTireName(name) {
+  if (!name) return false;
+  const n = String(name);
+  if (/\d{2,3}\s*\/\s*\d{2}/.test(n)) return true;
+  if (/\d{2,3}\s*\/\s*\d{2}\s*-\s*\d{2}/.test(n)) return true;
+  if (/\b(tyre|tire|pneu|reifen|pneumatico|winter|summer|all[- ]season|runflat|xl)\b/i.test(n)) {
+    return true;
+  }
+  return false;
+}
+
 /** Nome genérico da importação NA (marca + ref, sem modelo/medidas reais). */
 export function isGenericProductName(name) {
   if (!name || !String(name).trim()) return true;
@@ -45,10 +57,8 @@ export function isGenericProductName(name) {
   if (/·\s*ref\.\s*\d+/i.test(n)) return true;
   if (new RegExp(`^(${GENERIC_BRANDS})\\s+pneu\\b`, 'i').test(n)) return true;
 
-  // Nome real de pneu costuma ter medida (ex. 205/55 R16)
-  if (!/\d{2,3}\s*\/\s*\d{2}/.test(n) && !/\d{2,3}\s*\/\s*\d{2}\s*-\s*\d{2}/.test(n)) {
-    return true;
-  }
+  // Sem medida nem indício de pneu → tratar como genérico/incerto
+  if (!looksLikeTireName(n)) return true;
 
   return false;
 }
@@ -60,12 +70,13 @@ export function applyParsedSpecs(detail) {
   return { ...detail, specs: { ...(detail.specs || {}), ...parsed } };
 }
 
-async function fetchFromGtinHub(gtin) {
-  if (process.env.SKIP_GTINHUB === '1') return null;
+async function fetchFromGtinHub(gtin, { ignoreSkip = false } = {}) {
+  if (!ignoreSkip && process.env.SKIP_GTINHUB === '1') return { skipped: true };
   const headers = { Accept: 'application/json' };
   if (process.env.GTINHUB_API_KEY) headers['X-API-Key'] = process.env.GTINHUB_API_KEY;
   try {
     const res = await fetch(`${GTINHUB}/product/${gtin}`, { headers });
+    if (res.status === 429) return { rateLimited: true };
     if (!res.ok) return null;
     const json = await res.json();
     if (!json.found || !json.product?.name) return null;
@@ -104,21 +115,46 @@ async function fetchFromUpcItemDb(gtin) {
   }
 }
 
-/**
- * Busca o nome comercial original por EAN (sem EPREL).
- * Ordem: GTINHub → UPCitemdb
- */
-export async function fetchOriginalNameByGtin(gtin) {
-  const normalized = normalizeGtin(gtin);
-  if (normalized.length < 8) return null;
+function isUsableTireDetail(detail) {
+  return Boolean(detail?.name && !isGenericProductName(detail.name) && looksLikeTireName(detail.name));
+}
 
-  const hub = await fetchFromGtinHub(normalized);
-  if (hub?.name && !isGenericProductName(hub.name)) return hub;
+/**
+ * Busca o nome comercial original por EAN.
+ * Ordem: GTINHub → UPCitemdb → EPREL (opcional)
+ * @returns {{ detail: object|null, reason: string|null }}
+ */
+export async function fetchOriginalNameByGtin(gtin, { useEprel = false, ignoreGtinHubSkip = true } = {}) {
+  const normalized = normalizeGtin(gtin);
+  if (normalized.length < 8) return { detail: null, reason: 'ean_invalido' };
+
+  const hub = await fetchFromGtinHub(normalized, { ignoreSkip: ignoreGtinHubSkip });
+  if (hub?.skipped) {
+    return { detail: null, reason: 'gtinhub_desativado' };
+  }
+  if (hub?.rateLimited) {
+    return { detail: null, reason: 'gtinhub_rate_limit' };
+  }
+  if (isUsableTireDetail(hub)) return { detail: hub, reason: null };
+  if (hub?.name && !looksLikeTireName(hub.name)) {
+    return { detail: null, reason: 'gtinhub_produto_errado' };
+  }
 
   const upc = await fetchFromUpcItemDb(normalized);
-  if (upc?.name && !isGenericProductName(upc.name)) return upc;
+  if (isUsableTireDetail(upc)) return { detail: upc, reason: null };
+  if (upc?.name && !looksLikeTireName(upc.name)) {
+    return { detail: null, reason: 'upc_produto_errado' };
+  }
 
-  return hub || upc || null;
+  if (useEprel) {
+    const eprel = await fetchEprelNameByGtin(normalized);
+    if (isUsableTireDetail(eprel)) return { detail: eprel, reason: null };
+    if (eprel) return { detail: null, reason: 'eprel_sem_nome_util' };
+    return { detail: null, reason: 'eprel_nao_encontrado' };
+  }
+
+  if (hub?.name || upc?.name) return { detail: null, reason: 'nome_nao_parece_pneu' };
+  return { detail: null, reason: 'nao_encontrado' };
 }
 
 /**

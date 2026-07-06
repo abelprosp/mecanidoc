@@ -13,7 +13,8 @@
  *   npm run fix:product-names -- --dry-run
  *   npm run fix:product-names:vps -- --supplier=neumaticos_andres
  *
- * Env: DATABASE_URL, GTINHUB_API_KEY (opcional), SKIP_GTINHUB=1 para desativar GTINHub
+ * Env: DATABASE_URL, GTINHUB_API_KEY (opcional)
+ * Nota: este script ignora SKIP_GTINHUB — precisa do GTINHub para nomes reais.
  */
 import pg from 'pg';
 import { loadEnvFiles } from './lib/load-env.mjs';
@@ -29,6 +30,17 @@ import {
 loadEnvFiles();
 
 const { Client } = pg;
+
+const REASON_MSG = {
+  gtinhub_desativado: 'GTINHub desativado (remova SKIP_GTINHUB=1 do .env)',
+  gtinhub_rate_limit: 'GTINHub rate limit — aguarde e tente de novo',
+  gtinhub_produto_errado: 'GTINHub devolveu produto que não é pneu (EAN errado no fornecedor)',
+  upc_produto_errado: 'UPC devolveu produto que não é pneu',
+  nome_nao_parece_pneu: 'encontrado mas nome sem medidas de pneu',
+  eprel_nao_encontrado: 'não está na EPREL',
+  eprel_sem_nome_util: 'EPREL sem nome útil',
+  nao_encontrado: 'não encontrado em GTINHub/UPC',
+};
 
 function buildWhere(opts) {
   const clauses = ['ean IS NOT NULL', "length(trim(ean)) >= 8"];
@@ -68,7 +80,10 @@ async function main() {
     const targets = opts.force ? rows : rows.filter((r) => isGenericProductName(r.name));
 
     console.log(`Produtos com EAN: ${rows.length} | a corrigir: ${targets.length}`);
-    console.log('Fontes: GTINHub → UPCitemdb (nome comercial original)\n');
+    console.log('Fontes: GTINHub → UPCitemdb → EPREL (fallback)\n');
+    if (process.env.SKIP_GTINHUB === '1') {
+      console.log('Aviso: SKIP_GTINHUB=1 no .env — este script ignora essa flag e usa GTINHub mesmo assim.\n');
+    }
     if (opts.dryRun) console.log('Modo dry-run — nada será gravado.\n');
 
     let ok = 0;
@@ -79,12 +94,13 @@ async function main() {
       if (stopping) break;
 
       const ean = normalizeGtin(product.ean);
-      const detail = await fetchOriginalNameByGtin(ean);
+      const { detail, reason } = await fetchOriginalNameByGtin(ean, { useEprel: true });
 
       if (!detail?.name) {
         notFound++;
-        if (notFound <= 10) {
-          console.log(`— ${ean}: nome não encontrado (GTINHub/UPC)`);
+        if (notFound <= 15) {
+          const msg = REASON_MSG[reason] || reason || 'desconhecido';
+          console.log(`— ${ean}: ${msg}`);
         }
         await new Promise((r) => setTimeout(r, opts.delayMs));
         continue;
