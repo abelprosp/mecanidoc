@@ -40,10 +40,24 @@ export type SpecsFilterSlice = {
   season: string;
 };
 
+/** Normaliza medida para comparação (205 vs "205"). */
+export function normalizeSpecValue(value: unknown): string {
+  if (value == null || value === '') return '';
+  const s = String(value).trim();
+  const n = Number(s);
+  if (Number.isFinite(n) && String(n) === s.replace(/^0+(\d)/, '$1')) return String(n);
+  return s;
+}
+
+export function specFieldMatches(specValue: unknown, filterValue: string): boolean {
+  if (!filterValue) return true;
+  return normalizeSpecValue(specValue) === normalizeSpecValue(filterValue);
+}
+
 /** Filtros em `specs` via `specs->>chave` (evita falha de `.contains` número vs string). */
 export function applySpecsFieldFilters(query: any, f: SpecsFilterSlice) {
   let q = query;
-  const t = (s: string) => String(s).trim();
+  const t = (s: string) => normalizeSpecValue(s);
   if (f.width) q = q.eq('specs->>width', t(f.width));
   if (f.height) q = q.eq('specs->>height', t(f.height));
   if (f.diameter) q = q.eq('specs->>diameter', t(f.diameter));

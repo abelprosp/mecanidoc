@@ -13,6 +13,8 @@ import {
   applySpecsFieldFilters,
   productMatchesPaTipo,
   productMatchesUiCategory,
+  specFieldMatches,
+  normalizeSpecValue,
 } from '@/lib/product-query-helpers';
 
 function SearchContent() {
@@ -103,13 +105,27 @@ function SearchContent() {
 
   const availableHeights = useMemo(() => {
     if (!filters.width) return [];
-    const h = new Set(dimensionSpecs.filter(s => s.width === filters.width).map(s => s.height).filter(Boolean));
+    const h = new Set(
+      dimensionSpecs
+        .filter((s) => specFieldMatches(s.width, filters.width))
+        .map((s) => s.height)
+        .filter(Boolean)
+    );
     return Array.from(h).sort((a, b) => Number(a) - Number(b));
   }, [dimensionSpecs, filters.width]);
 
   const availableDiameters = useMemo(() => {
     if (!filters.width || !filters.height) return [];
-    const d = new Set(dimensionSpecs.filter(s => s.width === filters.width && s.height === filters.height).map(s => s.diameter).filter(Boolean));
+    const d = new Set(
+      dimensionSpecs
+        .filter(
+          (s) =>
+            specFieldMatches(s.width, filters.width) &&
+            specFieldMatches(s.height, filters.height)
+        )
+        .map((s) => s.diameter)
+        .filter(Boolean)
+    );
     return Array.from(d).sort((a, b) => Number(a) - Number(b));
   }, [dimensionSpecs, filters.width, filters.height]);
 

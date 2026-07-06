@@ -54,6 +54,15 @@ function quoteIdent(name: string) {
   return `"${name.replace(/"/g, '""')}"`;
 }
 
+/** Coluna SQL — suporta extração JSONB (`specs->>width`). */
+function sqlColumnRef(column: string): string {
+  const jsonText = column.match(/^([a-zA-Z_][a-zA-Z0-9_]*)->>([a-zA-Z_][a-zA-Z0-9_]*)$/);
+  if (jsonText) {
+    return `${quoteIdent(jsonText[1])}->>'${jsonText[2].replace(/'/g, "''")}'`;
+  }
+  return quoteIdent(column);
+}
+
 async function attachNested(
   parentRow: Record<string, unknown>,
   embed: EmbedSpec,
@@ -231,34 +240,34 @@ export class QueryBuilder {
         continue;
       }
       if (f.type === 'eq') {
-        parts.push(`${quoteIdent(f.column)} = $${idx++}`);
+        parts.push(`${sqlColumnRef(f.column)} = $${idx++}`);
         params.push(f.value);
       } else if (f.type === 'in') {
         const values = Array.isArray(f.value) ? f.value : [];
         if (!values.length) {
           parts.push('false');
         } else {
-          parts.push(`${quoteIdent(f.column)} = ANY($${idx++})`);
+          parts.push(`${sqlColumnRef(f.column)} = ANY($${idx++})`);
           params.push(values);
         }
       } else if (f.type === 'not') {
         if (f.op === 'is' && f.value === null) {
-          parts.push(`${quoteIdent(f.column)} IS NOT NULL`);
+          parts.push(`${sqlColumnRef(f.column)} IS NOT NULL`);
         } else {
-          parts.push(`${quoteIdent(f.column)} IS DISTINCT FROM $${idx++}`);
+          parts.push(`${sqlColumnRef(f.column)} IS DISTINCT FROM $${idx++}`);
           params.push(f.value);
         }
       } else if (f.type === 'gte') {
-        parts.push(`${quoteIdent(f.column)} >= $${idx++}`);
+        parts.push(`${sqlColumnRef(f.column)} >= $${idx++}`);
         params.push(f.value);
       } else if (f.type === 'lte') {
-        parts.push(`${quoteIdent(f.column)} <= $${idx++}`);
+        parts.push(`${sqlColumnRef(f.column)} <= $${idx++}`);
         params.push(f.value);
       } else if (f.type === 'ilike') {
-        parts.push(`${quoteIdent(f.column)} ILIKE $${idx++}`);
+        parts.push(`${sqlColumnRef(f.column)} ILIKE $${idx++}`);
         params.push(f.value);
       } else if (f.type === 'neq') {
-        parts.push(`${quoteIdent(f.column)} <> $${idx++}`);
+        parts.push(`${sqlColumnRef(f.column)} <> $${idx++}`);
         params.push(f.value);
       } else if (f.type === 'or') {
         const orParts: string[] = [];
@@ -270,10 +279,10 @@ export class QueryBuilder {
           const op = match[2];
           const val = match[3];
           if (op === 'ilike') {
-            orParts.push(`${quoteIdent(col)} ILIKE $${idx++}`);
+            orParts.push(`${sqlColumnRef(col)} ILIKE $${idx++}`);
             params.push(val);
           } else if (op === 'eq') {
-            orParts.push(`${quoteIdent(col)} = $${idx++}`);
+            orParts.push(`${sqlColumnRef(col)} = $${idx++}`);
             params.push(val);
           }
         }

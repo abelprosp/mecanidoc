@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Car, Bike, Truck, Tractor, Sun, ChevronDown, CloudLightning, CloudSnow } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { applyCategoryToQuery, productMatchesUiCategory } from '@/lib/product-query-helpers';
+import { applyCategoryToQuery, productMatchesUiCategory, specFieldMatches } from '@/lib/product-query-helpers';
 
 type HeroMotoProps = { category?: string };
 
@@ -54,7 +54,7 @@ export default function HeroMoto({ category = 'Moto' }: HeroMotoProps) {
     if (!selected.width) return [];
     const heights = new Set(
       allSpecs
-        .filter(s => s.width === selected.width)
+        .filter(s => specFieldMatches(s.width, selected.width))
         .map(s => s.height)
         .filter(Boolean)
     );
@@ -65,7 +65,7 @@ export default function HeroMoto({ category = 'Moto' }: HeroMotoProps) {
     if (!selected.width || !selected.height) return [];
     const diameters = new Set(
       allSpecs
-        .filter(s => s.width === selected.width && s.height === selected.height)
+        .filter(s => specFieldMatches(s.width, selected.width) && specFieldMatches(s.height, selected.height))
         .map(s => s.diameter)
         .filter(Boolean)
     );
@@ -76,7 +76,7 @@ export default function HeroMoto({ category = 'Moto' }: HeroMotoProps) {
     if (!selected.width || !selected.height || !selected.diameter) return [];
     const loads = new Set(
       allSpecs
-        .filter(s => s.width === selected.width && s.height === selected.height && s.diameter === selected.diameter)
+        .filter(s => specFieldMatches(s.width, selected.width) && specFieldMatches(s.height, selected.height) && specFieldMatches(s.diameter, selected.diameter))
         .map(s => s.load_index)
         .filter(Boolean)
     );
@@ -88,10 +88,10 @@ export default function HeroMoto({ category = 'Moto' }: HeroMotoProps) {
     const speeds = new Set(
       allSpecs
         .filter(s => 
-          s.width === selected.width && 
-          s.height === selected.height && 
-          s.diameter === selected.diameter && 
-          (!selected.load || s.load_index === selected.load)
+          specFieldMatches(s.width, selected.width) && 
+          specFieldMatches(s.height, selected.height) && 
+          specFieldMatches(s.diameter, selected.diameter) && 
+          (!selected.load || specFieldMatches(s.load_index, selected.load))
         )
         .map(s => s.speed_index)
         .filter(Boolean)
