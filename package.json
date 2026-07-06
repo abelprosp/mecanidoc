@@ -29,6 +29,10 @@
     "import:na-camion:vps": "bash scripts/vps-import.sh import-na-camion.mjs",
     "import:na-tracteur:vps": "bash scripts/vps-import.sh import-na-tracteur.mjs",
     "enrich:products:vps": "bash scripts/vps-import.sh enrich-products.mjs",
+    "fix:product-names": "node scripts/fix-product-names.mjs",
+    "fix:product-names:vps": "bash scripts/vps-import.sh fix-product-names.mjs",
+    "enrich:eprel": "node scripts/enrich-eprel.mjs",
+    "enrich:eprel:vps": "bash scripts/vps-import.sh enrich-eprel.mjs",
     "fetch:na-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:eprel-images": "node scripts/fetch-eprel-images.mjs",
     "enrich:products": "node scripts/enrich-products.mjs"
