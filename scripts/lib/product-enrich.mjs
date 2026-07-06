@@ -170,11 +170,17 @@ function pickReason({ hub, upc, eprel, useEprel }) {
 
 /**
  * Busca o nome comercial original por EAN.
- * Ordem: cache → GTINHub → EPREL → UPC
+ * Ordem padrão com eprelFirst: cache → EPREL → GTINHub → UPC
  */
 export async function fetchOriginalNameByGtin(
   gtin,
-  { useEprel = false, ignoreGtinHubSkip = true, useCache = true, skipGtinHub = false } = {}
+  {
+    useEprel = false,
+    eprelFirst = false,
+    ignoreGtinHubSkip = true,
+    useCache = true,
+    skipGtinHub = false,
+  } = {}
 ) {
   const normalized = normalizeGtin(gtin);
   if (normalized.length < 8) return { detail: null, reason: 'ean_invalido' };
@@ -187,25 +193,46 @@ export async function fetchOriginalNameByGtin(
   }
 
   let hub = null;
-  if (!skipGtinHub) {
-    hub = await fetchFromGtinHub(normalized, { ignoreSkip: ignoreGtinHubSkip });
-    if (hub?.skipped) return { detail: null, reason: 'gtinhub_desativado' };
-    if (isUsableTireDetail(hub)) {
-      if (useCache) setGtinCache(normalized, hub);
-      return { detail: hub, reason: null };
+  let eprel = null;
+
+  const tryEprel = async () => {
+    if (!useEprel) return null;
+    const result = await fetchEprelNameByGtin(normalized);
+    if (isUsableTireDetail(result)) {
+      if (useCache) setGtinCache(normalized, result);
+      return result;
     }
+    return result;
+  };
+
+  const tryHub = async () => {
+    if (skipGtinHub) return null;
+    const result = await fetchFromGtinHub(normalized, { ignoreSkip: ignoreGtinHubSkip });
+    if (result?.skipped) return { skipped: true };
+    if (isUsableTireDetail(result)) {
+      if (useCache) setGtinCache(normalized, result);
+      return result;
+    }
+    return result;
+  };
+
+  if (eprelFirst && useEprel) {
+    eprel = await tryEprel();
+    if (isUsableTireDetail(eprel)) return { detail: eprel, reason: null };
+  }
+
+  if (!skipGtinHub) {
+    hub = await tryHub();
+    if (hub?.skipped) return { detail: null, reason: 'gtinhub_desativado' };
+    if (isUsableTireDetail(hub)) return { detail: hub, reason: null };
     if (hub?.name && !looksLikeTireName(hub.name)) {
       return { detail: null, reason: 'gtinhub_produto_errado' };
     }
   }
 
-  let eprel = null;
-  if (useEprel) {
-    eprel = await fetchEprelNameByGtin(normalized);
-    if (isUsableTireDetail(eprel)) {
-      if (useCache) setGtinCache(normalized, eprel);
-      return { detail: eprel, reason: null };
-    }
+  if (!eprelFirst && useEprel) {
+    eprel = await tryEprel();
+    if (isUsableTireDetail(eprel)) return { detail: eprel, reason: null };
   }
 
   const upc = await fetchFromUpcItemDb(normalized);
@@ -244,6 +271,8 @@ export function parseScriptArgs(argv) {
     images: true,
     category: null,
     skipGtinHub: false,
+    eprelFirst: true,
+    onlyGtinHub: false,
     noCache: false,
   };
   for (const arg of argv) {
@@ -251,6 +280,12 @@ export function parseScriptArgs(argv) {
     if (arg === '--force') opts.force = true;
     if (arg === '--no-images') opts.images = false;
     if (arg === '--skip-gtinhub') opts.skipGtinHub = true;
+    if (arg === '--only-gtinhub') {
+      opts.onlyGtinHub = true;
+      opts.skipGtinHub = false;
+      opts.eprelFirst = false;
+    }
+    if (arg === '--no-eprel-first') opts.eprelFirst = false;
     if (arg === '--no-cache') opts.noCache = true;
     if (arg.startsWith('--supplier=')) opts.supplier = arg.slice(11);
     if (arg.startsWith('--limit=')) opts.limit = Number(arg.slice(8));

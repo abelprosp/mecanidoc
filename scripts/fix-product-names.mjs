@@ -11,7 +11,7 @@
  *   npm run fix:product-names -- --supplier=neumaticos_andres
  *   npm run fix:product-names -- --force
  *   npm run fix:product-names -- --delay=2500
- *   npm run fix:product-names -- --skip-gtinhub
+ *   npm run fix:product-names -- --only-gtinhub --delay=3000
  *   npm run fix:product-names:vps -- --supplier=neumaticos_andres
  *
  * Env: DATABASE_URL, GTINHUB_API_KEY (opcional)
@@ -81,10 +81,20 @@ async function main() {
 
     const { rows } = await client.query(query, params);
     const targets = opts.force ? rows : rows.filter((r) => isGenericProductName(r.name));
+    const reasons = {};
+
+    const orderLabel = opts.onlyGtinHub
+      ? 'cache → GTINHub → UPC'
+      : opts.skipGtinHub
+        ? 'cache → EPREL → UPC'
+        : opts.eprelFirst
+          ? 'cache → EPREL → GTINHub → UPC'
+          : 'cache → GTINHub → EPREL → UPC';
 
     console.log(`Produtos com EAN: ${rows.length} | a corrigir: ${targets.length}`);
-    console.log(`Fontes: cache → GTINHub → EPREL → UPC | intervalo ${opts.delayMs}ms\n`);
-    if (opts.skipGtinHub) console.log('Modo --skip-gtinhub: só EPREL + UPC (evita rate limit GTINHub)\n');
+    console.log(`Fontes: ${orderLabel} | intervalo ${opts.delayMs}ms\n`);
+    if (opts.onlyGtinHub) console.log('Modo --only-gtinhub: 2ª passagem lenta (Hankook, moto, etc.)\n');
+    if (opts.skipGtinHub) console.log('Modo --skip-gtinhub: só EPREL + UPC\n');
     if (opts.dryRun) console.log('Modo dry-run — nada será gravado.\n');
 
     let ok = 0;
@@ -96,13 +106,16 @@ async function main() {
 
       const ean = normalizeGtin(product.ean);
       const { detail, reason, fromCache } = await fetchOriginalNameByGtin(ean, {
-        useEprel: true,
-        skipGtinHub: opts.skipGtinHub,
+        useEprel: !opts.onlyGtinHub,
+        eprelFirst: opts.eprelFirst && !opts.onlyGtinHub,
+        skipGtinHub: opts.skipGtinHub && !opts.onlyGtinHub,
         useCache: !opts.noCache,
       });
 
       if (!detail?.name) {
         notFound++;
+        const key = reason || 'desconhecido';
+        reasons[key] = (reasons[key] || 0) + 1;
         if (notFound <= 15) {
           const msg = REASON_MSG[reason] || reason || 'desconhecido';
           console.log(`— ${ean}: ${msg}`);
@@ -177,11 +190,17 @@ async function main() {
     console.log(`Nomes corrigidos: ${ok}`);
     console.log(`Já com nome real (ignorados): ${rows.length - targets.length + skip}`);
     console.log(`Não encontrados: ${notFound}`);
+    if (Object.keys(reasons).length) {
+      console.log('\n--- Motivos (não encontrados) ---');
+      for (const [key, count] of Object.entries(reasons).sort((a, b) => b[1] - a[1])) {
+        console.log(`  ${count}x ${REASON_MSG[key] || key}`);
+      }
+    }
     if (notFound > 0) {
-      console.log('\nDicas:');
-      console.log('  npm run fix:product-names:vps -- --delay=2500   # mais lento, menos rate limit');
-      console.log('  npm run fix:product-names:vps -- --skip-gtinhub  # só EPREL (auto)');
-      console.log('  npm run enrich:eprel:vps -- --supplier=neumaticos_andres');
+      console.log('\nPróximos passos:');
+      console.log('  1. EPREL (auto, medidas + nome): npm run enrich:eprel:vps -- --supplier=neumaticos_andres');
+      console.log('  2. GTINHub lento (Hankook/moto): npm run fix:product-names:vps -- --only-gtinhub --delay=3000');
+      console.log('  3. Repetir passo 2 em lotes: --limit=100 (várias vezes)');
     }
     flushGtinCache();
   } finally {
