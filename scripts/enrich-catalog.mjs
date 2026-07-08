@@ -51,7 +51,8 @@ const REASON_MSG = {
   ean_invalido: 'EAN inválido',
   gtinhub_desativado: 'GTINHub desativado',
   gtinhub_rate_limit: 'GTINHub rate limit (quota diária ou 429)',
-  upc_rate_limit: 'UPCitemdb rate limit',
+  upc_rate_limit: 'UPCitemdb rate limit (use --skip-upc e GTINHub)',
+  upc_desativado: 'UPC desativado (--skip-upc)',
   gtinhub_rate_limit_eprel_vazio: 'GTINHub bloqueou e EPREL vazio',
   gtinhub_produto_errado: 'EAN errado no fornecedor (não é pneu)',
   upc_produto_errado: 'UPC devolveu produto errado',
@@ -174,11 +175,19 @@ async function main() {
   if (!process.env.EPREL_API_KEY?.trim()) {
     console.warn('Aviso: EPREL_API_KEY não definida — medidas/labels EPREL ficarão limitadas.\n');
   }
-  if (!process.env.GTINHUB_API_KEY?.trim() && !opts.skipGtinHub) {
+    if (!process.env.GTINHUB_API_KEY?.trim() && !opts.skipGtinHub) {
     console.warn(
-      'Aviso: sem GTINHUB_API_KEY — plano grátis ~10 pedidos/dia. Pneus Giti/Minerva dependem do GTINHub.\n' +
+      'Aviso: sem GTINHUB_API_KEY — plano grátis ~10 pedidos/dia. Pneus EU dependem do GTINHub.\n' +
         '  → https://gtinhub.com/api  |  adicione GTINHUB_API_KEY no .env\n'
     );
+  }
+  if (!opts.skipUpc) {
+    console.warn(
+      'Aviso: UPCitemdb ativo — quota grátis ~100/dia, poucos EANs europeus.\n' +
+        '  Recomendado para catálogo NA: omitir --with-upc (só EPREL + GTINHub)\n'
+    );
+  } else {
+    console.log('UPCitemdb: desativado (--skip-upc padrão para pneus europeus)\n');
   }
 
   const client = new Client({ connectionString: getDbUrl() });
@@ -228,22 +237,26 @@ async function main() {
       let rateLimitRetries = 0;
       const maxRateLimitRetries = opts.onlyGtinHub ? 4 : 2;
 
+      const retryable = new Set(['gtinhub_rate_limit', 'upc_rate_limit']);
+
       while (rateLimitRetries <= maxRateLimitRetries) {
         resolved = await resolveProductName({
           naRef,
           ean,
           skipGtinHub: opts.skipGtinHub,
+          skipUpc: opts.skipUpc,
           useCache: !opts.noCache,
         });
         if (resolved.merged?.name) break;
-        if (resolved.reason !== 'gtinhub_rate_limit') break;
+        if (!retryable.has(resolved.reason)) break;
 
         rateLimitRetries++;
         if (rateLimitRetries > maxRateLimitRetries) break;
 
         const waitMs = Math.min(180000, 45000 * rateLimitRetries);
+        const label = resolved.reason === 'upc_rate_limit' ? 'UPC/GTINHub' : 'GTINHub';
         console.log(
-          `⏳ ${ean}: GTINHub bloqueou — aguardar ${Math.round(waitMs / 1000)}s (${rateLimitRetries}/${maxRateLimitRetries})...`
+          `⏳ ${ean}: ${label} bloqueou — aguardar ${Math.round(waitMs / 1000)}s (${rateLimitRetries}/${maxRateLimitRetries})...`
         );
         await sleep(waitMs);
       }
@@ -368,11 +381,11 @@ async function main() {
     }
 
     if (fail > 0) {
-      console.log('\nDicas quando GTINHub bloqueia:');
-      console.log('  1. Adicione GTINHUB_API_KEY no .env (mais pedidos/dia)');
-      console.log('  2. Espaçar pedidos: npm run enrich:catalog:vps -- --brand=Gitigroup,Giti --delay=12000 --limit=8');
-      console.log('  3. Retomar amanhã — cache em .cache/gtin-names.json evita repetir EANs já resolvidos');
-      console.log('  4. Um produto: npm run enrich:catalog:vps -- --ref=10833');
+      console.log('\nDicas quando APIs bloqueiam:');
+      console.log('  1. GTINHUB_API_KEY no .env (principal para EANs europeus)');
+      console.log('  2. npm run enrich:generic:vps -- --delay=10000 --limit=8');
+      console.log('  3. Não use --with-upc — UPC trial é quota baixa e pouco útil na EU');
+      console.log('  4. Retomar amanhã — cache em .cache/gtin-names.json');
     }
 
     flushGtinCache();

@@ -40,6 +40,7 @@ export async function resolveProductName(input = {}) {
 
   const { merged, reason, sources, fromCache } = await fetchFullEnrichmentByGtin(ean, {
     skipGtinHub: input.skipGtinHub,
+    skipUpc: input.skipUpc,
     useCache: input.useCache !== false,
   });
 

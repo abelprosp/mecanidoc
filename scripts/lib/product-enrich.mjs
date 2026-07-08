@@ -6,6 +6,7 @@ import { getGtinCache, setGtinCache, sleep } from './gtin-cache.mjs';
 
 const GTINHUB = (process.env.GTINHUB_BASE_URL || 'https://gtinhub.com/api/v1').replace(/\/$/, '');
 const UPC_TRIAL = 'https://api.upcitemdb.com/prod/trial/lookup';
+const UPC_V1 = 'https://api.upcitemdb.com/prod/v1/lookup';
 
 const GENERIC_BRANDS =
   'mitas|continental|nexen|hankook|barum|pirelli|kumho|kleber|triangle|mrf|sava|dunlop|metzeler|goodyear|bridgestone|michelin|falken|gitigroup|roadstone|sava|kleber';
@@ -13,6 +14,10 @@ const GENERIC_BRANDS =
 /** Pausa global após rate limit do GTINHub (ms). */
 let gtinHubCooldownUntil = 0;
 let lastGtinHubRequestAt = 0;
+
+/** Pausa global após rate limit do UPCitemdb (ms). */
+let upcCooldownUntil = 0;
+let lastUpcRequestAt = 0;
 
 function gtinHubMinIntervalMs() {
   const configured = Number(process.env.GTINHUB_MIN_INTERVAL_MS);
@@ -32,6 +37,96 @@ async function waitForGtinHubSlot() {
   if (sinceLast < minGap) {
     await sleep(minGap - sinceLast);
   }
+}
+
+function upcMinIntervalMs() {
+  const configured = Number(process.env.UPC_MIN_INTERVAL_MS);
+  if (Number.isFinite(configured) && configured > 0) return configured;
+  return process.env.UPCITEMDB_USER_KEY ? 1200 : 6000;
+}
+
+async function waitForUpcSlot() {
+  const now = Date.now();
+  if (now < upcCooldownUntil) {
+    await sleep(upcCooldownUntil - now);
+  }
+  const sinceLast = Date.now() - lastUpcRequestAt;
+  const minGap = upcMinIntervalMs();
+  if (sinceLast < minGap) {
+    await sleep(minGap - sinceLast);
+  }
+}
+
+function upcRequestConfig(gtin) {
+  const userKey = process.env.UPCITEMDB_USER_KEY?.trim();
+  if (userKey) {
+    return {
+      url: `${UPC_V1}?upc=${encodeURIComponent(gtin)}`,
+      headers: {
+        Accept: 'application/json',
+        user_key: userKey,
+        key_type: process.env.UPCITEMDB_KEY_TYPE?.trim() || '3scale',
+      },
+    };
+  }
+  return {
+    url: `${UPC_TRIAL}?upc=${encodeURIComponent(gtin)}`,
+    headers: { Accept: 'application/json' },
+  };
+}
+
+async function fetchFromUpcItemDbOnce(gtin) {
+  const { url, headers } = upcRequestConfig(gtin);
+  const res = await fetch(url, { headers });
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get('retry-after'));
+    return {
+      rateLimited: true,
+      retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : null,
+    };
+  }
+  if (!res.ok) return null;
+  const item = (await res.json()).items?.[0];
+  if (!item?.title) return null;
+  return applyParsedSpecs({
+    source: 'upcitemdb',
+    name: item.title.trim(),
+    brand: item.brand || null,
+    description: item.description || null,
+    category: item.category || null,
+    imageUrl: item.images?.[0] || null,
+    specs: {},
+  });
+}
+
+async function fetchFromUpcItemDb(gtin, { maxRetries = 2 } = {}) {
+  if (process.env.SKIP_UPC === '1') return { skipped: true };
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await waitForUpcSlot();
+    lastUpcRequestAt = Date.now();
+
+    try {
+      const result = await fetchFromUpcItemDbOnce(gtin);
+      if (!result?.rateLimited) return result;
+
+      const waitMs = result.retryAfterMs ?? Math.min(120000, 10000 * 2 ** attempt);
+      if (attempt < maxRetries) {
+        upcCooldownUntil = Date.now() + waitMs;
+        await sleep(waitMs);
+        continue;
+      }
+      upcCooldownUntil = Date.now() + Math.max(waitMs, 90000);
+      return { rateLimited: true, exhaustedRetries: true };
+    } catch {
+      if (attempt < maxRetries) {
+        await sleep(5000 * (attempt + 1));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
 }
 
 export function normalizeGtin(raw) {
@@ -158,40 +253,18 @@ async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 4 } = {
   return null;
 }
 
-async function fetchFromUpcItemDb(gtin) {
-  try {
-    const res = await fetch(`${UPC_TRIAL}?upc=${gtin}`, { headers: { Accept: 'application/json' } });
-    if (res.status === 429) return { rateLimited: true };
-    if (!res.ok) return null;
-    const item = (await res.json()).items?.[0];
-    if (!item?.title) return null;
-    return applyParsedSpecs({
-      source: 'upcitemdb',
-      name: item.title.trim(),
-      brand: item.brand || null,
-      description: item.description || null,
-      category: item.category || null,
-      imageUrl: item.images?.[0] || null,
-      specs: {},
-    });
-  } catch {
-    return null;
-  }
-}
-
 function isUsableTireDetail(detail) {
   return Boolean(detail?.name && !isGenericProductName(detail.name) && looksLikeTireName(detail.name));
 }
 
 function pickReason({ hub, upc, eprel, useEprel }) {
   if (hub?.skipped) return 'gtinhub_desativado';
+  if (upc?.skipped) return 'upc_desativado';
+  if (hub?.rateLimited) return 'gtinhub_rate_limit';
   if (upc?.rateLimited) return 'upc_rate_limit';
-  if (isUsableTireDetail(upc)) return 'nao_encontrado';
   if (hub?.name && !looksLikeTireName(hub.name)) return 'gtinhub_produto_errado';
   if (upc?.name && !looksLikeTireName(upc.name)) return 'upc_produto_errado';
-  if (useEprel && isUsableTireDetail(eprel)) return 'nao_encontrado';
   if (useEprel && eprel && !isUsableTireDetail(eprel)) return 'eprel_sem_nome_util';
-  if (hub?.rateLimited) return 'gtinhub_rate_limit';
   if (useEprel && !eprel) return 'eprel_nao_encontrado';
   return 'nao_encontrado';
 }
@@ -208,6 +281,7 @@ export async function fetchOriginalNameByGtin(
     ignoreGtinHubSkip = true,
     useCache = true,
     skipGtinHub = false,
+    skipUpc = process.env.SKIP_UPC === '1',
   } = {}
 ) {
   const normalized = normalizeGtin(gtin);
@@ -263,10 +337,18 @@ export async function fetchOriginalNameByGtin(
     if (isUsableTireDetail(eprel)) return { detail: eprel, reason: null };
   }
 
-  const upc = await fetchFromUpcItemDb(normalized);
-  if (isUsableTireDetail(upc)) {
-    if (useCache) setGtinCache(normalized, upc);
-    return { detail: upc, reason: null };
+  // GTINHub bloqueado → não gastar quota UPC (pneus EU estão no GTINHub/EPREL)
+  if (hub?.rateLimited) {
+    return { detail: null, reason: 'gtinhub_rate_limit' };
+  }
+
+  let upc = null;
+  if (!skipUpc) {
+    upc = await fetchFromUpcItemDb(normalized);
+    if (isUsableTireDetail(upc)) {
+      if (useCache) setGtinCache(normalized, upc);
+      return { detail: upc, reason: null };
+    }
   }
 
   return {
@@ -306,7 +388,7 @@ export async function fetchFullEnrichmentByGtin(gtin, opts = {}) {
   const normalized = normalizeGtin(gtin);
   if (normalized.length < 8) return { merged: null, reason: 'ean_invalido', sources: [] };
 
-  const { useCache = true, skipGtinHub = false } = opts;
+  const { useCache = true, skipGtinHub = false, skipUpc = process.env.SKIP_UPC === '1' } = opts;
 
   if (useCache) {
     const cached = getGtinCache(normalized);
@@ -330,6 +412,7 @@ export async function fetchFullEnrichmentByGtin(gtin, opts = {}) {
       useEprel: !pickBestName(eprel),
       eprelFirst: false,
       skipGtinHub: false,
+      skipUpc,
       useCache: false,
     });
     if (nameResult.detail?.source && !sources.includes(nameResult.detail.source)) {
@@ -462,8 +545,12 @@ export function parseScriptArgs(argv) {
     refs: [],
     genericOnly: true,
     all: false,
+    skipUpc: process.env.SKIP_UPC !== '0',
   };
   for (const arg of argv) {
+    if (arg === '--dry-run') opts.dryRun = true;
+    if (arg === '--with-upc') opts.skipUpc = false;
+    if (arg === '--skip-upc') opts.skipUpc = true;
     if (arg === '--all') {
       opts.all = true;
       opts.genericOnly = false;
