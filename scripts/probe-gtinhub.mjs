@@ -53,7 +53,17 @@ if (res.status === 429 || body?.error?.error === 'rate_limit_exceeded') {
   console.error('❌ GTINHub bloqueou (429)');
   console.error(`   ${msg}`);
   if (used != null && limit != null) console.error(`   Usado: ${used}/${limit}`);
-  if (msg.toLowerCase().includes('free request limit')) {
+  if (msg.toLowerCase().includes('monthly quota')) {
+    console.error('');
+    console.error('   ✅ A API key está a ser usada corretamente.');
+    console.error('   ❌ Quota MENSAL do teu plano esgotou.');
+    console.error('');
+    console.error('   Opções:');
+    console.error('   1. Upgrade do plano em https://gtinhub.com/api');
+    console.error('   2. Aguardar o reset mensal da subscrição');
+    console.error('   3. Enriquecer só via EPREL (pneus na base UE):');
+    console.error('      npm run enrich:eprel:vps -- --limit=50');
+  } else if (msg.toLowerCase().includes('free request limit')) {
     console.error('');
     console.error('   A chave NÃO está a ser usada — ainda responde como plano grátis.');
     console.error('   Confirme GTINHUB_API_KEY no .env da VPS e corra: npm run probe:gtinhub:vps');

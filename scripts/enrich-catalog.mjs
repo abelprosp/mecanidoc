@@ -33,6 +33,8 @@ import {
   hasRealImage,
   isGenericProductName,
   isGtinHubDailyQuotaExhausted,
+  isGtinHubMonthlyQuotaExhausted,
+  isGtinHubQuotaBlocked,
   needsCatalogEnrichment,
   normalizeGtin,
   parseScriptArgs,
@@ -54,6 +56,7 @@ const REASON_MSG = {
   gtinhub_desativado: 'GTINHub desativado',
   gtinhub_rate_limit: 'GTINHub rate limit temporário (429)',
   gtinhub_quota_diaria: 'GTINHub quota diária esgotada (~10/dia sem chave)',
+  gtinhub_quota_mensal: 'GTINHub quota mensal esgotada (upgrade ou aguardar reset)',
   upc_rate_limit: 'UPCitemdb rate limit (use --skip-upc e GTINHub)',
   upc_desativado: 'UPC desativado (--skip-upc)',
   gtinhub_rate_limit_eprel_vazio: 'GTINHub bloqueou e EPREL vazio',
@@ -194,6 +197,9 @@ async function main() {
   } else {
     console.log('UPCitemdb: desativado (--skip-upc padrão para pneus europeus)\n');
   }
+  if (opts.skipGtinHub) {
+    console.log('GTINHub: desativado (--skip-gtinhub) — só EPREL para nomes/medidas/etiquetas UE\n');
+  }
 
   const client = new Client({ connectionString: getDbUrl() });
   await client.connect();
@@ -243,10 +249,13 @@ async function main() {
 
     for (const product of targets) {
       if (stopping) break;
-      if (quotaStop || isGtinHubDailyQuotaExhausted()) {
+      if (quotaStop || isGtinHubQuotaBlocked()) {
         quotaStop = true;
         fail++;
-        reasons.gtinhub_quota_diaria = (reasons.gtinhub_quota_diaria || 0) + 1;
+        const qKey = isGtinHubMonthlyQuotaExhausted()
+          ? 'gtinhub_quota_mensal'
+          : 'gtinhub_quota_diaria';
+        reasons[qKey] = (reasons[qKey] || 0) + 1;
         continue;
       }
 
@@ -271,6 +280,7 @@ async function main() {
         if (resolved.merged?.name) break;
         if (
           resolved.reason === 'gtinhub_quota_diaria' ||
+          resolved.reason === 'gtinhub_quota_mensal' ||
           (!hasGtinHubKey && resolved.reason === 'gtinhub_rate_limit')
         ) {
           quotaStop = true;
@@ -306,16 +316,25 @@ async function main() {
         if (fail <= 12) {
           console.log(`— ${ean}: ${REASON_MSG[key] || key}`);
         }
-        if (key === 'gtinhub_quota_diaria' && quotaStop) {
+        if ((key === 'gtinhub_quota_diaria' || key === 'gtinhub_quota_mensal') && quotaStop) {
           const remaining = targets.length - (ok + skip + fail);
           if (remaining > 0) {
             console.log(
-              `\n⛔ GTINHub quota diária esgotada — ${remaining} produto(s) ignorado(s) neste lote.`
+              `\n⛔ GTINHub bloqueado — ${remaining} produto(s) ignorado(s) neste lote.`
             );
-            console.log('   Soluções:');
-            console.log('   1. Adicionar GTINHUB_API_KEY no .env (https://gtinhub.com/api)');
-            console.log('   2. Retomar amanhã: npm run enrich:generic:vps -- --limit=8 --delay=10000');
-            console.log('   3. Lotes pequenos: --limit=8 (não --limit=20)\n');
+            if (key === 'gtinhub_quota_mensal') {
+              console.log('   Quota MENSAL do plano esgotada.');
+              console.log('   Opções:');
+              console.log('   1. Upgrade em https://gtinhub.com/api');
+              console.log('   2. Aguardar reset mensal da subscrição');
+              console.log('   3. Enriquecer só EPREL (pneus registados UE):');
+              console.log('      npm run enrich:eprel:vps -- --limit=50');
+            } else {
+              console.log('   Soluções:');
+              console.log('   1. Adicionar GTINHUB_API_KEY no .env (https://gtinhub.com/api)');
+              console.log('   2. Retomar amanhã: npm run enrich:generic:vps -- --limit=8 --delay=10000');
+              console.log('   3. Lotes pequenos: --limit=8 (não --limit=20)\n');
+            }
           }
           break;
         }

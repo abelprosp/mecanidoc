@@ -16,9 +16,42 @@ let gtinHubCooldownUntil = 0;
 let lastGtinHubRequestAt = 0;
 /** Quota diária grátis esgotada — não adianta retry até amanhã ou API key. */
 let gtinHubDailyQuotaExhausted = false;
+/** Quota mensal do plano pago esgotada. */
+let gtinHubMonthlyQuotaExhausted = false;
 
 export function isGtinHubDailyQuotaExhausted() {
   return gtinHubDailyQuotaExhausted;
+}
+
+export function isGtinHubMonthlyQuotaExhausted() {
+  return gtinHubMonthlyQuotaExhausted;
+}
+
+export function isGtinHubQuotaBlocked() {
+  return gtinHubDailyQuotaExhausted || gtinHubMonthlyQuotaExhausted;
+}
+
+function classifyGtinHub429(json, res) {
+  const err = json?.error;
+  const msg = String(err?.message || '').toLowerCase();
+  const retryAfter = Number(res.headers.get('retry-after'));
+
+  if (msg.includes('monthly quota')) {
+    return {
+      rateLimited: true,
+      monthlyQuotaExhausted: true,
+      retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : null,
+      message: err?.message || 'Monthly quota exceeded',
+    };
+  }
+
+  const dailyQuotaExhausted = isGtinHubDailyQuotaError(json, res);
+  return {
+    rateLimited: true,
+    dailyQuotaExhausted,
+    retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : null,
+    message: err?.message || null,
+  };
 }
 
 function isGtinHubDailyQuotaError(json, res) {
@@ -225,14 +258,7 @@ async function fetchFromGtinHubOnce(gtin) {
 
   if (!res.ok || json?.error) {
     if (res.status === 429 || json?.error?.error === 'rate_limit_exceeded') {
-      const dailyQuotaExhausted = isGtinHubDailyQuotaError(json, res);
-      const retryAfter = Number(res.headers.get('retry-after'));
-      return {
-        rateLimited: true,
-        dailyQuotaExhausted,
-        retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : null,
-        message: json?.error?.message || null,
-      };
+      return classifyGtinHub429(json, res);
     }
     return null;
   }
@@ -252,8 +278,13 @@ async function fetchFromGtinHubOnce(gtin) {
 
 async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 4 } = {}) {
   if (!ignoreSkip && process.env.SKIP_GTINHUB === '1') return { skipped: true };
-  if (gtinHubDailyQuotaExhausted) {
-    return { rateLimited: true, dailyQuotaExhausted: true, inCooldown: true };
+  if (gtinHubDailyQuotaExhausted || gtinHubMonthlyQuotaExhausted) {
+    return {
+      rateLimited: true,
+      dailyQuotaExhausted: gtinHubDailyQuotaExhausted,
+      monthlyQuotaExhausted: gtinHubMonthlyQuotaExhausted,
+      inCooldown: true,
+    };
   }
 
   const effectiveMaxRetries =
@@ -270,6 +301,10 @@ async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 4 } = {
       if (result.dailyQuotaExhausted) {
         gtinHubDailyQuotaExhausted = true;
         return { rateLimited: true, dailyQuotaExhausted: true };
+      }
+      if (result.monthlyQuotaExhausted) {
+        gtinHubMonthlyQuotaExhausted = true;
+        return { rateLimited: true, monthlyQuotaExhausted: true, message: result.message };
       }
 
       const waitMs = result.retryAfterMs ?? Math.min(120000, 8000 * 2 ** attempt);
@@ -301,6 +336,7 @@ function isUsableTireDetail(detail) {
 function pickReason({ hub, upc, eprel, useEprel }) {
   if (hub?.skipped) return 'gtinhub_desativado';
   if (upc?.skipped) return 'upc_desativado';
+  if (hub?.monthlyQuotaExhausted) return 'gtinhub_quota_mensal';
   if (hub?.dailyQuotaExhausted) return 'gtinhub_quota_diaria';
   if (hub?.rateLimited) return 'gtinhub_rate_limit';
   if (upc?.rateLimited) return 'upc_rate_limit';
@@ -380,6 +416,9 @@ export async function fetchOriginalNameByGtin(
   }
 
   // GTINHub bloqueado → não gastar quota UPC (pneus EU estão no GTINHub/EPREL)
+  if (hub?.monthlyQuotaExhausted) {
+    return { detail: null, reason: 'gtinhub_quota_mensal' };
+  }
   if (hub?.dailyQuotaExhausted) {
     return { detail: null, reason: 'gtinhub_quota_diaria' };
   }
@@ -465,8 +504,8 @@ export async function fetchFullEnrichmentByGtin(gtin, opts = {}) {
     }
     nameDetail = nameResult.detail;
     if (!nameDetail) failReason = nameResult.reason;
-    if (nameResult.reason === 'gtinhub_quota_diaria') {
-      return { merged: null, reason: 'gtinhub_quota_diaria', sources, eprel };
+    if (nameResult.reason === 'gtinhub_quota_diaria' || nameResult.reason === 'gtinhub_quota_mensal') {
+      return { merged: null, reason: nameResult.reason, sources, eprel };
     }
   } else if (!pickBestName(eprel) && skipGtinHub) {
     failReason = 'gtinhub_desativado';
