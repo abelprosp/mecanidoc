@@ -329,6 +329,12 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err.message || err);
+  const msg = err.message || String(err);
+  console.error(msg);
+  if (/EAI_AGAIN|ENOTFOUND|ECONNREFUSED/.test(msg) && /@postgres[:/]/.test(process.env.DATABASE_URL || '')) {
+    console.error('\nO hostname "postgres" só funciona dentro da rede Docker.');
+    console.error('Na VPS use:');
+    console.error('  npm run enrich:catalog:vps -- --supplier=neumaticos_andres --brand=Gitigroup,Giti --delay=2000');
+  }
   process.exit(1);
 });
