@@ -367,6 +367,22 @@ export function shouldUpdateCategory(current, patchCategory) {
   return false;
 }
 
+/** Marcas atribuídas por heurística EAN — devem ser substituídas pela API GTIN. */
+export const HEURISTIC_BRAND_ALIASES = new Set([
+  'gitigroup',
+  'giti',
+  'giti group',
+  'giti tire',
+]);
+
+export function shouldUpdateBrand(productBrand, productName, mergedBrand) {
+  if (!mergedBrand?.trim()) return false;
+  if (!productBrand?.trim()) return true;
+  if (isGenericProductName(productName)) return true;
+  if (HEURISTIC_BRAND_ALIASES.has(productBrand.trim().toLowerCase())) return true;
+  return false;
+}
+
 export function hasRealImage(images) {
   if (!Array.isArray(images) || !images.length) return false;
   const url = String(images[0] || '');
@@ -387,6 +403,8 @@ export function parseScriptArgs(argv) {
     eprelFirst: true,
     onlyGtinHub: false,
     noCache: false,
+    ref: null,
+    brand: null,
   };
   for (const arg of argv) {
     if (arg === '--dry-run') opts.dryRun = true;
@@ -404,6 +422,8 @@ export function parseScriptArgs(argv) {
     if (arg.startsWith('--limit=')) opts.limit = Number(arg.slice(8));
     if (arg.startsWith('--delay=')) opts.delayMs = Number(arg.slice(8));
     if (arg.startsWith('--category=')) opts.category = arg.slice(11);
+    if (arg.startsWith('--ref=')) opts.ref = arg.slice(6);
+    if (arg.startsWith('--brand=')) opts.brand = arg.slice(8);
   }
   return opts;
 }

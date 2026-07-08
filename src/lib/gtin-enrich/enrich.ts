@@ -1,8 +1,9 @@
 import 'server-only';
 
 import type { DbClient } from '@/lib/db/client';
-import { fetchProductByGtin } from './client';
+import { fetchProductByGtin, normalizeGtin } from './client';
 import { mapGtinToProductPatch } from './map-to-product';
+import { resolveProductNameByNaRef } from './resolve-by-na-ref';
 import type { GtinEnrichResult } from './types';
 
 function mergeJson(
@@ -35,7 +36,14 @@ function isPlaceholderName(name?: string | null): boolean {
 function isPlaceholderBrand(brand?: string | null): boolean {
   if (!brand) return true;
   const b = brand.toLowerCase();
-  return b.includes('neumáticos andrés') || b.includes('neumaticos andres') || b.includes('exemplo');
+  return (
+    b.includes('neumáticos andrés') ||
+    b.includes('neumaticos andres') ||
+    b.includes('exemplo') ||
+    b === 'gitigroup' ||
+    b === 'giti' ||
+    b === 'giti group'
+  );
 }
 
 function isPlaceholderCategory(category?: string | null): boolean {
@@ -87,13 +95,15 @@ export async function enrichProductRecord(
       ? String((product.specs as Record<string, unknown>).na_ref)
       : null);
 
-  const detail = await fetchProductByGtin(ean, { naRef });
+  const resolved = await resolveProductNameByNaRef({ naRef, ean });
+  const lookupEan = resolved.ean || ean;
+  const detail = resolved.detail ?? (await fetchProductByGtin(lookupEan, { naRef }));
   if (!detail) {
     return {
       ok: false,
       productId: product.id,
-      ean,
-      error: 'Produto não encontrado (EPREL / GTIN / heurísticas).',
+      ean: lookupEan,
+      error: resolved.error || 'Produto não encontrado (EPREL / GTIN / heurísticas).',
     };
   }
 
@@ -124,8 +134,20 @@ export async function enrichProductRecord(
 
   const mergedMeta = mergeJson(product.external_metadata, {
     gtin_enrich: patch.gtinMetadata,
+    na_resolve: naRef
+      ? {
+          naRef,
+          ean: lookupEan,
+          eanSource: resolved.eanSource,
+          resolvedAt: new Date().toISOString(),
+        }
+      : undefined,
   });
   if (mergedMeta) updates.external_metadata = mergedMeta;
+
+  if (lookupEan !== ean) {
+    updates.ean = lookupEan;
+  }
 
   if (!Object.keys(updates).length) {
     return {

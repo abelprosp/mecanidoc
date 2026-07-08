@@ -32,8 +32,10 @@ import {
   normalizeGtin,
   parseScriptArgs,
   parseTireSpecsFromText,
+  shouldUpdateBrand,
   shouldUpdateCategory,
 } from './lib/product-enrich.mjs';
+import { resolveProductName } from './lib/resolve-product-name.mjs';
 
 loadEnvFiles();
 
@@ -63,8 +65,14 @@ function saveLabelImage(productId, buffer) {
 }
 
 function buildWhere(opts) {
-  const clauses = ['ean IS NOT NULL', "length(trim(ean)) >= 8", 'is_active = true'];
+  const clauses = ['is_active = true'];
   const params = [];
+  if (opts.ref) {
+    params.push(opts.ref);
+    clauses.push(`external_product_id = $${params.length}`);
+    return { where: clauses.join(' AND '), params };
+  }
+  clauses.push('ean IS NOT NULL', "length(trim(ean)) >= 8");
   if (opts.supplier) {
     params.push(opts.supplier);
     clauses.push(`external_supplier = $${params.length}`);
@@ -72,6 +80,13 @@ function buildWhere(opts) {
   if (opts.category) {
     params.push(opts.category);
     clauses.push(`category = $${params.length}`);
+  }
+  if (opts.brand) {
+    const brands = opts.brand.split(',').map((b) => b.trim().toLowerCase()).filter(Boolean);
+    if (brands.length) {
+      params.push(brands);
+      clauses.push(`lower(trim(brand)) = ANY($${params.length}::text[])`);
+    }
   }
   return { where: clauses.join(' AND '), params };
 }
@@ -91,7 +106,7 @@ function buildProductPatch(product, merged, imagePath) {
 
   const updateName =
     merged.name && (isGenericProductName(product.name) || product.name !== merged.name);
-  const updateBrand = merged.brand && (!product.brand || isGenericProductName(product.name));
+  const updateBrand = shouldUpdateBrand(product.brand, product.name, merged.brand);
   const updateCategory = shouldUpdateCategory(product.category, merged.category);
 
   let images = null;
@@ -153,7 +168,7 @@ async function main() {
   try {
     const { where, params } = buildWhere(opts);
     let query = `
-      SELECT id, ean, name, brand, description, category, images, specs, labels, external_metadata
+      SELECT id, ean, name, brand, description, category, images, specs, labels, external_metadata, external_product_id
       FROM products
       WHERE ${where}
       ORDER BY created_at`;
@@ -177,10 +192,20 @@ async function main() {
       if (stopping) break;
 
       const ean = normalizeGtin(product.ean);
-      const { merged, reason, sources, fromCache } = await fetchFullEnrichmentByGtin(ean, {
+      const naRef = product.external_product_id || product.specs?.na_ref || null;
+      const resolved = await resolveProductName({
+        naRef,
+        ean,
         skipGtinHub: opts.skipGtinHub,
         useCache: !opts.noCache,
       });
+      const { merged, reason, sources, fromCache } = {
+        merged: resolved.merged,
+        reason: resolved.reason,
+        sources: resolved.sources,
+        fromCache: resolved.fromCache,
+      };
+      const verifiedEan = resolved.ean || ean;
 
       if (!merged?.name) {
         fail++;
@@ -234,6 +259,7 @@ async function main() {
 
       await client.query(
         `UPDATE products SET
+           ean = COALESCE($13, ean),
            name = CASE WHEN $2 THEN $3 ELSE name END,
            brand = CASE WHEN $4 THEN $5 ELSE brand END,
            category = CASE WHEN $6 THEN $7 ELSE category END,
@@ -256,14 +282,18 @@ async function main() {
           JSON.stringify(patch.labels),
           patch.images,
           JSON.stringify(patch.meta),
+          verifiedEan !== ean ? verifiedEan : null,
         ]
       );
 
       ok++;
       const via = `${merged.sources.join('+')}${fromCache ? ' (cache)' : ''}`;
-      console.log(`✓ ${ean} via ${via}`);
+      console.log(`✓ ref ${naRef || '-'} | ${verifiedEan} via ${via}`);
       console.log(`  ${product.name?.slice(0, 70)}`);
       console.log(`  → ${patch.name?.slice(0, 90)}`);
+      if (patch.updateBrand && patch.brand) {
+        console.log(`  marca: ${product.brand || '(vazia)'} → ${patch.brand}`);
+      }
       if (patch.specs?.width) {
         console.log(
           `  ${patch.specs.width}/${patch.specs.height} R${patch.specs.diameter} | fuel=${patch.labels?.fuel || '-'} wet=${patch.labels?.wet || '-'}`

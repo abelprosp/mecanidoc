@@ -44,7 +44,8 @@ export const PREFIX_RULES = [
   { prefix: '3528703', brand: 'Kleber', category: 'Auto', vehicleType: 'Auto' },
   { prefix: '8019227', brand: 'Pirelli', category: 'Auto', vehicleType: 'Auto' },
   { prefix: '3286340', brand: 'Sava', category: 'Auto', vehicleType: 'Auto' },
-  { prefix: '5420068', brand: 'Gitigroup', category: 'Auto', vehicleType: 'Auto' },
+  // Prefixo GS1 Giti Group (Giti, Minerva, Radar, etc.) — marca real vem do GTINHub
+  { prefix: '5420068', brand: null, category: 'Auto', vehicleType: 'Auto' },
   { prefix: '5600944', brand: 'Falken', category: 'Auto', vehicleType: 'Auto' },
 ];
 
@@ -114,7 +115,6 @@ export function buildProductMeta(ean, naRef) {
   const rule = classifyByEanPrefix(ean);
   const category = rule?.category || 'Auto';
   const brand = rule?.brand || null;
-  const refPart = naRef ? ` · Ref. ${naRef}` : '';
   const normalized = normalizeEan(ean);
 
   if (!rule) {
@@ -127,8 +127,11 @@ export function buildProductMeta(ean, naRef) {
     };
   }
 
+  const refPart = naRef ? ` · Ref. ${naRef}` : '';
+  const fallbackName = rule.brand ? `${rule.brand} Pneu${refPart}` : `Pneu NA Ref. ${naRef || '?'}`;
+
   return {
-    name: `${rule.brand} Pneu${refPart}`,
+    name: fallbackName,
     brand,
     category,
     description: `Pneu ${rule.brand}. EAN ${normalized}.`,

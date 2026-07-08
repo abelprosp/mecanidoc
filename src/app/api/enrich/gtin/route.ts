@@ -4,6 +4,7 @@ import { createAdminDbClient } from '@/lib/db/client';
 import { fetchProductByGtin, getGtinEnrichConfig, normalizeGtin } from '@/lib/gtin-enrich/client';
 import { enrichProductById, enrichProductsBatch } from '@/lib/gtin-enrich/enrich';
 import { mapGtinToProductPatch } from '@/lib/gtin-enrich/map-to-product';
+import { resolveProductNameByNaRef } from '@/lib/gtin-enrich/resolve-by-na-ref';
 
 export async function GET() {
   const auth = await requireMasterUser();
@@ -29,6 +30,30 @@ export async function POST(request: NextRequest) {
   const admin = createAdminDbClient();
 
   try {
+    if (typeof body.naRef === 'string' && body.naRef.trim() && body.preview) {
+      const resolved = await resolveProductNameByNaRef({
+        naRef: body.naRef.trim(),
+        ean: typeof body.ean === 'string' ? body.ean.trim() : null,
+      });
+      if (!resolved.detail) {
+        return NextResponse.json(
+          { ok: false, error: resolved.error || 'Não encontrado nas bases GTIN.', ...resolved },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({
+        ok: true,
+        naRef: resolved.naRef,
+        ean: resolved.ean,
+        eanSource: resolved.eanSource,
+        naPrice: resolved.naPrice,
+        naStock: resolved.naStock,
+        source: resolved.detail.source,
+        patch: mapGtinToProductPatch(resolved.detail),
+        raw: resolved.detail.raw,
+      });
+    }
+
     if (typeof body.ean === 'string' && body.ean.trim() && body.preview) {
       const detail = await fetchProductByGtin(body.ean.trim());
       if (!detail) {
@@ -89,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Envie productId, ean, preview+ean ou all:true.' },
+      { error: 'Envie productId, ean, naRef+preview, preview+ean ou all:true.' },
       { status: 400 }
     );
   } catch (error: unknown) {
