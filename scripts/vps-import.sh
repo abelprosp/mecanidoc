@@ -49,10 +49,28 @@ echo "→ VPS import | rede: $NETWORK | postgres:5432"
 echo "→ node scripts/$SCRIPT $*"
 echo ""
 
+MOUNT_ARGS=(-v "$ROOT:/workspace")
+if [[ "$SCRIPT" == "seed-brand-logos.mjs" ]]; then
+  UPLOAD_VOL=""
+  if cid=$(docker compose ps -q app 2>/dev/null) && [[ -n "$cid" ]]; then
+    UPLOAD_VOL=$(docker inspect "$cid" -f '{{range .Mounts}}{{if eq .Destination "/app/uploads"}}{{.Name}}{{end}}{{end}}' 2>/dev/null || true)
+  fi
+  if [[ -z "$UPLOAD_VOL" ]]; then
+    UPLOAD_VOL=$(docker volume ls -q --filter name=uploads_data 2>/dev/null | head -1 || true)
+  fi
+  if [[ -n "$UPLOAD_VOL" ]]; then
+    MOUNT_ARGS+=(-v "${UPLOAD_VOL}:/app/uploads")
+    ENV_ARGS+=(-e "UPLOAD_DIR=/app/uploads")
+    echo "→ uploads: volume ${UPLOAD_VOL} → /app/uploads"
+  else
+    echo "Aviso: volume uploads_data não encontrado; logos vão para ./uploads no host." >&2
+  fi
+fi
+
 docker run --rm \
   --network "$NETWORK" \
   "${ENV_ARGS[@]}" \
-  -v "$ROOT:/workspace" \
+  "${MOUNT_ARGS[@]}" \
   -w /workspace \
   node:20-alpine \
   node "scripts/$SCRIPT" "$@"
