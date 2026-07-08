@@ -13,6 +13,8 @@
  *   npm run enrich:catalog -- --limit=100 --delay=1500
  *   npm run enrich:catalog -- --dry-run
  *   npm run enrich:catalog:vps -- --supplier=neumaticos_andres
+ *   npm run enrich:generic:vps -- --limit=30 --delay=8000
+ *   npm run enrich:catalog:vps -- --refs=13071,13063,13062
  *
  * Env: DATABASE_URL, EPREL_API_KEY, GTINHUB_API_KEY (opcional)
  */
@@ -25,6 +27,7 @@ import { fetchEprelLabelPng } from './lib/eprel-client.mjs';
 import { flushGtinCache, sleep } from './lib/gtin-cache.mjs';
 import {
   fetchFullEnrichmentByGtin,
+  genericNameSqlClause,
   getDbUrl,
   hasRealImage,
   isGenericProductName,
@@ -68,11 +71,23 @@ function saveLabelImage(productId, buffer) {
 function buildWhere(opts) {
   const clauses = ['is_active = true'];
   const params = [];
+
+  if (opts.refs?.length) {
+    params.push(opts.refs);
+    clauses.push(`external_product_id = ANY($${params.length}::text[])`);
+    if (opts.supplier) {
+      params.push(opts.supplier);
+      clauses.push(`external_supplier = $${params.length}`);
+    }
+    return { where: clauses.join(' AND '), params };
+  }
+
   if (opts.ref) {
     params.push(opts.ref);
     clauses.push(`external_product_id = $${params.length}`);
     return { where: clauses.join(' AND '), params };
   }
+
   clauses.push('ean IS NOT NULL', "length(trim(ean)) >= 8");
   if (opts.supplier) {
     params.push(opts.supplier);
@@ -88,6 +103,9 @@ function buildWhere(opts) {
       params.push(brands);
       clauses.push(`lower(trim(brand)) = ANY($${params.length}::text[])`);
     }
+  }
+  if (opts.genericOnly) {
+    clauses.push(genericNameSqlClause());
   }
   return { where: clauses.join(' AND '), params };
 }
@@ -182,11 +200,16 @@ async function main() {
     if (opts.limit > 0) query += ` LIMIT ${opts.limit}`;
 
     const { rows } = await client.query(query, params);
-    const targets = rows.filter((r) => needsCatalogEnrichment(r, { force: opts.force }));
+    const targets = rows.filter((r) =>
+      opts.genericOnly || opts.refs?.length || opts.ref
+        ? isGenericProductName(r.name) || opts.force
+        : needsCatalogEnrichment(r, { force: opts.force })
+    );
     const reasons = {};
 
-    console.log(`Produtos com EAN: ${rows.length} | a enriquecer: ${targets.length}`);
-    console.log('Algoritmo: detectar nome genérico → EPREL + GTINHub + UPC (uma passagem)');
+    console.log(`Produtos na query: ${rows.length} | nomes genéricos a enriquecer: ${targets.length}`);
+    if (opts.genericOnly) console.log('Filtro: só nomes genéricos (Pneu NA Ref., Marca Pneu · Ref., etc.)');
+    console.log('Algoritmo: NA getstock → EAN → EPREL + GTINHub + UPC');
     console.log(`Intervalo: ${opts.delayMs}ms | imagens EPREL: ${opts.images ? 'sim' : 'não'}\n`);
     if (opts.dryRun) console.log('Modo dry-run — nada será gravado.\n');
 

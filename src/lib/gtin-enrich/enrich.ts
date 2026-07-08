@@ -36,14 +36,26 @@ function isPlaceholderName(name?: string | null): boolean {
 function isPlaceholderBrand(brand?: string | null): boolean {
   if (!brand) return true;
   const b = brand.toLowerCase();
-  return (
-    b.includes('neumáticos andrés') ||
-    b.includes('neumaticos andres') ||
-    b.includes('exemplo') ||
-    b === 'gitigroup' ||
-    b === 'giti' ||
-    b === 'giti group'
-  );
+  const heuristic = new Set([
+    'neumáticos andrés',
+    'neumaticos andres',
+    'exemplo',
+    'gitigroup',
+    'giti',
+    'giti group',
+    'continental',
+    'nexen',
+    'hankook',
+    'barum',
+    'pirelli',
+    'kumho',
+    'kleber',
+    'triangle',
+    'mrf',
+    'sava',
+    'mitas',
+  ]);
+  return heuristic.has(b) || b.includes('exemplo');
 }
 
 function isPlaceholderCategory(category?: string | null): boolean {

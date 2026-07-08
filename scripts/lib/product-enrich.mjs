@@ -83,6 +83,8 @@ export function isGenericProductName(name) {
   if (/\bref\.?\s*#?\s*\d{3,}/i.test(n)) return true;
   if (/\bref\s+\d{3,}/i.test(n)) return true;
   if (new RegExp(`^(${GENERIC_BRANDS})\\s+pneu\\b`, 'i').test(n)) return true;
+  // "Continental Continental Pneu · Ref. 13071"
+  if (/^([a-zà-ú0-9][a-zà-ú0-9 .+'-]{1,30})\s+\1\s+pneu\b/i.test(n)) return true;
 
   if (!looksLikeTireName(n)) return true;
 
@@ -398,7 +400,34 @@ export const HEURISTIC_BRAND_ALIASES = new Set([
   'giti',
   'giti group',
   'giti tire',
+  'continental',
+  'nexen',
+  'hankook',
+  'barum',
+  'pirelli',
+  'kumho',
+  'kleber',
+  'triangle',
+  'mrf',
+  'sava',
+  'mitas',
+  'nexes',
+  'khumo',
 ]);
+
+/** Filtro SQL para nomes genéricos da importação NA. */
+export function genericNameSqlClause(alias = '') {
+  const col = alias ? `${alias}.name` : 'name';
+  const brands = GENERIC_BRANDS;
+  return `(
+    ${col} IS NULL OR trim(${col}) = ''
+    OR ${col} ~* '^pneu na ref'
+    OR ${col} ~* '·[[:space:]]*ref\\.[[:space:]]*[0-9]'
+    OR ${col} ~* '\\mref\\.?[[:space:]]*#?[[:space:]]*[0-9]{3,}'
+    OR ${col} ~* '^([A-Za-z0-9][A-Za-z0-9 .+-]{1,30})[[:space:]]+\\1[[:space:]]+pneu'
+    OR ${col} ~* '^(${brands})[[:space:]]+pneu\\y'
+  )`;
+}
 
 export function shouldUpdateBrand(productBrand, productName, mergedBrand) {
   if (!mergedBrand?.trim()) return false;
@@ -430,9 +459,16 @@ export function parseScriptArgs(argv) {
     noCache: false,
     ref: null,
     brand: null,
+    refs: [],
+    genericOnly: true,
+    all: false,
   };
   for (const arg of argv) {
-    if (arg === '--dry-run') opts.dryRun = true;
+    if (arg === '--all') {
+      opts.all = true;
+      opts.genericOnly = false;
+    }
+    if (arg === '--generic-only') opts.genericOnly = true;
     if (arg === '--force') opts.force = true;
     if (arg === '--no-images') opts.images = false;
     if (arg === '--skip-gtinhub') opts.skipGtinHub = true;
@@ -451,6 +487,13 @@ export function parseScriptArgs(argv) {
     if (arg.startsWith('--delay=')) opts.delayMs = Number(arg.slice(8));
     if (arg.startsWith('--category=')) opts.category = arg.slice(11);
     if (arg.startsWith('--ref=')) opts.ref = arg.slice(6);
+    if (arg.startsWith('--refs=')) {
+      opts.refs = arg
+        .slice(7)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
     if (arg.startsWith('--brand=')) opts.brand = arg.slice(8);
   }
   return opts;
