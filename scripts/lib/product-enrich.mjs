@@ -12,6 +12,27 @@ const GENERIC_BRANDS =
 
 /** Pausa global após rate limit do GTINHub (ms). */
 let gtinHubCooldownUntil = 0;
+let lastGtinHubRequestAt = 0;
+
+function gtinHubMinIntervalMs() {
+  const configured = Number(process.env.GTINHUB_MIN_INTERVAL_MS);
+  if (Number.isFinite(configured) && configured > 0) return configured;
+  // Plano grátis: ~10 pedidos/dia — espaçar pedidos reduz 429 temporários
+  return process.env.GTINHUB_API_KEY ? 2500 : 8000;
+}
+
+async function waitForGtinHubSlot() {
+  const now = Date.now();
+  if (now < gtinHubCooldownUntil) {
+    const wait = gtinHubCooldownUntil - now;
+    await sleep(wait);
+  }
+  const sinceLast = Date.now() - lastGtinHubRequestAt;
+  const minGap = gtinHubMinIntervalMs();
+  if (sinceLast < minGap) {
+    await sleep(minGap - sinceLast);
+  }
+}
 
 export function normalizeGtin(raw) {
   return String(raw || '').replace(/\D/g, '');
@@ -102,29 +123,31 @@ async function fetchFromGtinHubOnce(gtin) {
   });
 }
 
-async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 3 } = {}) {
+async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 4 } = {}) {
   if (!ignoreSkip && process.env.SKIP_GTINHUB === '1') return { skipped: true };
 
-  if (Date.now() < gtinHubCooldownUntil) {
-    return { rateLimited: true, inCooldown: true };
-  }
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await waitForGtinHubSlot();
+    lastGtinHubRequestAt = Date.now();
+
     try {
       const result = await fetchFromGtinHubOnce(gtin);
       if (!result?.rateLimited) return result;
 
-      const waitMs = result.retryAfterMs ?? Math.min(15000, 3000 * 2 ** attempt);
+      const waitMs = result.retryAfterMs ?? Math.min(120000, 8000 * 2 ** attempt);
       if (attempt < maxRetries) {
+        gtinHubCooldownUntil = Date.now() + waitMs;
         await sleep(waitMs);
         continue;
       }
 
-      gtinHubCooldownUntil = Date.now() + Math.max(waitMs, 45000);
-      return { rateLimited: true };
+      gtinHubCooldownUntil = Date.now() + Math.max(waitMs, 90000);
+      return { rateLimited: true, exhaustedRetries: true };
     } catch {
       if (attempt < maxRetries) {
-        await sleep(2000 * (attempt + 1));
+        const waitMs = 4000 * (attempt + 1);
+        gtinHubCooldownUntil = Date.now() + waitMs;
+        await sleep(waitMs);
         continue;
       }
       return null;
@@ -160,13 +183,14 @@ function isUsableTireDetail(detail) {
 
 function pickReason({ hub, upc, eprel, useEprel }) {
   if (hub?.skipped) return 'gtinhub_desativado';
-  if (hub?.rateLimited && !useEprel) return 'gtinhub_rate_limit';
+  if (upc?.rateLimited) return 'upc_rate_limit';
+  if (isUsableTireDetail(upc)) return 'nao_encontrado';
   if (hub?.name && !looksLikeTireName(hub.name)) return 'gtinhub_produto_errado';
   if (upc?.name && !looksLikeTireName(upc.name)) return 'upc_produto_errado';
+  if (useEprel && isUsableTireDetail(eprel)) return 'nao_encontrado';
   if (useEprel && eprel && !isUsableTireDetail(eprel)) return 'eprel_sem_nome_util';
-  if (useEprel && !eprel && hub?.rateLimited) return 'gtinhub_rate_limit_eprel_vazio';
-  if (useEprel) return 'eprel_nao_encontrado';
   if (hub?.rateLimited) return 'gtinhub_rate_limit';
+  if (useEprel && !eprel) return 'eprel_nao_encontrado';
   return 'nao_encontrado';
 }
 
@@ -301,7 +325,8 @@ export async function fetchFullEnrichmentByGtin(gtin, opts = {}) {
 
   if (!pickBestName(eprel) && !skipGtinHub) {
     const nameResult = await fetchOriginalNameByGtin(normalized, {
-      useEprel: false,
+      useEprel: !pickBestName(eprel),
+      eprelFirst: false,
       skipGtinHub: false,
       useCache: false,
     });
@@ -415,6 +440,9 @@ export function parseScriptArgs(argv) {
       opts.onlyGtinHub = true;
       opts.skipGtinHub = false;
       opts.eprelFirst = false;
+      if (!process.argv.some((a) => a.startsWith('--delay='))) {
+        opts.delayMs = Math.max(opts.delayMs, 10000);
+      }
     }
     if (arg === '--no-eprel-first') opts.eprelFirst = false;
     if (arg === '--no-cache') opts.noCache = true;

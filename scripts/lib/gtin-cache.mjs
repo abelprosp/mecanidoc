@@ -33,7 +33,8 @@ export function getGtinCache(gtin) {
 
 export function setGtinCache(gtin, detail) {
   const key = String(gtin || '').replace(/\D/g, '');
-  if (!key || !detail?.name) return;
+  const hasName = Boolean(detail?.name || detail?.fullEnrich?.name);
+  if (!key || !hasName) return;
   load()[key] = {
     ...detail,
     cachedAt: new Date().toISOString(),
