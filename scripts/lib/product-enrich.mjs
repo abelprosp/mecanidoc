@@ -59,6 +59,8 @@ export function isGenericProductName(name) {
   if (lower.includes('exemplo') || lower.includes('pneu na')) return true;
   if (/^pneu na ref\./i.test(n)) return true;
   if (/·\s*ref\.\s*\d+/i.test(n)) return true;
+  if (/\bref\.?\s*#?\s*\d{3,}/i.test(n)) return true;
+  if (/\bref\s+\d{3,}/i.test(n)) return true;
   if (new RegExp(`^(${GENERIC_BRANDS})\\s+pneu\\b`, 'i').test(n)) return true;
 
   if (!looksLikeTireName(n)) return true;
@@ -252,6 +254,117 @@ export async function fetchEprelNameByGtin(gtin) {
   const detail = await fetchEprelProductByGtin(gtin);
   if (!detail?.name || isGenericProductName(detail.name)) return null;
   return detail;
+}
+
+/** EPREL completo (mesmo sem nome útil — para medidas/labels). */
+export async function fetchEprelFullByGtin(gtin) {
+  if (!process.env.EPREL_API_KEY?.trim()) return null;
+  return fetchEprelProductByGtin(gtin);
+}
+
+function pickBestName(...candidates) {
+  for (const c of candidates) {
+    if (c?.name && isUsableTireDetail(c)) return c;
+  }
+  for (const c of candidates) {
+    if (c?.name && !isGenericProductName(c.name) && looksLikeTireName(c.name)) return c;
+  }
+  return null;
+}
+
+/**
+ * Enriquecimento completo por EAN: EPREL + nome real (GTINHub/UPC).
+ * Uma única passagem por produto — funde todas as fontes.
+ */
+export async function fetchFullEnrichmentByGtin(gtin, opts = {}) {
+  const normalized = normalizeGtin(gtin);
+  if (normalized.length < 8) return { merged: null, reason: 'ean_invalido', sources: [] };
+
+  const { useCache = true, skipGtinHub = false } = opts;
+
+  if (useCache) {
+    const cached = getGtinCache(normalized);
+    if (cached?.fullEnrich) {
+      return { merged: cached.fullEnrich, reason: null, fromCache: true, sources: cached.sources || [] };
+    }
+  }
+
+  const sources = [];
+  let eprel = null;
+  let nameDetail = null;
+  let failReason = null;
+
+  if (process.env.EPREL_API_KEY?.trim()) {
+    eprel = await fetchEprelFullByGtin(normalized);
+    if (eprel?.registrationNumber) sources.push('eprel');
+  }
+
+  if (!pickBestName(eprel) && !skipGtinHub) {
+    const nameResult = await fetchOriginalNameByGtin(normalized, {
+      useEprel: false,
+      skipGtinHub: false,
+      useCache: false,
+    });
+    if (nameResult.detail?.source && !sources.includes(nameResult.detail.source)) {
+      sources.push(nameResult.detail.source);
+    }
+    nameDetail = nameResult.detail;
+    if (!nameDetail) failReason = nameResult.reason;
+  } else if (!pickBestName(eprel) && skipGtinHub) {
+    failReason = 'gtinhub_desativado';
+  }
+
+  const bestName = pickBestName(eprel, nameDetail);
+  if (!bestName?.name) {
+    return { merged: null, reason: failReason || (eprel ? 'eprel_sem_nome_util' : 'nao_encontrado'), sources, eprel };
+  }
+
+  const merged = {
+    source: bestName.source,
+    sources: [...sources],
+    name: bestName.name,
+    brand: bestName.brand || eprel?.brand || nameDetail?.brand || null,
+    description: bestName.description || eprel?.description || nameDetail?.description || null,
+    category: eprel?.category || nameDetail?.category || null,
+    imageUrl: nameDetail?.imageUrl || null,
+    specs: {
+      ...(nameDetail?.specs || {}),
+      ...(eprel?.specs || {}),
+    },
+    labels: eprel?.labels || null,
+    registrationNumber: eprel?.registrationNumber || null,
+    productGroup: eprel?.productGroup || 'tyres',
+    tyreClass: eprel?.tyreClass || null,
+  };
+
+  if (!merged.specs?.width && merged.name) {
+    Object.assign(merged.specs, parseTireSpecsFromText(merged.name));
+  }
+
+  if (useCache) {
+    setGtinCache(normalized, { fullEnrich: merged, sources: merged.sources });
+  }
+
+  return { merged, reason: null, sources: merged.sources, eprel };
+}
+
+/** Produto precisa de enriquecimento (nome genérico ou medidas em falta). */
+export function needsCatalogEnrichment(product, { force = false } = {}) {
+  if (force) return true;
+  if (isGenericProductName(product.name)) return true;
+  const specs = typeof product.specs === 'object' && product.specs ? product.specs : {};
+  const missingDims = !specs.width || !specs.height || !specs.diameter;
+  if (missingDims && !product.external_metadata?.catalog_enrich?.enrichedAt) return true;
+  return false;
+}
+
+export function shouldUpdateCategory(current, patchCategory) {
+  if (!patchCategory) return false;
+  if (!current) return true;
+  if (current === patchCategory) return false;
+  if (current === 'Auto' && patchCategory !== 'Auto') return true;
+  if (patchCategory === 'Camion' || patchCategory === 'Tracteur') return true;
+  return false;
 }
 
 export function hasRealImage(images) {

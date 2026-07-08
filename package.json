@@ -33,6 +33,8 @@
     "fix:product-names:vps": "bash scripts/vps-import.sh fix-product-names.mjs",
     "enrich:eprel": "node scripts/enrich-eprel.mjs",
     "enrich:eprel:vps": "bash scripts/vps-import.sh enrich-eprel.mjs",
+    "enrich:catalog": "node scripts/enrich-catalog.mjs",
+    "enrich:catalog:vps": "bash scripts/vps-import.sh enrich-catalog.mjs",
     "fetch:na-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:eprel-images": "node scripts/fetch-eprel-images.mjs",
     "enrich:products": "node scripts/enrich-products.mjs"
