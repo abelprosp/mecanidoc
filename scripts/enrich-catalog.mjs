@@ -23,6 +23,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadEnvFiles } from './lib/load-env.mjs';
+import { printEnrichEnvStatus } from './lib/env-status.mjs';
 import { fetchEprelLabelPng } from './lib/eprel-client.mjs';
 import { flushGtinCache, sleep } from './lib/gtin-cache.mjs';
 import {
@@ -174,6 +175,8 @@ function buildProductPatch(product, merged, imagePath) {
 async function main() {
   const opts = parseScriptArgs(process.argv.slice(2));
 
+  printEnrichEnvStatus();
+
   if (!process.env.EPREL_API_KEY?.trim()) {
     console.warn('Aviso: EPREL_API_KEY não definida — medidas/labels EPREL ficarão limitadas.\n');
   }
@@ -252,9 +255,10 @@ async function main() {
 
       let resolved = null;
       let rateLimitRetries = 0;
-      const maxRateLimitRetries = opts.onlyGtinHub ? 2 : 1;
+      const hasGtinHubKey = Boolean(process.env.GTINHUB_API_KEY?.trim());
+      const maxRateLimitRetries = hasGtinHubKey ? (opts.onlyGtinHub ? 2 : 1) : 0;
 
-      const retryable = new Set(['gtinhub_rate_limit']);
+      const retryable = new Set(hasGtinHubKey ? ['gtinhub_rate_limit'] : []);
 
       while (rateLimitRetries <= maxRateLimitRetries) {
         resolved = await resolveProductName({
@@ -265,8 +269,14 @@ async function main() {
           useCache: !opts.noCache,
         });
         if (resolved.merged?.name) break;
-        if (resolved.reason === 'gtinhub_quota_diaria') {
+        if (
+          resolved.reason === 'gtinhub_quota_diaria' ||
+          (!hasGtinHubKey && resolved.reason === 'gtinhub_rate_limit')
+        ) {
           quotaStop = true;
+          if (resolved.reason === 'gtinhub_rate_limit') {
+            resolved.reason = 'gtinhub_quota_diaria';
+          }
           break;
         }
         if (!retryable.has(resolved.reason)) break;

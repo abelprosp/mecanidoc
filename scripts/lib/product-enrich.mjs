@@ -21,7 +21,10 @@ export function isGtinHubDailyQuotaExhausted() {
   return gtinHubDailyQuotaExhausted;
 }
 
-function isGtinHubDailyQuotaError(json) {
+function isGtinHubDailyQuotaError(json, res) {
+  // Plano grátis: qualquer 429 é quota diária (não adianta retry)
+  if (res?.status === 429 && !process.env.GTINHUB_API_KEY?.trim()) return true;
+
   const err = json?.error;
   if (!err || err.error !== 'rate_limit_exceeded') return false;
   const msg = String(err.message || '').toLowerCase();
@@ -222,7 +225,7 @@ async function fetchFromGtinHubOnce(gtin) {
 
   if (!res.ok || json?.error) {
     if (res.status === 429 || json?.error?.error === 'rate_limit_exceeded') {
-      const dailyQuotaExhausted = isGtinHubDailyQuotaError(json);
+      const dailyQuotaExhausted = isGtinHubDailyQuotaError(json, res);
       const retryAfter = Number(res.headers.get('retry-after'));
       return {
         rateLimited: true,
@@ -253,7 +256,10 @@ async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 4 } = {
     return { rateLimited: true, dailyQuotaExhausted: true, inCooldown: true };
   }
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  const effectiveMaxRetries =
+    !process.env.GTINHUB_API_KEY?.trim() ? 0 : maxRetries;
+
+  for (let attempt = 0; attempt <= effectiveMaxRetries; attempt++) {
     await waitForGtinHubSlot();
     lastGtinHubRequestAt = Date.now();
 
@@ -459,6 +465,9 @@ export async function fetchFullEnrichmentByGtin(gtin, opts = {}) {
     }
     nameDetail = nameResult.detail;
     if (!nameDetail) failReason = nameResult.reason;
+    if (nameResult.reason === 'gtinhub_quota_diaria') {
+      return { merged: null, reason: 'gtinhub_quota_diaria', sources, eprel };
+    }
   } else if (!pickBestName(eprel) && skipGtinHub) {
     failReason = 'gtinhub_desativado';
   }

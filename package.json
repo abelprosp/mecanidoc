@@ -39,6 +39,8 @@
     "enrich:catalog:vps": "bash scripts/vps-import.sh enrich-catalog.mjs",
     "enrich:generic": "node scripts/enrich-catalog.mjs --supplier=neumaticos_andres --generic-only --skip-upc",
     "enrich:generic:vps": "bash scripts/vps-import.sh enrich-catalog.mjs --supplier=neumaticos_andres --generic-only --skip-upc",
+    "probe:gtinhub": "node scripts/probe-gtinhub.mjs",
+    "probe:gtinhub:vps": "bash scripts/vps-import.sh probe-gtinhub.mjs",
     "probe:product-name": "node scripts/probe-product-name.mjs",
     "fetch:na-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:eprel-images": "node scripts/fetch-eprel-images.mjs",
