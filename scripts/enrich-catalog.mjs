@@ -87,6 +87,7 @@ function buildProductPatch(product, merged, imagePath) {
     ...(typeof product.labels === 'object' && product.labels ? product.labels : {}),
     ...(merged.labels || {}),
   };
+  if (imagePath) labels.label_url = imagePath;
 
   const updateName =
     merged.name && (isGenericProductName(product.name) || product.name !== merged.name);

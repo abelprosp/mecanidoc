@@ -130,17 +130,23 @@ async function main() {
         },
       };
 
+      const mergedLabels = {
+        ...(typeof product.labels === 'object' && product.labels ? product.labels : {}),
+        ...(eprel.labels || {}),
+        label_url: imagePath,
+      };
+
       await client.query(
         `UPDATE products SET
            images = $2::text[],
-           labels = COALESCE($3::jsonb, labels),
+           labels = $3::jsonb,
            specs = COALESCE($4::jsonb, specs),
            external_metadata = $5::jsonb
          WHERE id = $1`,
         [
           product.id,
           [imagePath],
-          eprel.labels ? JSON.stringify({ ...(product.labels || {}), ...eprel.labels }) : null,
+          JSON.stringify(mergedLabels),
           eprel.specs ? JSON.stringify({ ...(product.specs || {}), ...eprel.specs }) : null,
           JSON.stringify(meta),
         ]

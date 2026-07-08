@@ -132,6 +132,7 @@ async function main() {
         ...(typeof product.labels === 'object' && product.labels ? product.labels : {}),
         ...(eprel.labels || {}),
       };
+      if (imagePath) labels.label_url = imagePath;
 
       let imagePath = null;
       if (opts.images && !hasRealImage(product.images)) {

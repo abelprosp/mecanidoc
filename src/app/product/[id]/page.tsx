@@ -40,6 +40,7 @@ import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
 import RelatedProducts from '@/components/RelatedProducts';
 import CategoryTooltip from '@/components/CategoryTooltip';
+import { buildEprelLabelApiUrl, resolveProductMedia } from '@/lib/product-images';
 
 function ProductPriceDisplay({ basePrice, category }: { basePrice: number | string; category?: string }) {
   const price = Number(basePrice) || 0;
@@ -188,6 +189,13 @@ export default function ProductPage() {
   const fuelColor = (labels.fuel === 'A' || labels.fuel === 'B') ? 'bg-green-500 border-green-500' : (labels.fuel === 'C' || labels.fuel === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
   const wetColor = (labels.wet === 'A' || labels.wet === 'B') ? 'bg-green-500 border-green-500' : (labels.wet === 'C' || labels.wet === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
 
+  const media = resolveProductMedia(product);
+  const mainImage =
+    media.tireImage ||
+    'https://placehold.co/400x400/f3f4f6/d1d5db?text=Pneu';
+  const eprelLabelSrc =
+    media.eprelLabelImage || buildEprelLabelApiUrl(product) || null;
+
   return (
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
@@ -216,7 +224,7 @@ export default function ProductPage() {
                 {/* Imagem do pneu - com padding interno para não sobrepor marca */}
                 <div className="flex-1 w-full h-full flex items-center justify-center pt-10 md:pt-8 md:pl-8">
                   <img 
-                    src={product.images?.[0] || 'https://placehold.co/400x400/f3f4f6/d1d5db?text=Tire+Image'} 
+                    src={mainImage} 
                     alt={product.name} 
                     className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] md:w-full md:h-full object-contain mix-blend-multiply scale-[1.35] sm:scale-[1.45] md:scale-100"
                   />
@@ -391,29 +399,24 @@ export default function ProductPage() {
             <div className="text-gray-600 text-xs leading-relaxed space-y-4">
               <p>{product.description || "Aucune description disponible pour ce produit."}</p>
             </div>
-            
-            {/* Étiquette Image */}
-            {product.labels?.label_url && (
+
+            {eprelLabelSrc && (
               <div className="mt-6">
-                <h4 className="font-bold text-gray-700 text-sm mb-3">Étiquette du produit</h4>
-                <div className="w-full border border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-4">
+                <h4 className="font-bold text-gray-700 text-sm mb-3">
+                  Étiquette énergétique UE (EPREL)
+                </h4>
+                <div className="w-full max-w-md border border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-3">
                   <img
-                    src={product.labels.label_url}
-                    alt="Étiquette du produit"
+                    src={eprelLabelSrc}
+                    alt="Étiquette énergétique UE EPREL"
                     className="max-w-full h-auto object-contain"
-                    onError={(e) => {
-                      // Se a imagem não carregar, tentar abrir em nova aba
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const link = document.createElement('a');
-                      link.href = product.labels.label_url;
-                      link.target = '_blank';
-                      link.textContent = 'Ouvrir l\'étiquette';
-                      link.className = 'text-blue-600 hover:underline';
-                      target.parentElement?.appendChild(link);
-                    }}
                   />
                 </div>
+                {(labels.fuel || labels.wet || labels.noise) && (
+                  <p className="text-[10px] text-gray-500 mt-2">
+                    Consommation {labels.fuel || '-'} · Adhérence mouillé {labels.wet || '-'} · Bruit {labels.noise || '-'} dB
+                  </p>
+                )}
               </div>
             )}
           </div>
