@@ -31,6 +31,7 @@ import {
   getDbUrl,
   hasRealImage,
   isGenericProductName,
+  isGtinHubDailyQuotaExhausted,
   needsCatalogEnrichment,
   normalizeGtin,
   parseScriptArgs,
@@ -50,7 +51,8 @@ const uploadRoot = process.env.UPLOAD_DIR || path.join(ROOT, 'uploads');
 const REASON_MSG = {
   ean_invalido: 'EAN inválido',
   gtinhub_desativado: 'GTINHub desativado',
-  gtinhub_rate_limit: 'GTINHub rate limit (quota diária ou 429)',
+  gtinhub_rate_limit: 'GTINHub rate limit temporário (429)',
+  gtinhub_quota_diaria: 'GTINHub quota diária esgotada (~10/dia sem chave)',
   upc_rate_limit: 'UPCitemdb rate limit (use --skip-upc e GTINHub)',
   upc_desativado: 'UPC desativado (--skip-upc)',
   gtinhub_rate_limit_eprel_vazio: 'GTINHub bloqueou e EPREL vazio',
@@ -218,8 +220,15 @@ async function main() {
 
     console.log(`Produtos na query: ${rows.length} | nomes genéricos a enriquecer: ${targets.length}`);
     if (opts.genericOnly) console.log('Filtro: só nomes genéricos (Pneu NA Ref., Marca Pneu · Ref., etc.)');
-    console.log('Algoritmo: NA getstock → EAN → EPREL + GTINHub + UPC');
-    console.log(`Intervalo: ${opts.delayMs}ms | imagens EPREL: ${opts.images ? 'sim' : 'não'}\n`);
+    const providers = ['EPREL', 'GTINHub'];
+    if (!opts.skipUpc) providers.push('UPC');
+    console.log(`Algoritmo: NA getstock → EAN → ${providers.join(' + ')}`);
+    console.log(`Intervalo: ${opts.delayMs}ms | imagens EPREL: ${opts.images ? 'sim' : 'não'}`);
+    if (!process.env.GTINHUB_API_KEY?.trim() && !opts.skipGtinHub) {
+      console.log('GTINHub: plano grátis ~10 pedidos/dia por IP — após esgotar, pare e retome amanhã ou use GTINHUB_API_KEY\n');
+    } else {
+      console.log('');
+    }
     if (opts.dryRun) console.log('Modo dry-run — nada será gravado.\n');
 
     let ok = 0;
@@ -227,17 +236,25 @@ async function main() {
     let fail = 0;
     let noImage = 0;
 
+    let quotaStop = false;
+
     for (const product of targets) {
       if (stopping) break;
+      if (quotaStop || isGtinHubDailyQuotaExhausted()) {
+        quotaStop = true;
+        fail++;
+        reasons.gtinhub_quota_diaria = (reasons.gtinhub_quota_diaria || 0) + 1;
+        continue;
+      }
 
       const ean = normalizeGtin(product.ean);
       const naRef = product.external_product_id || product.specs?.na_ref || null;
 
       let resolved = null;
       let rateLimitRetries = 0;
-      const maxRateLimitRetries = opts.onlyGtinHub ? 4 : 2;
+      const maxRateLimitRetries = opts.onlyGtinHub ? 2 : 1;
 
-      const retryable = new Set(['gtinhub_rate_limit', 'upc_rate_limit']);
+      const retryable = new Set(['gtinhub_rate_limit']);
 
       while (rateLimitRetries <= maxRateLimitRetries) {
         resolved = await resolveProductName({
@@ -248,15 +265,18 @@ async function main() {
           useCache: !opts.noCache,
         });
         if (resolved.merged?.name) break;
+        if (resolved.reason === 'gtinhub_quota_diaria') {
+          quotaStop = true;
+          break;
+        }
         if (!retryable.has(resolved.reason)) break;
 
         rateLimitRetries++;
         if (rateLimitRetries > maxRateLimitRetries) break;
 
-        const waitMs = Math.min(180000, 45000 * rateLimitRetries);
-        const label = resolved.reason === 'upc_rate_limit' ? 'UPC/GTINHub' : 'GTINHub';
+        const waitMs = Math.min(60000, 20000 * rateLimitRetries);
         console.log(
-          `⏳ ${ean}: ${label} bloqueou — aguardar ${Math.round(waitMs / 1000)}s (${rateLimitRetries}/${maxRateLimitRetries})...`
+          `⏳ ${ean}: GTINHub 429 temporário — aguardar ${Math.round(waitMs / 1000)}s (${rateLimitRetries}/${maxRateLimitRetries})...`
         );
         await sleep(waitMs);
       }
@@ -275,6 +295,19 @@ async function main() {
         reasons[key] = (reasons[key] || 0) + 1;
         if (fail <= 12) {
           console.log(`— ${ean}: ${REASON_MSG[key] || key}`);
+        }
+        if (key === 'gtinhub_quota_diaria' && quotaStop) {
+          const remaining = targets.length - (ok + skip + fail);
+          if (remaining > 0) {
+            console.log(
+              `\n⛔ GTINHub quota diária esgotada — ${remaining} produto(s) ignorado(s) neste lote.`
+            );
+            console.log('   Soluções:');
+            console.log('   1. Adicionar GTINHUB_API_KEY no .env (https://gtinhub.com/api)');
+            console.log('   2. Retomar amanhã: npm run enrich:generic:vps -- --limit=8 --delay=10000');
+            console.log('   3. Lotes pequenos: --limit=8 (não --limit=20)\n');
+          }
+          break;
         }
         await new Promise((r) => setTimeout(r, opts.delayMs));
         continue;
@@ -382,9 +415,9 @@ async function main() {
 
     if (fail > 0) {
       console.log('\nDicas quando APIs bloqueiam:');
-      console.log('  1. GTINHUB_API_KEY no .env (principal para EANs europeus)');
-      console.log('  2. npm run enrich:generic:vps -- --delay=10000 --limit=8');
-      console.log('  3. Não use --with-upc — UPC trial é quota baixa e pouco útil na EU');
+      console.log('  1. GTINHUB_API_KEY no .env — resolve quota diária (https://gtinhub.com/api)');
+      console.log('  2. Sem chave: máx. ~10/dia → npm run enrich:generic:vps -- --limit=8 --delay=10000');
+      console.log('  3. Não use --limit=20 sem GTINHUB_API_KEY — quota esgota a meio');
       console.log('  4. Retomar amanhã — cache em .cache/gtin-names.json');
     }
 

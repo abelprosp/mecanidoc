@@ -14,6 +14,23 @@ const GENERIC_BRANDS =
 /** Pausa global após rate limit do GTINHub (ms). */
 let gtinHubCooldownUntil = 0;
 let lastGtinHubRequestAt = 0;
+/** Quota diária grátis esgotada — não adianta retry até amanhã ou API key. */
+let gtinHubDailyQuotaExhausted = false;
+
+export function isGtinHubDailyQuotaExhausted() {
+  return gtinHubDailyQuotaExhausted;
+}
+
+function isGtinHubDailyQuotaError(json) {
+  const err = json?.error;
+  if (!err || err.error !== 'rate_limit_exceeded') return false;
+  const msg = String(err.message || '').toLowerCase();
+  if (msg.includes('free request limit') || msg.includes('sign up for an api key')) return true;
+  if (typeof err.limit === 'number' && typeof err.used === 'number' && err.used >= err.limit) {
+    return true;
+  }
+  return false;
+}
 
 /** Pausa global após rate limit do UPCitemdb (ms). */
 let upcCooldownUntil = 0;
@@ -201,13 +218,23 @@ function gtinHubHeaders() {
 
 async function fetchFromGtinHubOnce(gtin) {
   const res = await fetch(`${GTINHUB}/product/${gtin}`, { headers: gtinHubHeaders() });
-  if (res.status === 429) {
-    const retryAfter = Number(res.headers.get('retry-after'));
-    return { rateLimited: true, retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : null };
+  const json = await res.json().catch(() => null);
+
+  if (!res.ok || json?.error) {
+    if (res.status === 429 || json?.error?.error === 'rate_limit_exceeded') {
+      const dailyQuotaExhausted = isGtinHubDailyQuotaError(json);
+      const retryAfter = Number(res.headers.get('retry-after'));
+      return {
+        rateLimited: true,
+        dailyQuotaExhausted,
+        retryAfterMs: Number.isFinite(retryAfter) ? retryAfter * 1000 : null,
+        message: json?.error?.message || null,
+      };
+    }
+    return null;
   }
-  if (!res.ok) return null;
-  const json = await res.json();
-  if (!json.found || !json.product?.name) return null;
+
+  if (!json?.found || !json.product?.name) return null;
   const p = json.product;
   return applyParsedSpecs({
     source: 'gtinhub',
@@ -222,6 +249,9 @@ async function fetchFromGtinHubOnce(gtin) {
 
 async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 4 } = {}) {
   if (!ignoreSkip && process.env.SKIP_GTINHUB === '1') return { skipped: true };
+  if (gtinHubDailyQuotaExhausted) {
+    return { rateLimited: true, dailyQuotaExhausted: true, inCooldown: true };
+  }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     await waitForGtinHubSlot();
@@ -230,6 +260,11 @@ async function fetchFromGtinHub(gtin, { ignoreSkip = false, maxRetries = 4 } = {
     try {
       const result = await fetchFromGtinHubOnce(gtin);
       if (!result?.rateLimited) return result;
+
+      if (result.dailyQuotaExhausted) {
+        gtinHubDailyQuotaExhausted = true;
+        return { rateLimited: true, dailyQuotaExhausted: true };
+      }
 
       const waitMs = result.retryAfterMs ?? Math.min(120000, 8000 * 2 ** attempt);
       if (attempt < maxRetries) {
@@ -260,6 +295,7 @@ function isUsableTireDetail(detail) {
 function pickReason({ hub, upc, eprel, useEprel }) {
   if (hub?.skipped) return 'gtinhub_desativado';
   if (upc?.skipped) return 'upc_desativado';
+  if (hub?.dailyQuotaExhausted) return 'gtinhub_quota_diaria';
   if (hub?.rateLimited) return 'gtinhub_rate_limit';
   if (upc?.rateLimited) return 'upc_rate_limit';
   if (hub?.name && !looksLikeTireName(hub.name)) return 'gtinhub_produto_errado';
@@ -338,6 +374,9 @@ export async function fetchOriginalNameByGtin(
   }
 
   // GTINHub bloqueado → não gastar quota UPC (pneus EU estão no GTINHub/EPREL)
+  if (hub?.dailyQuotaExhausted) {
+    return { detail: null, reason: 'gtinhub_quota_diaria' };
+  }
   if (hub?.rateLimited) {
     return { detail: null, reason: 'gtinhub_rate_limit' };
   }
