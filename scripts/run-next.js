@@ -11,6 +11,19 @@ const nodeModules = path.join(projectRoot, 'node_modules');
 process.chdir(projectRoot);
 process.env.NODE_PATH = nodeModules;
 
+// Next.js carrega .env sozinho; avisar cedo se o ficheiro falta (causa comum de login falhar
+// após seed: seed usa default localhost, app sem .env aponta para outra BD ou falha).
+const fs = require('fs');
+const envPath = path.join(projectRoot, '.env');
+const envLocalPath = path.join(projectRoot, '.env.local');
+if (!fs.existsSync(envPath) && !fs.existsSync(envLocalPath)) {
+  console.warn(
+    '\n  Aviso: sem .env / .env.local na raiz. Copie .env.example → .env\n' +
+      '  (DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc)\n' +
+      '  Sem isto o login pode falhar mesmo após npm run seed:master-admin.\n'
+  );
+}
+
 const cmd = process.argv[2] || 'dev';
 const port = process.env.PORT || '3002';
 const isWin = process.platform === 'win32';
@@ -28,5 +41,6 @@ child.on('close', (code) => {
 
 if (cmd === 'dev') {
   console.log(`\n  MecaniDoc dev → http://localhost:${port}`);
+  console.log(`  Login → http://localhost:${port}/auth/login`);
   console.log(`  Pneus moto (exemplo) → http://localhost:${port}/moto\n`);
 }

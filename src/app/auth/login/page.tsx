@@ -27,13 +27,18 @@ export default function LoginPage() {
       });
 
       if (signInError) {
-        // Mensagens mais claras para erros comuns do Supabase (400)
+        // Mensagens mais claras para erros comuns
         const msg = signInError.message;
         if (msg?.toLowerCase().includes('invalid login credentials')) {
           throw new Error('Email ou mot de passe incorrect.');
         }
         if (msg?.toLowerCase().includes('email not confirmed')) {
           throw new Error('Veuillez confirmer votre email (vérifiez votre boîte de réception).');
+        }
+        if (/DATABASE_URL|AUTH_SECRET|ECONNREFUSED|ENOTFOUND/i.test(msg || '')) {
+          throw new Error(
+            'Configuration serveur (base de données). Vérifiez le fichier .env et que Postgres tourne.'
+          );
         }
         throw signInError;
       }

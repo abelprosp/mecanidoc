@@ -114,11 +114,31 @@ async function main() {
     );
 
     const user = rows[0];
+    const { rows: hashRows } = await client.query(
+      'SELECT password_hash FROM public.users WHERE id = $1',
+      [userId]
+    );
+    const storedHash = hashRows[0]?.password_hash || '';
+    const passwordOk = storedHash ? await bcrypt.compare(password, storedHash) : false;
+
     console.log(`Master admin ${action}:`);
     console.log(`  id:    ${user.id}`);
     console.log(`  email: ${user.email}`);
     console.log(`  name:  ${user.full_name}`);
     console.log(`  role:  ${user.role}`);
+    console.log(`  db:    ${dbUrl.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@')}`);
+    console.log(`  password check: ${passwordOk ? 'ok' : 'FAILED'}`);
+    if (!passwordOk) {
+      throw new Error('Hash gravado não verifica a password — abort.');
+    }
+    console.log('');
+    console.log('Login local (mesma BD que este seed):');
+    console.log('  1. Garanta .env na raiz com:');
+    console.log('     DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc');
+    console.log('     AUTH_SECRET=... (mín. 16 chars)');
+    console.log('  2. npm run docker:postgres');
+    console.log('  3. npm run dev  →  http://localhost:3002/auth/login');
+    console.log(`  4. Email: ${email}`);
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     throw err;

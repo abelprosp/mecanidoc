@@ -19,6 +19,12 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Erro no login';
-    return NextResponse.json({ error: msg }, { status: 401 });
+    // Credenciais inválidas → 401 genérico. Erros de config/BD → 503 para não
+    // parecer "password errada" quando falta DATABASE_URL / AUTH_SECRET / Postgres.
+    const isCredentials = /invalid login credentials/i.test(msg);
+    const isConfig =
+      /DATABASE_URL|AUTH_SECRET|JWT_SECRET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN/i.test(msg);
+    const status = isCredentials ? 401 : isConfig ? 503 : 401;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
