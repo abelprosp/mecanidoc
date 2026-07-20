@@ -84,6 +84,40 @@ Credenciais por omissão do seed (override com `MASTER_ADMIN_EMAIL` / `MASTER_AD
 
 Não corra `seed:master-admin` no Mac à espera de fazer login na VPS.
 
+### Checklist rápido (VPS em IP, ex. `http://72.61.58.208:3000`)
+
+Na pasta do projeto **na VPS** (SSH):
+
+```bash
+cd /caminho/do/mecanidoc   # pasta com docker-compose.yml
+
+# 1) .env mínimo
+grep -q '^AUTH_SECRET=' .env 2>/dev/null || echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env
+# ajuste/garanta a URL pública HTTP:
+grep -q '^NEXT_PUBLIC_APP_URL=' .env && sed -i.bak 's|^NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=http://72.61.58.208:3000|' .env \
+  || echo 'NEXT_PUBLIC_APP_URL=http://72.61.58.208:3000' >> .env
+
+# 2) Postgres + app
+docker compose up -d
+docker compose ps
+
+# 3) Criar/atualizar master admin NA BD da VPS
+MASTER_ADMIN_EMAIL=joaogodinho422@gmail.com \
+MASTER_ADMIN_PASSWORD='Mecanidoc2023-' \
+npm run seed:master-admin:vps
+
+# 4) Recriar app para ler .env (e, se atualizou código do cookie HTTP, rebuild)
+docker compose up -d --force-recreate app
+# Se puxou código novo: docker compose up -d --build --force-recreate app
+
+# 5) Testar login
+curl -sS -X POST http://127.0.0.1:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"joaogodinho422@gmail.com","password":"Mecanidoc2023-"}'
+# Esperado: HTTP 200 com {"user":{...}}
+```
+
+
 ## Para o Next.js ler o `.env`
 
 1. **Ficheiro no sítio certo**  

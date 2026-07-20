@@ -29,6 +29,12 @@ fi
 
 # Variáveis do .env / .env.local
 ENV_ARGS=(-e "DATABASE_URL=postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc")
+# Propagar overrides do shell (ex.: MASTER_ADMIN_EMAIL=... npm run seed:master-admin:vps)
+for key in MASTER_ADMIN_EMAIL MASTER_ADMIN_PASSWORD MASTER_ADMIN_NAME; do
+  if [[ -n "${!key:-}" ]]; then
+    ENV_ARGS+=(-e "${key}=${!key}")
+  fi
+done
 for f in .env .env.local; do
   [[ -f "$f" ]] || continue
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -39,6 +45,10 @@ for f in .env .env.local; do
     val="${line#*=}"
     key="$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     [[ "$key" == "DATABASE_URL" ]] && continue
+    # Não sobrescrever overrides já passados pelo shell
+    if [[ "$key" == MASTER_ADMIN_EMAIL || "$key" == MASTER_ADMIN_PASSWORD || "$key" == MASTER_ADMIN_NAME ]]; then
+      [[ -n "${!key:-}" ]] && continue
+    fi
     val="${val%\"}"; val="${val#\"}"
     val="${val%\'}"; val="${val#\'}"
     ENV_ARGS+=(-e "${key}=${val}")
@@ -67,10 +77,27 @@ if [[ "$SCRIPT" == "seed-brand-logos.mjs" ]]; then
   fi
 fi
 
-docker run --rm \
-  --network "$NETWORK" \
-  "${ENV_ARGS[@]}" \
-  "${MOUNT_ARGS[@]}" \
-  -w /workspace \
-  node:20-alpine \
-  node "scripts/$SCRIPT" "$@"
+# seed/scripts precisam de pg + bcryptjs; na VPS pode não haver node_modules no host
+NEED_DEPS=0
+if [[ ! -d "$ROOT/node_modules/pg" || ! -d "$ROOT/node_modules/bcryptjs" ]]; then
+  NEED_DEPS=1
+fi
+
+if [[ "$NEED_DEPS" -eq 1 ]]; then
+  echo "→ node_modules incompleto no host; a instalar pg+bcryptjs no contentor"
+  docker run --rm \
+    --network "$NETWORK" \
+    "${ENV_ARGS[@]}" \
+    "${MOUNT_ARGS[@]}" \
+    -w /workspace \
+    node:20-alpine \
+    sh -c "npm install --no-save --omit=dev pg bcryptjs >/dev/null && node \"scripts/$SCRIPT\" $*"
+else
+  docker run --rm \
+    --network "$NETWORK" \
+    "${ENV_ARGS[@]}" \
+    "${MOUNT_ARGS[@]}" \
+    -w /workspace \
+    node:20-alpine \
+    node "scripts/$SCRIPT" "$@"
+fi

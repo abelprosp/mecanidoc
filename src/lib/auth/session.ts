@@ -45,10 +45,18 @@ export async function getSessionUserFromCookies(): Promise<SessionUser | null> {
   return verifySessionToken(token);
 }
 
+function cookieSecure(): boolean {
+  // Em produção HTTP (ex.: http://IP:3000 na VPS) Secure=true impede o browser de guardar o cookie.
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim().toLowerCase();
+  if (appUrl.startsWith('http://')) return false;
+  if (appUrl.startsWith('https://')) return true;
+  return process.env.NODE_ENV === 'production';
+}
+
 export function sessionCookieOptions(maxAgeSeconds = SESSION_DAYS * 24 * 60 * 60) {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     sameSite: 'lax' as const,
     path: '/',
     maxAge: maxAgeSeconds,
