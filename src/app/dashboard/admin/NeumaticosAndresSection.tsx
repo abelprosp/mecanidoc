@@ -2,12 +2,33 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Loader2, RefreshCw, Truck, PackageSearch, CheckCircle2, AlertCircle, Wifi, Sparkles } from 'lucide-react';
+import {
+  Loader2,
+  RefreshCw,
+  Truck,
+  PackageSearch,
+  CheckCircle2,
+  AlertCircle,
+  Wifi,
+  Sparkles,
+  Download,
+  KeyRound,
+  Link2,
+} from 'lucide-react';
 
 type SetupStatus = {
   ok?: boolean;
   checks?: Record<string, boolean | string | number>;
   nextSteps?: string[];
+};
+
+type CredStatus = {
+  configured?: boolean;
+  source?: 'env' | 'database' | 'none';
+  login?: string | null;
+  hasPassword?: boolean;
+  baseUrl?: string;
+  testMode?: boolean;
 };
 
 export default function NeumaticosAndresSection() {
@@ -17,6 +38,8 @@ export default function NeumaticosAndresSection() {
   const [saving, setSaving] = useState(false);
   const [syncingStock, setSyncingStock] = useState(false);
   const [syncingTracking, setSyncingTracking] = useState(false);
+  const [importingCatalog, setImportingCatalog] = useState(false);
+  const [savingCreds, setSavingCreds] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [stats, setStats] = useState({ products: 0, pendingOrders: 0 });
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
@@ -26,6 +49,21 @@ export default function NeumaticosAndresSection() {
   const [gtinEnrichConfigured, setGtinEnrichConfigured] = useState<boolean | null>(null);
   const [enrichingGtin, setEnrichingGtin] = useState(false);
   const [gtinLogs, setGtinLogs] = useState<string[]>([]);
+  const [credStatus, setCredStatus] = useState<CredStatus | null>(null);
+  const [credForm, setCredForm] = useState({
+    login: '',
+    password: '',
+    baseUrl: 'https://backend-pre2.genasa.es',
+    testMode: true,
+  });
+  const [importForm, setImportForm] = useState({
+    limit: 50,
+    from: 100000,
+    to: 102000,
+    postCode: '75001',
+    category: '',
+    articles: '',
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -49,7 +87,25 @@ export default function NeumaticosAndresSection() {
       setLoading(false);
     };
     load();
+    loadCredentials();
   }, []);
+
+  const loadCredentials = async () => {
+    try {
+      const res = await fetch('/api/integrations/neumaticos-andres/credentials');
+      const data = await res.json();
+      if (res.ok) {
+        setCredStatus(data);
+        setCredForm((prev) => ({
+          ...prev,
+          baseUrl: data.baseUrl || prev.baseUrl,
+          testMode: typeof data.testMode === 'boolean' ? data.testMode : prev.testMode,
+        }));
+      }
+    } catch {
+      /* ignore */
+    }
+  };
 
   const checkSetup = async () => {
     setCheckingSetup(true);
@@ -59,7 +115,7 @@ export default function NeumaticosAndresSection() {
       const data = await res.json();
       setSetupStatus(data);
     } catch {
-      setSetupStatus({ ok: false, nextSteps: ['Erreur réseau lors de la vérification.'] });
+      setSetupStatus({ ok: false, nextSteps: ['Erro de rede ao verificar.'] });
     } finally {
       setCheckingSetup(false);
     }
@@ -86,6 +142,33 @@ export default function NeumaticosAndresSection() {
     loadGtinEnrich();
   }, []);
 
+  const saveCredentials = async () => {
+    setSavingCreds(true);
+    setConnectionResult(null);
+    try {
+      const res = await fetch('/api/integrations/neumaticos-andres/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          login: credForm.login || undefined,
+          password: credForm.password || undefined,
+          baseUrl: credForm.baseUrl,
+          testMode: credForm.testMode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao guardar');
+      setCredStatus(data);
+      setCredForm((prev) => ({ ...prev, password: '' }));
+      alert('Credenciais da API guardadas.');
+      await checkSetup();
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : 'Erro ao guardar credenciais');
+    } finally {
+      setSavingCreds(false);
+    }
+  };
+
   const testConnection = async () => {
     setTestingConnection(true);
     setConnectionResult(null);
@@ -97,14 +180,14 @@ export default function NeumaticosAndresSection() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setConnectionResult(data.error || 'Connexion échouée');
+        setConnectionResult(data.error || 'Ligação falhou');
       } else {
         setConnectionResult(
-          `OK — ${data.sample?.productId || 'API'} | stock: ${data.sample?.amount ?? '?'} | prix: €${data.sample?.price ?? '?'}`
+          `OK — ${data.sample?.productId || 'API'} | stock: ${data.sample?.amount ?? '?'} | preço: €${data.sample?.price ?? '?'}`
         );
       }
     } catch {
-      setConnectionResult('Erreur réseau');
+      setConnectionResult('Erro de rede');
     } finally {
       setTestingConnection(false);
     }
@@ -129,10 +212,10 @@ export default function NeumaticosAndresSection() {
         if (data) setSettings(data);
       }
       setSettings((prev: any) => ({ ...prev, ...payload }));
-      alert('Configuration Neumáticos Andrés enregistrée.');
+      alert('Configuração Neumáticos Andrés guardada.');
     } catch (error) {
       console.error(error);
-      alert('Erreur lors de la sauvegarde.');
+      alert('Erro ao guardar.');
     } finally {
       setSaving(false);
     }
@@ -148,11 +231,11 @@ export default function NeumaticosAndresSection() {
         body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur sync stock');
+      if (!res.ok) throw new Error(data.error || 'Erro sync stock');
       setLogs(data.logs || []);
-      alert(`Stock synchronisé: ${data.updated} mis à jour, ${data.skipped} ignorés.`);
+      alert(`Stock sincronizado: ${data.updated} atualizados, ${data.skipped} ignorados.`);
     } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : 'Erreur sync stock');
+      alert(error instanceof Error ? error.message : 'Erro sync stock');
     } finally {
       setSyncingStock(false);
     }
@@ -168,13 +251,47 @@ export default function NeumaticosAndresSection() {
         body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur sync tracking');
+      if (!res.ok) throw new Error(data.error || 'Erro sync tracking');
       setLogs(data.logs || []);
-      alert(`Tracking synchronisé: ${data.shipmentsUpserted} envoi(s), ${data.ordersUpdated} statut(s).`);
+      alert(`Tracking sincronizado: ${data.shipmentsUpserted} envio(s), ${data.ordersUpdated} estado(s).`);
     } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : 'Erreur sync tracking');
+      alert(error instanceof Error ? error.message : 'Erro sync tracking');
     } finally {
       setSyncingTracking(false);
+    }
+  };
+
+  const runCatalogImport = async () => {
+    setImportingCatalog(true);
+    setLogs([]);
+    try {
+      const res = await fetch('/api/integrations/neumaticos-andres/import-catalog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          limit: Number(importForm.limit) || 50,
+          from: Number(importForm.from) || undefined,
+          to: Number(importForm.to) || undefined,
+          postCode: importForm.postCode || '75001',
+          category: importForm.category || null,
+          articles: importForm.articles || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Erro ao importar catálogo');
+      setLogs(data.logs || []);
+      setStats((prev) => ({
+        ...prev,
+        products: prev.products + (data.inserted || 0),
+      }));
+      alert(
+        `Pneus importados: ${data.inserted || 0} novos, ${data.updated || 0} atualizados (${data.skipped || 0} ignorados).`
+      );
+      await checkSetup();
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : 'Erro ao puxar pneus');
+    } finally {
+      setImportingCatalog(false);
     }
   };
 
@@ -193,13 +310,13 @@ export default function NeumaticosAndresSection() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur enrichissement GTIN');
+      if (!res.ok) throw new Error(data.error || 'Erro enriquecimento GTIN');
       setGtinLogs(data.logs || []);
       alert(
-        `GTIN: ${data.updated ?? 0} enrichi(s), ${data.skipped ?? 0} ignoré(s), ${data.errors ?? 0} erreur(s).`
+        `GTIN: ${data.updated ?? 0} enriquecido(s), ${data.skipped ?? 0} ignorado(s), ${data.errors ?? 0} erro(s).`
       );
     } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : 'Erreur enrichissement GTIN');
+      alert(error instanceof Error ? error.message : 'Erro enriquecimento GTIN');
     } finally {
       setEnrichingGtin(false);
     }
@@ -215,11 +332,17 @@ export default function NeumaticosAndresSection() {
 
   return (
     <div className="space-y-6">
+      {/* Ligar API */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-800">État de l&apos;installation</h2>
-            <p className="text-sm text-gray-500">Vérifiez que tout est prêt avant d&apos;activer.</p>
+            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Link2 size={18} /> Ligar API do fornecedor (Europa)
+            </h2>
+            <p className="text-sm text-gray-500">
+              Introduza as credenciais Neumáticos Andrés para o MecaniDoc puxar pneus, stock e preços.
+              O .env tem prioridade se estiver definido.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -228,7 +351,7 @@ export default function NeumaticosAndresSection() {
               className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 disabled:opacity-60 flex items-center gap-2"
             >
               {checkingSetup ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
-              Vérifier setup
+              Verificar setup
             </button>
             <button
               onClick={testConnection}
@@ -236,36 +359,97 @@ export default function NeumaticosAndresSection() {
               className="border border-green-300 text-green-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-50 disabled:opacity-60 flex items-center gap-2"
             >
               {testingConnection ? <Loader2 className="animate-spin" size={16} /> : <Wifi size={16} />}
-              Tester connexion API
+              Testar ligação
             </button>
           </div>
         </div>
 
+        {credStatus && (
+          <p className="text-sm mb-4 text-gray-600">
+            Estado:{' '}
+            <span className={credStatus.configured ? 'text-green-700 font-semibold' : 'text-amber-700 font-semibold'}>
+              {credStatus.configured ? 'configurado' : 'não configurado'}
+            </span>
+            {credStatus.source && credStatus.source !== 'none' && (
+              <> (fonte: {credStatus.source === 'env' ? '.env' : 'painel'})</>
+            )}
+            {credStatus.login && <> · login {credStatus.login}</>}
+          </p>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-4 max-w-3xl">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Login API</label>
+            <input
+              type="text"
+              value={credForm.login}
+              onChange={(e) => setCredForm({ ...credForm, login: e.target.value })}
+              placeholder={credStatus?.login ? `Atual: ${credStatus.login}` : 'login do fornecedor'}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Password API</label>
+            <input
+              type="password"
+              value={credForm.password}
+              onChange={(e) => setCredForm({ ...credForm, password: e.target.value })}
+              placeholder={credStatus?.hasPassword ? '•••••••• (deixe vazio para manter)' : 'password'}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              autoComplete="new-password"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">URL base</label>
+            <select
+              value={credForm.baseUrl}
+              onChange={(e) => setCredForm({ ...credForm, baseUrl: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+            >
+              <option value="https://backend-pre2.genasa.es">Teste — backend-pre2.genasa.es</option>
+              <option value="https://backend.genasa.es">Produção — backend.genasa.es</option>
+            </select>
+          </div>
+          <div className="flex items-end pb-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={credForm.testMode}
+                onChange={(e) => setCredForm({ ...credForm, testMode: e.target.checked })}
+              />
+              Modo teste
+            </label>
+          </div>
+        </div>
+
+        <button
+          onClick={saveCredentials}
+          disabled={savingCreds}
+          className="mt-4 bg-[#0066CC] text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2"
+        >
+          {savingCreds ? <Loader2 className="animate-spin" size={16} /> : <KeyRound size={16} />}
+          Guardar ligação API
+        </button>
+
         {setupStatus && (
-          <div className="space-y-3">
+          <div className="mt-6 space-y-3">
             <div className="grid md:grid-cols-2 gap-2 text-sm">
-              <StatusRow
-                ok={Boolean(setupStatus.checks?.credentials)}
-                label="Credenciais no .env"
-              />
-              <StatusRow
-                ok={Boolean(setupStatus.checks?.databaseMigration)}
-                label="Migração SQL executada"
-              />
+              <StatusRow ok={Boolean(setupStatus.checks?.credentials)} label="Credenciais configuradas" />
+              <StatusRow ok={Boolean(setupStatus.checks?.databaseMigration)} label="Migração SQL OK" />
               <StatusRow
                 ok={Number(setupStatus.checks?.linkedProductCount) > 0}
-                label={`Produtos ligados (${setupStatus.checks?.linkedProductCount ?? 0})`}
+                label={`Pneus ligados (${setupStatus.checks?.linkedProductCount ?? 0})`}
               />
               <StatusRow
                 ok={Number(setupStatus.checks?.productsWithEan) > 0}
                 label={`Produtos com EAN (${setupStatus.checks?.productsWithEan ?? 0})`}
               />
             </div>
-
             {setupStatus.nextSteps && setupStatus.nextSteps.length > 0 && (
               <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">
                 <p className="font-bold mb-2 flex items-center gap-2">
-                  <AlertCircle size={16} /> Prochaines étapes
+                  <AlertCircle size={16} /> Próximos passos
                 </p>
                 <ol className="list-decimal list-inside space-y-1">
                   {setupStatus.nextSteps.map((step, idx) => (
@@ -273,12 +457,6 @@ export default function NeumaticosAndresSection() {
                   ))}
                 </ol>
               </div>
-            )}
-
-            {setupStatus.ok && (
-              <p className="text-sm text-green-700 flex items-center gap-2">
-                <CheckCircle2 size={16} /> Prêt — activez l&apos;intégration et lancez le sync stock.
-              </p>
             )}
           </div>
         )}
@@ -296,20 +474,106 @@ export default function NeumaticosAndresSection() {
         )}
       </div>
 
+      {/* Puxar pneus */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <Download size={18} /> Puxar pneus da API europeia
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Importa catálogo (preço + stock) da Neumáticos Andrés para o MecaniDoc. Pode indicar EANs/refs
+          específicas ou varrer um intervalo numérico.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-4 max-w-4xl mb-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Limite de produtos</label>
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={importForm.limit}
+              onChange={(e) => setImportForm({ ...importForm, limit: Number(e.target.value) })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Código postal (stock)</label>
+            <input
+              type="text"
+              value={importForm.postCode}
+              onChange={(e) => setImportForm({ ...importForm, postCode: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Categoria (opcional)</label>
+            <select
+              value={importForm.category}
+              onChange={(e) => setImportForm({ ...importForm, category: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+            >
+              <option value="">Todas</option>
+              <option value="Auto">Auto</option>
+              <option value="Moto">Moto</option>
+              <option value="Camion">Camion</option>
+              <option value="Tracteur">Tracteur</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Varredura — de</label>
+            <input
+              type="number"
+              value={importForm.from}
+              onChange={(e) => setImportForm({ ...importForm, from: Number(e.target.value) })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Varredura — até</label>
+            <input
+              type="number"
+              value={importForm.to}
+              onChange={(e) => setImportForm({ ...importForm, to: Number(e.target.value) })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-xs font-bold text-gray-600 mb-1">
+              EANs / refs específicas (opcional, separados por vírgula)
+            </label>
+            <textarea
+              value={importForm.articles}
+              onChange={(e) => setImportForm({ ...importForm, articles: e.target.value })}
+              rows={2}
+              placeholder="3286341675412, 4019238..."
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={runCatalogImport}
+          disabled={importingCatalog}
+          className="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-2"
+        >
+          {importingCatalog ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+          Puxar pneus agora
+        </button>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Neumáticos Andrés</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Intégration API v1.8 — stock, commandes directes et suivi de livraison.
-          Les identifiants API se configurent via les variables d&apos;environnement serveur.
+          Integração API v1.8 — stock, encomendas diretas e tracking de entrega.
         </p>
 
         <div className="grid md:grid-cols-2 gap-4 mb-6">
           <div className="rounded-lg border border-gray-200 p-4">
-            <p className="text-xs uppercase text-gray-500">Produits liés</p>
+            <p className="text-xs uppercase text-gray-500">Pneus ligados</p>
             <p className="text-2xl font-bold text-gray-800">{stats.products}</p>
           </div>
           <div className="rounded-lg border border-gray-200 p-4">
-            <p className="text-xs uppercase text-gray-500">Commandes en cours</p>
+            <p className="text-xs uppercase text-gray-500">Encomendas em curso</p>
             <p className="text-2xl font-bold text-gray-800">{stats.pendingOrders}</p>
           </div>
         </div>
@@ -321,7 +585,7 @@ export default function NeumaticosAndresSection() {
               checked={Boolean(settings.na_integration_enabled)}
               onChange={(e) => setSettings({ ...settings, na_integration_enabled: e.target.checked })}
             />
-            <span className="text-sm font-medium text-gray-700">Activer l&apos;intégration</span>
+            <span className="text-sm font-medium text-gray-700">Ativar integração</span>
           </label>
 
           <label className="flex items-center gap-3">
@@ -331,7 +595,7 @@ export default function NeumaticosAndresSection() {
               onChange={(e) => setSettings({ ...settings, na_auto_fulfill: e.target.checked })}
             />
             <span className="text-sm font-medium text-gray-700">
-              Envoyer automatiquement la commande au fournisseur après paiement
+              Enviar automaticamente a encomenda ao fornecedor após pagamento
             </span>
           </label>
 
@@ -342,7 +606,7 @@ export default function NeumaticosAndresSection() {
               onChange={(e) => setSettings({ ...settings, na_auto_sync_stock: e.target.checked })}
             />
             <span className="text-sm font-medium text-gray-700">
-              Synchroniser le stock via cron (<code className="text-xs">/api/cron/neumaticos-andres</code>)
+              Sincronizar stock via cron (<code className="text-xs">/api/cron/neumaticos-andres</code>)
             </span>
           </label>
 
@@ -354,12 +618,12 @@ export default function NeumaticosAndresSection() {
                 onChange={(e) => setSettings({ ...settings, na_use_consignee: e.target.checked })}
               />
               <span className="text-sm font-medium text-gray-700">
-                Utiliser un consignee enregistré chez le fournisseur (sans adresse manuelle)
+                Usar consignee registado no fornecedor
               </span>
             </label>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Identifiant consignee</label>
+                <label className="block text-xs font-bold text-gray-600 mb-1">Identificador consignee</label>
                 <input
                   type="text"
                   value={settings.na_consignee_identifier || ''}
@@ -368,14 +632,14 @@ export default function NeumaticosAndresSection() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Type consignee</label>
+                <label className="block text-xs font-bold text-gray-600 mb-1">Tipo consignee</label>
                 <select
                   value={settings.na_consignee_type || 1}
                   onChange={(e) => setSettings({ ...settings, na_consignee_type: Number(e.target.value) })}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
                 >
-                  <option value={1}>1 — Assigné par le vendeur</option>
-                  <option value={2}>2 — Assigné par l&apos;acheteur</option>
+                  <option value={1}>1 — Atribuído pelo vendedor</option>
+                  <option value={2}>2 — Atribuído pelo comprador</option>
                 </select>
               </div>
             </div>
@@ -388,7 +652,7 @@ export default function NeumaticosAndresSection() {
             disabled={saving}
             className="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-blue-700 disabled:opacity-60"
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
+            {saving ? 'A guardar...' : 'Guardar'}
           </button>
           <button
             onClick={runStockSync}
@@ -396,7 +660,7 @@ export default function NeumaticosAndresSection() {
             className="border border-gray-300 px-5 py-2 rounded-lg font-bold text-sm hover:bg-gray-50 disabled:opacity-60 flex items-center gap-2"
           >
             {syncingStock ? <Loader2 className="animate-spin" size={16} /> : <PackageSearch size={16} />}
-            Sync stock & prix
+            Sync stock & preço
           </button>
           <button
             onClick={runTrackingSync}
@@ -404,23 +668,22 @@ export default function NeumaticosAndresSection() {
             className="border border-gray-300 px-5 py-2 rounded-lg font-bold text-sm hover:bg-gray-50 disabled:opacity-60 flex items-center gap-2"
           >
             {syncingTracking ? <Loader2 className="animate-spin" size={16} /> : <Truck size={16} />}
-            Sync livraison
+            Sync entrega
           </button>
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-          <Sparkles size={18} /> Enrichissement catalogue (GTIN)
+          <Sparkles size={18} /> Enriquecimento catálogo (GTIN)
         </h2>
         <p className="text-sm text-gray-500 mb-4">
-          Complète nom, marque, description et image via GTINHub et UPCitemdb (gratuit, sans clé obligatoire).
-          Le stock et le prix restent synchronisés via Neumáticos Andrés.
+          Completa nome, marca, descrição e imagem via GTINHub e UPCitemdb.
         </p>
 
         {gtinEnrichConfigured === true && (
           <p className="text-sm text-green-700 flex items-center gap-2 mb-4">
-            <CheckCircle2 size={16} /> APIs GTIN prêtes — limite grátis ~10/dia (GTINHub) + 100/dia (UPCitemdb).
+            <CheckCircle2 size={16} /> APIs GTIN prontas
           </p>
         )}
 
@@ -430,7 +693,7 @@ export default function NeumaticosAndresSection() {
           className="border border-indigo-300 text-indigo-700 px-5 py-2 rounded-lg font-bold text-sm hover:bg-indigo-50 disabled:opacity-60 flex items-center gap-2"
         >
           {enrichingGtin ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-          Enrichir via GTIN (max 25)
+          Enriquecer via GTIN (max 25)
         </button>
 
         {gtinLogs.length > 0 && (
@@ -440,25 +703,6 @@ export default function NeumaticosAndresSection() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-          <RefreshCw size={18} /> Configuration serveur
-        </h2>
-        <ul className="text-sm text-gray-600 space-y-1 font-mono">
-          <li>NEUMATICOS_ANDRES_LOGIN</li>
-          <li>NEUMATICOS_ANDRES_PASSWORD</li>
-          <li>NEUMATICOS_ANDRES_BASE_URL (prod: https://backend.genasa.es)</li>
-          <li>NEUMATICOS_ANDRES_TEST_MODE (0 ou 1)</li>
-          <li>CRON_SECRET (pour /api/cron/neumaticos-andres)</li>
-          <li>GTINHUB_API_KEY (opcional — mais pedidos/dia)</li>
-          <li>UPCITEMDB_USER_KEY (opcional — plano pago UPCitemdb)</li>
-        </ul>
-        <p className="text-sm text-gray-500 mt-4">
-          Marquez les produits avec <code>external_supplier = neumaticos_andres</code> et un EAN valide.
-          Vous pouvez aussi ajouter la colonne CSV <code>external_supplier</code> lors de l&apos;import.
-        </p>
       </div>
 
       {logs.length > 0 && (
@@ -474,7 +718,11 @@ export default function NeumaticosAndresSection() {
 
 function StatusRow({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+    <div
+      className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
+        ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+      }`}
+    >
       {ok ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
       <span>{label}</span>
     </div>

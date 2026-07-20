@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireMasterUser } from '@/lib/admin-auth-server';
-import { getNeumaticosAndresConfig } from '@/lib/neumaticos-andres/config';
+import { resolveNeumaticosAndresConfig } from '@/lib/neumaticos-andres/credentials';
 import { getSupabaseAdmin } from '@/lib/neumaticos-andres/server-helpers';
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const config = getNeumaticosAndresConfig();
+  const config = await resolveNeumaticosAndresConfig();
   const checks: Record<string, boolean | string | number> = {
     credentials: config.isConfigured,
     baseUrl: config.baseUrl,
@@ -61,14 +61,16 @@ function getNextSteps(checks: Record<string, boolean | string | number>): string
   const steps: string[] = [];
 
   if (!checks.credentials) {
-    steps.push('Adicione NEUMATICOS_ANDRES_LOGIN e NEUMATICOS_ANDRES_PASSWORD no .env e reinicie o servidor.');
+    steps.push(
+      'Configure login/password no painel (secção Ligar API) ou defina NEUMATICOS_ANDRES_* no .env.'
+    );
   }
   if (!checks.databaseMigration) {
-    steps.push('Execute create_neumaticos_andres_integration.sql no PostgreSQL (docker/postgres/init).');
+    steps.push('Execute create_neumaticos_andres_integration.sql e create_supplier_api.sql no PostgreSQL.');
   }
   if (Number(checks.linkedProductCount) === 0) {
     steps.push(
-      'Marque produtos com external_supplier = neumaticos_andres (ou use mark_products_neumaticos_andres.sql).'
+      'Use "Puxar pneus da API" para importar o catálogo europeu, ou marque produtos com external_supplier = neumaticos_andres.'
     );
   }
   if (steps.length === 0) {

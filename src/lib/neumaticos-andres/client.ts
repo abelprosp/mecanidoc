@@ -1,4 +1,4 @@
-import { getNeumaticosAndresConfig } from './config';
+import { getNeumaticosAndresConfig, type NeumaticosAndresConfig } from './config';
 import type {
   NaCreateOrderRequest,
   NaCreateOrderResponse,
@@ -19,8 +19,11 @@ export class NeumaticosAndresApiError extends Error {
   }
 }
 
-function buildHeaders(): HeadersInit {
-  const config = getNeumaticosAndresConfig();
+function resolveConfig(override?: NeumaticosAndresConfig): NeumaticosAndresConfig {
+  return override || getNeumaticosAndresConfig();
+}
+
+function buildHeaders(config: NeumaticosAndresConfig): HeadersInit {
   return {
     login: config.login,
     password: config.password,
@@ -43,8 +46,12 @@ async function parseJson<T>(response: Response): Promise<T> {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const config = getNeumaticosAndresConfig();
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  configOverride?: NeumaticosAndresConfig
+): Promise<T> {
+  const config = resolveConfig(configOverride);
   if (!config.isConfigured) {
     throw new Error('Credenciais Neumáticos Andrés não configuradas.');
   }
@@ -53,7 +60,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
     headers: {
-      ...buildHeaders(),
+      ...buildHeaders(config),
       ...(init?.headers || {}),
     },
     cache: 'no-store',
@@ -70,55 +77,96 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
-export async function getStockOne(articleNumber: string, postCode?: string): Promise<NaGetStockResponse> {
+export async function getStockOne(
+  articleNumber: string,
+  postCode?: string,
+  configOverride?: NeumaticosAndresConfig
+): Promise<NaGetStockResponse> {
   const query = postCode ? `?post-code=${encodeURIComponent(postCode)}` : '';
-  return request<NaGetStockResponse>(`/api/na/getstock/${encodeURIComponent(articleNumber)}${query}`);
+  return request<NaGetStockResponse>(
+    `/api/na/getstock/${encodeURIComponent(articleNumber)}${query}`,
+    undefined,
+    configOverride
+  );
 }
 
 export async function getStockMany(
   articleNumbers: string[],
-  postCode?: string
+  postCode?: string,
+  configOverride?: NeumaticosAndresConfig
 ): Promise<NaGetStockResponse> {
   const params = new URLSearchParams();
   for (const article of articleNumbers) {
     params.append('article_numbers[]', article);
   }
   if (postCode) params.set('post-code', postCode);
-  return request<NaGetStockResponse>(`/api/na/getstock/?${params.toString()}`);
+  return request<NaGetStockResponse>(`/api/na/getstock/?${params.toString()}`, undefined, configOverride);
 }
 
-export async function createOrder(payload: NaCreateOrderRequest): Promise<NaCreateOrderResponse> {
-  return request<NaCreateOrderResponse>('/api/na/createorder', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+export async function createOrder(
+  payload: NaCreateOrderRequest,
+  configOverride?: NeumaticosAndresConfig
+): Promise<NaCreateOrderResponse> {
+  return request<NaCreateOrderResponse>(
+    '/api/na/createorder',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    configOverride
+  );
 }
 
-export async function getTrackInfoOne(orderId: string, testMode = false): Promise<NaTrackInfoResponse> {
+export async function getTrackInfoOne(
+  orderId: string,
+  testMode = false,
+  configOverride?: NeumaticosAndresConfig
+): Promise<NaTrackInfoResponse> {
   const query = testMode ? '?test_mode=1' : '';
-  return request<NaTrackInfoResponse>(`/api/na/trackinfo/${encodeURIComponent(orderId)}${query}`);
+  return request<NaTrackInfoResponse>(
+    `/api/na/trackinfo/${encodeURIComponent(orderId)}${query}`,
+    undefined,
+    configOverride
+  );
 }
 
-export async function getTrackInfoMany(orderIds: string[], testMode = false): Promise<NaTrackInfoResponse> {
+export async function getTrackInfoMany(
+  orderIds: string[],
+  testMode = false,
+  configOverride?: NeumaticosAndresConfig
+): Promise<NaTrackInfoResponse> {
   const params = new URLSearchParams();
   for (const id of orderIds) params.append('order_ids[]', id);
   if (testMode) params.set('test_mode', '1');
-  return request<NaTrackInfoResponse>(`/api/na/trackinfo/?${params.toString()}`);
+  return request<NaTrackInfoResponse>(`/api/na/trackinfo/?${params.toString()}`, undefined, configOverride);
 }
 
-export async function getOrderStatusOne(orderId: string, testMode = false): Promise<NaOrderStatusResponse> {
+export async function getOrderStatusOne(
+  orderId: string,
+  testMode = false,
+  configOverride?: NeumaticosAndresConfig
+): Promise<NaOrderStatusResponse> {
   const query = testMode ? '?test_mode=1' : '';
-  return request<NaOrderStatusResponse>(`/api/na/orderstatus/${encodeURIComponent(orderId)}${query}`);
+  return request<NaOrderStatusResponse>(
+    `/api/na/orderstatus/${encodeURIComponent(orderId)}${query}`,
+    undefined,
+    configOverride
+  );
 }
 
 export async function getOrderStatusMany(
   orderIds: string[],
-  testMode = false
+  testMode = false,
+  configOverride?: NeumaticosAndresConfig
 ): Promise<NaOrderStatusResponse> {
   const params = new URLSearchParams();
   for (const id of orderIds) params.append('order_ids[]', id);
   if (testMode) params.set('test_mode', '1');
-  return request<NaOrderStatusResponse>(`/api/na/orderstatus/?${params.toString()}`);
+  return request<NaOrderStatusResponse>(
+    `/api/na/orderstatus/?${params.toString()}`,
+    undefined,
+    configOverride
+  );
 }
 
 export function pickBestSchedule(

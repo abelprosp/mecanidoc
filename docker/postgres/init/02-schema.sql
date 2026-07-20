@@ -139,16 +139,28 @@ alter table public.orders add column if not exists contact_name text, add column
 alter table public.orders
 add column if not exists stripe_payment_intent_id text,
 add column if not exists stripe_customer_id text,
+add column if not exists stripe_checkout_session_id text,
 add column if not exists payment_method text default 'stripe',
 add column if not exists payment_status text default 'pending';
 
 create index if not exists idx_orders_stripe_payment_intent on public.orders(stripe_payment_intent_id);
+create index if not exists idx_orders_stripe_checkout_session on public.orders(stripe_checkout_session_id);
 create index if not exists idx_orders_payment_status on public.orders(payment_status);
+
+create table if not exists public.stripe_webhook_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+create index if not exists idx_stripe_webhook_events_processed_at
+  on public.stripe_webhook_events(processed_at);
 
 comment on column public.orders.stripe_payment_intent_id is 'ID do PaymentIntent do Stripe';
 comment on column public.orders.stripe_customer_id is 'ID do Customer no Stripe';
+comment on column public.orders.stripe_checkout_session_id is 'ID da Checkout Session do Stripe';
 comment on column public.orders.payment_method is 'Método de pagamento usado';
-comment on column public.orders.payment_status is 'Status do pagamento: pending, paid, failed, refunded';
+comment on column public.orders.payment_status is 'Status do pagamento: pending, paid, failed, refunded, canceled, partially_refunded';
+comment on table public.stripe_webhook_events is 'Eventos Stripe já processados (idempotência de webhooks)';
 
 -- -----------------------------------------------------------------------------
 -- 4. Marcas (brands)
@@ -722,3 +734,49 @@ create policy "Order shipments viewable by master" on public.order_shipments
   for select using (
     exists (select 1 from public.profiles where id = auth.uid() and role = 'master')
   );
+
+-- -----------------------------------------------------------------------------
+-- Supplier public API keys + NA credentials no painel
+-- -----------------------------------------------------------------------------
+create table if not exists public.supplier_api_keys (
+  id uuid default gen_random_uuid() primary key,
+  supplier_id uuid references public.suppliers(id) on delete cascade not null,
+  name text not null default 'Chave API',
+  key_prefix text not null,
+  key_hash text not null unique,
+  is_active boolean default true,
+  last_used_at timestamptz,
+  created_at timestamptz default timezone('utc'::text, now()) not null,
+  revoked_at timestamptz
+);
+
+create index if not exists idx_supplier_api_keys_supplier_id on public.supplier_api_keys(supplier_id);
+create index if not exists idx_supplier_api_keys_prefix on public.supplier_api_keys(key_prefix);
+
+alter table public.supplier_api_keys enable row level security;
+
+drop policy if exists "Supplier can view own api keys" on public.supplier_api_keys;
+create policy "Supplier can view own api keys" on public.supplier_api_keys
+  for select using (
+    exists (
+      select 1 from public.suppliers s
+      where s.id = supplier_api_keys.supplier_id
+        and s.profile_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Master can manage all api keys" on public.supplier_api_keys;
+create policy "Master can manage all api keys" on public.supplier_api_keys
+  for all using (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'master')
+  );
+
+alter table public.global_settings
+  add column if not exists na_api_login text,
+  add column if not exists na_api_password_enc text,
+  add column if not exists na_api_base_url text,
+  add column if not exists na_api_test_mode boolean default true;
+
+create unique index if not exists idx_products_supplier_external_product
+  on public.products (supplier_id, external_product_id)
+  where supplier_id is not null and external_product_id is not null and trim(external_product_id) <> '';

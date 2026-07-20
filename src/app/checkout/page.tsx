@@ -247,6 +247,11 @@ export default function CheckoutPage() {
 
       if (!response.ok || !paymentData.clientSecret) {
         console.error('Error creating checkout session:', paymentData);
+        if (response.status === 409 && (paymentData as { alreadyPaid?: boolean }).alreadyPaid) {
+          alert('Cette commande est déjà payée.');
+          window.location.href = `/checkout/success?order_id=${encodeURIComponent(order.id)}`;
+          return;
+        }
         alert(paymentData.error || "Erreur lors de l'initialisation du paiement. Veuillez réessayer.");
         setPlacingOrder(false);
         return;
@@ -533,7 +538,13 @@ export default function CheckoutPage() {
 
                {checkoutPhase === 'details' && (
                  <p className="mt-6 text-xs text-gray-600">
-                   Será direcionado para o checkout para escolher os métodos de pagamento.
+                   Vous pourrez régler en toute sécurité via Stripe à l’étape suivante.
+                 </p>
+               )}
+
+               {checkoutPhase === 'payment' && (
+                 <p className="mt-6 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded p-2">
+                   Paiement en cours. Ne fermez pas cette page avant la confirmation.
                  </p>
                )}
 

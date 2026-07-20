@@ -1,4 +1,6 @@
 export { getNeumaticosAndresConfig, buildCustomerOrderId, isIntegrationEnabled } from './config';
+export { resolveNeumaticosAndresConfig, saveNeumaticosCredentials } from './credentials';
+export { importNeumaticosCatalog } from './import-catalog';
 export {
   getStockOne,
   getStockMany,

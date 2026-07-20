@@ -151,16 +151,28 @@ alter table public.orders add column if not exists contact_name text, add column
 alter table public.orders
 add column if not exists stripe_payment_intent_id text,
 add column if not exists stripe_customer_id text,
+add column if not exists stripe_checkout_session_id text,
 add column if not exists payment_method text default 'stripe',
 add column if not exists payment_status text default 'pending';
 
 create index if not exists idx_orders_stripe_payment_intent on public.orders(stripe_payment_intent_id);
+create index if not exists idx_orders_stripe_checkout_session on public.orders(stripe_checkout_session_id);
 create index if not exists idx_orders_payment_status on public.orders(payment_status);
+
+create table if not exists public.stripe_webhook_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+create index if not exists idx_stripe_webhook_events_processed_at
+  on public.stripe_webhook_events(processed_at);
 
 comment on column public.orders.stripe_payment_intent_id is 'ID do PaymentIntent do Stripe';
 comment on column public.orders.stripe_customer_id is 'ID do Customer no Stripe';
+comment on column public.orders.stripe_checkout_session_id is 'ID da Checkout Session do Stripe';
 comment on column public.orders.payment_method is 'Método de pagamento usado';
-comment on column public.orders.payment_status is 'Status do pagamento: pending, paid, failed, refunded';
+comment on column public.orders.payment_status is 'Status do pagamento: pending, paid, failed, refunded, canceled, partially_refunded';
+comment on table public.stripe_webhook_events is 'Eventos Stripe já processados (idempotência de webhooks)';
 
 -- -----------------------------------------------------------------------------
 -- 4. Marcas (brands)

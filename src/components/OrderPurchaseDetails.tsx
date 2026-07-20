@@ -19,7 +19,9 @@ function paymentLabel(status: string | null | undefined) {
   if (status === "paid") return "Payé";
   if (status === "pending") return "Paiement en attente";
   if (status === "failed") return "Échoué";
+  if (status === "canceled") return "Annulé";
   if (status === "refunded") return "Remboursé";
+  if (status === "partially_refunded") return "Remboursement partiel";
   return status || "—";
 }
 

@@ -1,10 +1,7 @@
 import type { DbClient } from '@/lib/db/client';
 import { createOrder, getStockMany, pickBestSchedule } from './client';
-import {
-  buildCustomerOrderId,
-  getNeumaticosAndresConfig,
-  isIntegrationEnabled,
-} from './config';
+import { buildCustomerOrderId, isIntegrationEnabled } from './config';
+import { resolveNeumaticosAndresConfig } from './credentials';
 import { splitContactName, toAlpha2Country } from './country';
 import {
   NEUMATICOS_ANDRES_SUPPLIER,
@@ -49,7 +46,8 @@ export async function fulfillNeumaticosAndresOrder(
   orderId: string,
   settings?: NaIntegrationSettings | null
 ): Promise<FulfillOrderResult> {
-  if (!getNeumaticosAndresConfig().isConfigured) {
+  const config = await resolveNeumaticosAndresConfig();
+  if (!config.isConfigured) {
     return { ok: false, error: 'Credenciais Neumáticos Andrés não configuradas.' };
   }
 
@@ -119,7 +117,7 @@ export async function fulfillNeumaticosAndresOrder(
     return { ok: false, error: 'Alguns produtos não têm EAN ou ID externo configurado.' };
   }
 
-  const stockResponse = await getStockMany(lookupIds, order.shipping_zip || undefined);
+  const stockResponse = await getStockMany(lookupIds, order.shipping_zip || undefined, config);
   const orderItemsPayload: NaCreateOrderItem[] = [];
   let estimatedDeliveryDate: string | undefined;
 
@@ -160,7 +158,6 @@ export async function fulfillNeumaticosAndresOrder(
   }
 
   const customerOrderId = buildCustomerOrderId(order.id);
-  const config = getNeumaticosAndresConfig();
   const { firstName, lastName } = splitContactName(order.contact_name);
 
   const requestPayload: Record<string, unknown> = {
@@ -183,7 +180,7 @@ export async function fulfillNeumaticosAndresOrder(
     requestPayload['delivery-email'] = (order.contact_email || '').slice(0, 300);
   }
 
-  const response = await createOrder(requestPayload as never);
+  const response = await createOrder(requestPayload as never, config);
 
   if (response.success !== 1) {
     const err = response.errors?.[0]?.['error-message'] || 'Falha ao criar pedido no fornecedor.';

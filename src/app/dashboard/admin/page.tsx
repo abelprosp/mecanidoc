@@ -102,7 +102,7 @@ export default function AdminDashboard() {
     { id: 'faqs', icon: FileText, label: 'FAQs' },
     { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },
-    { id: 'neumaticos-andres', icon: Truck, label: 'Neumáticos Andrés' },
+    { id: 'neumaticos-andres', icon: Truck, label: 'API Fornecedor (Pneus)' },
     { id: 'approvals', icon: CheckCircle, label: 'Approbations' },
     { id: 'support-chat', icon: MessageSquare, label: 'Support Chat' },
     { id: 'support-inbox', icon: Inbox, label: 'Inbox Email' },

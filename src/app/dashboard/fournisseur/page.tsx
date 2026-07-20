@@ -3,12 +3,13 @@
 import React, { Fragment, useEffect, useState } from 'react';
 import { 
   Package, TrendingUp, DollarSign, LogOut, User, Loader2, Save, Edit, Trash2, Upload,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, KeyRound
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import OrderPurchaseDetails from '@/components/OrderPurchaseDetails';
+import SupplierApiKeysSection from './SupplierApiKeysSection';
 
 export default function SupplierDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -236,6 +237,7 @@ export default function SupplierDashboard() {
     { id: 'overview', label: 'Tableau de bord', icon: TrendingUp },
     { id: 'products', label: 'Mes Produits', icon: Package },
     { id: 'sales', label: 'Ventes & Revenus', icon: DollarSign },
+    { id: 'api', label: 'API Produtos', icon: KeyRound },
     { id: 'profile', label: 'Mon Profil', icon: User },
   ];
 
@@ -582,6 +584,8 @@ export default function SupplierDashboard() {
             </div>
           </div>
         )}
+
+        {activeTab === 'api' && <SupplierApiKeysSection />}
 
         {activeTab === 'profile' && (
           <div>

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStockOne } from '@/lib/neumaticos-andres/client';
-import { getNeumaticosAndresConfig } from '@/lib/neumaticos-andres/config';
+import { resolveNeumaticosAndresConfig } from '@/lib/neumaticos-andres/credentials';
 
 export async function GET(request: NextRequest) {
-  const config = getNeumaticosAndresConfig();
+  const config = await resolveNeumaticosAndresConfig();
   if (!config.isConfigured) {
     return NextResponse.json({ error: 'Integração não configurada.' }, { status: 503 });
   }
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const data = await getStockOne(article, postCode);
+    const data = await getStockOne(article, postCode, config);
     return NextResponse.json({ ok: true, data });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Erro ao consultar stock';

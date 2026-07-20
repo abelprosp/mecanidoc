@@ -1,6 +1,6 @@
 import type { DbClient } from '@/lib/db/client';
 import { getStockMany, pickBestSchedule } from './client';
-import { getNeumaticosAndresConfig } from './config';
+import { resolveNeumaticosAndresConfig } from './credentials';
 import { NEUMATICOS_ANDRES_SUPPLIER, type SyncStockResult } from './types';
 
 const BATCH_SIZE = 40;
@@ -21,8 +21,9 @@ export async function syncNeumaticosAndresStock(
   let skipped = 0;
   let errors = 0;
 
-  if (!getNeumaticosAndresConfig().isConfigured) {
-    throw new Error('Configure NEUMATICOS_ANDRES_LOGIN e NEUMATICOS_ANDRES_PASSWORD.');
+  const config = await resolveNeumaticosAndresConfig();
+  if (!config.isConfigured) {
+    throw new Error('Configure as credenciais da API no painel ou no .env.');
   }
 
   let query = admin
@@ -46,7 +47,7 @@ export async function syncNeumaticosAndresStock(
     const lookupIds = batch.map((p: any) => productLookupId(p)!);
 
     try {
-      const response = await getStockMany(lookupIds, options?.postCode);
+      const response = await getStockMany(lookupIds, options?.postCode, config);
       const articles = response.articles || [];
 
       for (const product of batch) {

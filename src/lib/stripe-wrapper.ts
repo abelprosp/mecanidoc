@@ -1,5 +1,4 @@
-// Wrapper para Stripe que não quebra o build se não estiver instalado
-// Usa importação completamente dinâmica que não é resolvida durante o build
+// Wrapper Stripe — import dynamique pour ne pas casser le build si le package manque.
 
 let stripeInstance: any = null;
 
@@ -8,12 +7,11 @@ export const getStripe = async (): Promise<any> => {
     return stripeInstance;
   }
 
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (!process.env.STRIPE_SECRET_KEY?.trim()) {
     return null;
   }
 
   try {
-    // import() funciona melhor no servidor Next.js que require()
     const StripeModule = await import('stripe');
     const Stripe = StripeModule.default;
     stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -31,5 +29,9 @@ export const getStripe = async (): Promise<any> => {
 };
 
 export const isStripeConfigured = () => {
-  return !!process.env.STRIPE_SECRET_KEY;
+  return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+};
+
+export const isStripePublishableConfigured = () => {
+  return Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim());
 };

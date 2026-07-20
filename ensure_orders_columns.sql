@@ -25,11 +25,20 @@ alter table public.orders
 alter table public.orders
   add column if not exists stripe_payment_intent_id text,
   add column if not exists stripe_customer_id text,
+  add column if not exists stripe_checkout_session_id text,
   add column if not exists payment_method text default 'stripe',
   add column if not exists payment_status text default 'pending';
 
 create index if not exists idx_orders_stripe_payment_intent on public.orders(stripe_payment_intent_id);
+create index if not exists idx_orders_stripe_checkout_session on public.orders(stripe_checkout_session_id);
 create index if not exists idx_orders_payment_status on public.orders(payment_status);
+
+create table if not exists public.stripe_webhook_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamptz default now() not null
+);
+
 
 -- 4. RLS em orders
 alter table public.orders enable row level security;

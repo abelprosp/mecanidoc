@@ -1,5 +1,6 @@
 import type { DbClient } from '@/lib/db/client';
 import { getOrderStatusMany } from './client';
+import { resolveNeumaticosAndresConfig } from './credentials';
 import { NEUMATICOS_ANDRES_SUPPLIER, type SyncTrackingResult } from './types';
 
 const STATUS_BATCH = 15;
@@ -64,7 +65,8 @@ export async function syncNeumaticosAndresTracking(
   for (let i = 0; i < ids.length; i += STATUS_BATCH) {
     const batch = ids.slice(i, i + STATUS_BATCH);
     try {
-      const response = await getOrderStatusMany(batch);
+      const config = await resolveNeumaticosAndresConfig();
+      const response = await getOrderStatusMany(batch, config.testMode, config);
       const entries = response['order-status-info'] || [];
 
       for (const entry of entries) {

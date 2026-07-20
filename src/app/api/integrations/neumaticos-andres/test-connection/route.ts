@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireMasterUser } from '@/lib/admin-auth-server';
 import { getStockOne } from '@/lib/neumaticos-andres/client';
-import { getNeumaticosAndresConfig } from '@/lib/neumaticos-andres/config';
+import { resolveNeumaticosAndresConfig } from '@/lib/neumaticos-andres/credentials';
 
 export async function POST(request: NextRequest) {
   const auth = await requireMasterUser();
@@ -9,10 +9,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const config = getNeumaticosAndresConfig();
+  const config = await resolveNeumaticosAndresConfig();
   if (!config.isConfigured) {
     return NextResponse.json(
-      { ok: false, error: 'Credenciais não configuradas no .env (NEUMATICOS_ANDRES_LOGIN / PASSWORD).' },
+      {
+        ok: false,
+        error:
+          'Credenciais não configuradas. Guarde login/password no painel ou defina NEUMATICOS_ANDRES_LOGIN / PASSWORD no .env.',
+      },
       { status: 503 }
     );
   }
@@ -23,7 +27,7 @@ export async function POST(request: NextRequest) {
     '3286341675412';
 
   try {
-    const data = await getStockOne(article);
+    const data = await getStockOne(article, undefined, config);
     const articleData = data.articles?.[0];
     const connected = data.success === 1 && articleData?.success === 1;
 

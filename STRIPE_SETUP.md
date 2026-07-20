@@ -50,37 +50,53 @@ Execute o script `add_stripe_fields.sql` no Supabase para adicionar os campos ne
 
 ## Estrutura da Integração
 
-### API Routes Criadas
+### API Routes
 
-1. **`/api/stripe/create-payment-intent`** - Cria um PaymentIntent do Stripe
-2. **`/api/stripe/webhook`** - Processa eventos do Stripe (webhooks)
-3. **`/api/sales`** - Consulta vendas (apenas para usuários master)
+1. **`/api/stripe/create-checkout-session`** — cria (ou reutiliza) Checkout Session embedded
+2. **`/api/stripe/create-payment-intent`** — cria PaymentIntent (montant sempre lido do pedido na DB)
+3. **`/api/stripe/verify-session`** — confirma o pagamento na página de sucesso (fallback se o webhook atrasar)
+4. **`/api/stripe/webhook`** — processa eventos Stripe (assinatura + idempotência)
+5. **`/api/sales`** — consulta vendas (apenas master)
 
-### Páginas Criadas
+### Páginas
 
-1. **`/dashboard/admin/sales`** - Página de consulta de vendas
-
-### Componentes Atualizados
-
-1. **`src/app/checkout/page.tsx`** - Integrado com Stripe PaymentIntent
+1. **`/checkout`** — formulário + Stripe Embedded Checkout
+2. **`/checkout/success`** — confirmação só após verificação Stripe
+3. **`/dashboard/admin/sales`** — consulta de vendas
 
 ## Fluxo de Pagamento
 
 1. Cliente preenche o formulário de checkout
 2. Sistema cria um pedido (`orders`) com status `pending`
-3. Sistema cria um PaymentIntent no Stripe
-4. Cliente é redirecionado para pagamento (ou usa Stripe Elements inline)
-5. Após pagamento bem-sucedido, webhook atualiza o pedido para `paid`
-6. Cliente recebe confirmação
+3. Sistema cria uma Checkout Session (montant do servidor) e grava `stripe_checkout_session_id`
+4. Cliente paga no Embedded Checkout
+5. Webhook `checkout.session.completed` (ou `verify-session`) marca o pedido como `paid` e dispara o fulfillment se aplicável
+6. Página de sucesso só limpa o carrinho após confirmação
+
+## Eventos de webhook recomendados
+
+- `checkout.session.completed` (obrigatório)
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.async_payment_failed`
+- `checkout.session.expired`
+- `payment_intent.succeeded`
+- `payment_intent.payment_failed`
+- `charge.refunded`
+
+## Melhorias recentes
+
+- Montante nunca confiado ao cliente (sempre `orders.total_amount`)
+- Idempotência de webhooks (`stripe_webhook_events`) e de criação de sessão/PI
+- Verificação de `payment_status` / montante no webhook
+- Página de sucesso com verificação real (não só URL)
+- Reutilização de sessão/PI abertos; metadados no PaymentIntent
+- Estados `canceled` / `partially_refunded`
 
 ## Próximos Passos (Opcional)
 
-Para uma experiência completa, considere implementar:
-
-1. **Stripe Elements** - Formulário de pagamento inline no checkout
-2. **Stripe Checkout** - Página de pagamento hospedada pelo Stripe
-3. **Notificações por email** - Enviar confirmação após pagamento
-4. **Reembolsos** - Interface para processar reembolsos
+1. **Customer Portal** — gestão de meios de pagamento / faturas (se houver subscrições)
+2. **Notificações por email** — confirmação após pagamento
+3. **UI de reembolsos** no painel admin
 
 ## Testar localmente
 

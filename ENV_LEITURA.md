@@ -42,16 +42,22 @@ NEUMATICOS_ANDRES_PASSWORD=password_fornecido_pelo_andres
 NEUMATICOS_ANDRES_BASE_URL=https://backend-pre2.genasa.es
 NEUMATICOS_ANDRES_TEST_MODE=1
 CRON_SECRET=um_segredo_longo_aleatorio
+AUTH_SECRET=segredo_longo_minimo_16_chars
 ```
 
 - **Teste:** `NEUMATICOS_ANDRES_BASE_URL=https://backend-pre2.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=1`
 - **Produção:** `https://backend.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=0`
+- **Alternativa:** pode configurar login/password no painel Admin → Neumáticos Andrés (cifrado com `AUTH_SECRET`). O `.env` tem prioridade se existir.
 
 ### Ordem de ativação
 
-1. Executar `create_neumaticos_andres_integration.sql` no Supabase SQL Editor
-2. Adicionar as variáveis acima ao `.env` e reiniciar `npm run dev`
-3. Admin → **Neumáticos Andrés** → clicar **Verificar setup** e **Testar conexão**
-4. Marcar produtos: coluna CSV `external_supplier=neumaticos_andres` ou executar `mark_products_neumaticos_andres.sql`
-5. Clicar **Sync stock & prix**
+1. Executar `create_neumaticos_andres_integration.sql` e `create_supplier_api.sql` no SQL Editor
+2. Adicionar as variáveis acima ao `.env` **ou** guardar credenciais no painel; reiniciar `npm run dev` se usou `.env`
+3. Admin → **Neumáticos Andrés** → **Guardar ligação API** → **Testar ligação**
+4. Clicar **Puxar pneus agora** (ou marcar produtos via CSV / SQL)
+5. Clicar **Sync stock & preço**
 6. Ativar integração e fazer um pedido de teste (Stripe em modo teste)
+
+### API pública de fornecedores
+
+Ver `SUPPLIER_API.md` — chaves em Dashboard Fornecedor → **API Produtos**.
