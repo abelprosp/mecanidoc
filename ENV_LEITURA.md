@@ -1,5 +1,19 @@
 # Variáveis de ambiente (.env) – MecaniDoc
 
+
+## DATABASE_URL (Postgres local)
+
+Para `npm run dev` e scripts no **host** (`seed:*`, imports):
+
+```
+DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc
+```
+
+- `npm run docker:postgres` → porta **5432**
+- `docker compose -f docker-compose.dev.yml up -d` → porta **5433** (`@localhost:5433`)
+
+O hostname `postgres` só funciona **dentro** da rede Docker Compose (serviço `app`). Não use `postgres` no `.env` do host.
+
 ## Para o Next.js ler o `.env`
 
 1. **Ficheiro no sítio certo**  

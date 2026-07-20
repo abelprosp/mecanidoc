@@ -4,9 +4,13 @@
  *
  * Idempotente: se o email já existir, atualiza password_hash e role=master.
  *
- * Uso:
+ * Uso (no host — Postgres via porta publicada):
+ *   npm run docker:postgres
  *   npm run seed:master-admin
- *   DATABASE_URL=postgresql://... node scripts/seed-master-admin.mjs
+ *   DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc node scripts/seed-master-admin.mjs
+ *
+ * Nota: hostname "postgres" só funciona dentro da rede Docker Compose.
+ * Este script reescreve automaticamente postgres → localhost quando corre no host.
  *
  * Overrides opcionais:
  *   MASTER_ADMIN_EMAIL=... MASTER_ADMIN_PASSWORD=... MASTER_ADMIN_NAME=...
@@ -15,6 +19,10 @@ import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { loadEnvFiles } from './lib/load-env.mjs';
+import {
+  resolveDatabaseUrl,
+  formatDatabaseUrlHint,
+} from './lib/resolve-database-url.mjs';
 
 loadEnvFiles();
 
@@ -25,9 +33,16 @@ const BCRYPT_ROUNDS = 10; // igual a src/lib/auth/password.ts
 const email = (process.env.MASTER_ADMIN_EMAIL || 'joaogodinho422@gmail.com').trim().toLowerCase();
 const password = process.env.MASTER_ADMIN_PASSWORD || 'Mecanidoc2023-';
 const fullName = process.env.MASTER_ADMIN_NAME || 'João Godinho';
-const dbUrl =
-  process.env.DATABASE_URL ||
-  'postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc';
+
+const resolved = resolveDatabaseUrl(process.env.DATABASE_URL);
+const dbUrl = resolved.url;
+
+if (resolved.rewritten) {
+  console.warn(
+    'Aviso: DATABASE_URL usava hostname "postgres" (só válido na rede Docker).' +
+      ' A conectar via localhost (script a correr no host).'
+  );
+}
 
 async function main() {
   if (!email || !password) {
@@ -36,7 +51,13 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const client = new Client({ connectionString: dbUrl });
-  await client.connect();
+
+  try {
+    await client.connect();
+  } catch (err) {
+    const hint = formatDatabaseUrlHint(err, process.env.DATABASE_URL || dbUrl);
+    throw new Error(`${err.message || err}${hint}`);
+  }
 
   try {
     await client.query('BEGIN');
