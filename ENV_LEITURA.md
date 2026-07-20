@@ -14,6 +14,76 @@ DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc
 
 O hostname `postgres` só funciona **dentro** da rede Docker Compose (serviço `app`). Não use `postgres` no `.env` do host.
 
+## VPS / produção (Docker Compose)
+
+Deploy recomendado: `docker compose up -d` na VPS (serviços `postgres` + `app`).
+
+### `.env` na raiz do projeto **na VPS**
+
+```env
+# O serviço `app` no docker-compose.yml já usa internamente:
+#   postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc
+# (hostname `postgres` = nome do serviço na rede Docker — NÃO use localhost no container)
+
+AUTH_SECRET=cole_aqui_openssl_rand_hex_32
+NEXT_PUBLIC_APP_URL=https://seu-dominio.com
+
+# Opcionais (integrações)
+# NEUMATICOS_ANDRES_LOGIN=...
+# NEUMATICOS_ANDRES_PASSWORD=...
+# NEUMATICOS_ANDRES_BASE_URL=https://backend.genasa.es
+# NEUMATICOS_ANDRES_TEST_MODE=0
+# STRIPE_SECRET_KEY=...
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...
+# STRIPE_WEBHOOK_SECRET=...
+# CRON_SECRET=um_segredo_longo_aleatorio
+```
+
+Gerar `AUTH_SECRET` na VPS:
+
+```bash
+openssl rand -hex 32
+```
+
+`NEXT_PUBLIC_APP_URL` deve ser a URL pública (domínio ou IP) com `https://` se houver TLS. Depois de alterar o `.env`, recrie o contentor da app:
+
+```bash
+docker compose up -d --force-recreate app
+```
+
+### DATABASE_URL — onde usar cada hostname
+
+| Onde corre o processo | Hostname correto |
+|----------------------|------------------|
+| Contentor `app` (Compose) | `postgres` (já definido no `docker-compose.yml`) |
+| Scripts na rede Docker (`npm run …:vps` / `vps-import.sh`) | `postgres` (forçado pelo script) |
+| Node no host da VPS (porta 5432 publicada) | `localhost` |
+| Mac / laptop a apontar para a BD da VPS | host/IP público da VPS (não `localhost` nem `postgres`) |
+
+O `.env` do Mac (`localhost:5432`) **não** é a base de dados da VPS. Seed no laptop só cria o admin na BD local.
+
+### Criar o master admin **na VPS** (na BD da VPS)
+
+Na pasta do projeto na VPS, com `postgres` a correr:
+
+```bash
+# Recomendado (entra na rede Docker e grava na BD correta)
+npm run seed:master-admin:vps
+
+# Alternativa com Compose overlay
+docker compose -f docker-compose.yml -f docker-compose.import.yml run --rm import node scripts/seed-master-admin.mjs
+
+# Se a porta 5432 estiver publicada no host e tiver Node instalado:
+DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc npm run seed:master-admin
+```
+
+Credenciais por omissão do seed (override com `MASTER_ADMIN_EMAIL` / `MASTER_ADMIN_PASSWORD`):
+
+- email: o definido no script (ou `MASTER_ADMIN_EMAIL=...`)
+- password: a definida no script (ou `MASTER_ADMIN_PASSWORD=...`)
+
+Não corra `seed:master-admin` no Mac à espera de fazer login na VPS.
+
 ## Para o Next.js ler o `.env`
 
 1. **Ficheiro no sítio certo**  

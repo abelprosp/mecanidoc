@@ -19,6 +19,7 @@
     "docker:postgres": "docker compose up postgres -d",
     "seed:na-example": "node scripts/seed-neumaticos-andres-example.mjs",
     "seed:master-admin": "node scripts/seed-master-admin.mjs",
+    "seed:master-admin:vps": "bash scripts/vps-import.sh seed-master-admin.mjs",
     "seed:brand-logos": "node scripts/seed-brand-logos.mjs",
     "seed:brand-logos:vps": "bash scripts/vps-import.sh seed-brand-logos.mjs",
     "import:na-products": "node scripts/import-na-products.mjs",
