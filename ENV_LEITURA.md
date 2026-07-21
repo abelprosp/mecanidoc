@@ -26,7 +26,7 @@ Deploy recomendado: `docker compose up -d` na VPS (serviços `postgres` + `app`)
 # (hostname `postgres` = nome do serviço na rede Docker — NÃO use localhost no container)
 
 AUTH_SECRET=cole_aqui_openssl_rand_hex_32
-NEXT_PUBLIC_APP_URL=https://seu-dominio.com
+NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com
 
 # Opcionais (integrações)
 # NEUMATICOS_ANDRES_LOGIN=...
@@ -83,6 +83,28 @@ Credenciais por omissão do seed (override com `MASTER_ADMIN_EMAIL` / `MASTER_AD
 - password: a definida no script (ou `MASTER_ADMIN_PASSWORD=...`)
 
 Não corra `seed:master-admin` no Mac à espera de fazer login na VPS.
+
+### Domínio `www.mecanidoc.com` (Nginx + SSL)
+
+1. No DNS do domínio, cria registos **A** para `@` e `www` apontando ao IP da VPS.
+2. Na VPS, na pasta do projeto:
+
+```bash
+chmod +x deploy/setup-domain.sh
+sudo ./deploy/setup-domain.sh
+```
+
+Isto instala o Nginx (`deploy/nginx/mecanidoc.com.conf`), pede certificado Let's Encrypt e define `NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com`.
+
+Só o ficheiro Nginx (manual):
+
+```bash
+sudo cp deploy/nginx/mecanidoc.com.conf /etc/nginx/sites-available/mecanidoc.com
+sudo ln -sf /etc/nginx/sites-available/mecanidoc.com /etc/nginx/sites-enabled/
+sudo mkdir -p /var/www/certbot
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d www.mecanidoc.com -d mecanidoc.com
+```
 
 ### Checklist rápido (VPS em IP, ex. `http://72.61.58.208:3000`)
 
