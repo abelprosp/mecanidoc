@@ -84,27 +84,22 @@ Credenciais por omissão do seed (override com `MASTER_ADMIN_EMAIL` / `MASTER_AD
 
 Não corra `seed:master-admin` no Mac à espera de fazer login na VPS.
 
-### Domínio `www.mecanidoc.com` (Nginx + SSL)
+### Domínio `www.mecanidoc.com` (HostGator DNS + Nginx + SSL)
 
-1. No DNS do domínio, cria registos **A** para `@` e `www` apontando ao IP da VPS.
-2. Na VPS, na pasta do projeto:
+Guia completo: **`deploy/HOSTGATOR_DNS.md`**
+
+Resumo:
+1. Na **HostGator** (cPanel → Zone Editor): registos **A** de `@` e `www` → `72.61.58.208`
+2. Confirma: `dig +short A www.mecanidoc.com` = `72.61.58.208`
+3. Na VPS, pasta `mecanidoc`:
 
 ```bash
 chmod +x deploy/setup-domain.sh
 sudo ./deploy/setup-domain.sh
 ```
 
-Isto instala o Nginx (`deploy/nginx/mecanidoc.com.conf`), pede certificado Let's Encrypt e define `NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com`.
-
-Só o ficheiro Nginx (manual):
-
-```bash
-sudo cp deploy/nginx/mecanidoc.com.conf /etc/nginx/sites-available/mecanidoc.com
-sudo ln -sf /etc/nginx/sites-available/mecanidoc.com /etc/nginx/sites-enabled/
-sudo mkdir -p /var/www/certbot
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d www.mecanidoc.com -d mecanidoc.com
-```
+Isto instala Nginx, pede Let's Encrypt e define `NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com`.
+Exemplo de `.env`: `deploy/.env.vps.example`.
 
 ### Checklist rápido (VPS em IP, ex. `http://72.61.58.208:3000`)
 

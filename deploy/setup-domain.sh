@@ -14,6 +14,8 @@ set -euo pipefail
 DOMAIN_WWW="www.mecanidoc.com"
 DOMAIN_APEX="mecanidoc.com"
 APP_URL="https://${DOMAIN_WWW}"
+# IP da VPS MecaniDoc (HostGator DNS deve apontar para aqui)
+EXPECTED_IP="${MECANIDOC_VPS_IP:-72.61.58.208}"
 NGINX_SRC="$(cd "$(dirname "$0")" && pwd)/nginx/mecanidoc.com.conf"
 NGINX_AVAIL="/etc/nginx/sites-available/mecanidoc.com"
 NGINX_ENABLED="/etc/nginx/sites-enabled/mecanidoc.com"
@@ -28,6 +30,48 @@ fi
 if [[ ! -f "$NGINX_SRC" ]]; then
   echo "Ficheiro não encontrado: $NGINX_SRC"
   exit 1
+fi
+
+resolve_a() {
+  local name="$1"
+  if command -v dig >/dev/null 2>&1; then
+    dig +short A "$name" | grep -E '^[0-9.]+$' | head -1 || true
+  elif command -v getent >/dev/null 2>&1; then
+    getent ahostsv4 "$name" | awk '{print $1; exit}' || true
+  else
+    python3 - <<PY 2>/dev/null || true
+import socket
+try:
+  print(socket.gethostbyname("${name}"))
+except Exception:
+  pass
+PY
+  fi
+}
+
+echo "==> Verificar DNS (HostGator → VPS ${EXPECTED_IP})"
+IP_WWW="$(resolve_a "$DOMAIN_WWW")"
+IP_APEX="$(resolve_a "$DOMAIN_APEX")"
+echo "    ${DOMAIN_WWW} → ${IP_WWW:-???}"
+echo "    ${DOMAIN_APEX} → ${IP_APEX:-???}"
+
+DNS_OK=1
+if [[ "$IP_WWW" != "$EXPECTED_IP" || "$IP_APEX" != "$EXPECTED_IP" ]]; then
+  DNS_OK=0
+  echo ""
+  echo "AVISO: DNS ainda não aponta para ${EXPECTED_IP}."
+  echo "Na HostGator (cPanel → Zone Editor) cria/edita:"
+  echo "  A  @    → ${EXPECTED_IP}"
+  echo "  A  www  → ${EXPECTED_IP}"
+  echo "Guia: deploy/HOSTGATOR_DNS.md"
+  echo ""
+fi
+
+# Abrir portas se ufw existir
+if command -v ufw >/dev/null 2>&1; then
+  echo "==> Firewall: permitir 80 e 443"
+  ufw allow 80/tcp >/dev/null 2>&1 || true
+  ufw allow 443/tcp >/dev/null 2>&1 || true
 fi
 
 echo "==> Instalar Nginx e Certbot (se necessário)"
@@ -75,13 +119,27 @@ if command -v docker >/dev/null 2>&1; then
   docker compose up -d --force-recreate app || true
 fi
 
+if [[ "$DNS_OK" -ne 1 ]]; then
+  echo ""
+  echo "Nginx e .env estão prontos, mas o SSL fica para depois do DNS."
+  echo "Quando dig +short A www.mecanidoc.com = ${EXPECTED_IP}, corre:"
+  echo "  sudo certbot --nginx -d ${DOMAIN_WWW} -d ${DOMAIN_APEX}"
+  echo ""
+  echo "Por agora: http://${DOMAIN_WWW} (se DNS já apontar) ou http://${EXPECTED_IP}:3000"
+  exit 0
+fi
+
 echo "==> Pedir certificado Let's Encrypt"
 certbot --nginx -d "$DOMAIN_WWW" -d "$DOMAIN_APEX" --non-interactive --agree-tos --register-unsafely-without-email --redirect || {
   echo ""
-  echo "Certbot falhou (DNS ainda a propagar?). Podes repetir depois:"
+  echo "Certbot falhou. Confirma:"
+  echo "  1) DNS A @ e www = ${EXPECTED_IP} (HostGator Zone Editor)"
+  echo "  2) Portas 80/443 abertas na VPS"
+  echo "  3) Nginx a responder: curl -I http://127.0.0.1 -H 'Host: www.mecanidoc.com'"
+  echo "Depois:"
   echo "  sudo certbot --nginx -d ${DOMAIN_WWW} -d ${DOMAIN_APEX}"
   echo ""
-  echo "Por agora o site deve responder em http://${DOMAIN_WWW}"
+  echo "Por agora o site pode responder em http://${DOMAIN_WWW}"
   exit 0
 }
 
