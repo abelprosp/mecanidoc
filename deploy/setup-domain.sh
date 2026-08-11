@@ -89,6 +89,10 @@ mkdir -p /var/www/certbot
 
 echo "==> Copiar config Nginx"
 cp "$NGINX_SRC" "$NGINX_AVAIL"
+# Corrige typo antigo se existir noutros ficheiros Nginx
+grep -rl 'proxy_add_x_forward_for' /etc/nginx/ 2>/dev/null | while read -r f; do
+  sed -i 's/proxy_add_x_forward_for/proxy_add_x_forwarded_for/g' "$f"
+done || true
 ln -sfn "$NGINX_AVAIL" "$NGINX_ENABLED"
 
 # Evitar conflito com default que captura tudo
@@ -96,7 +100,11 @@ if [[ -L /etc/nginx/sites-enabled/default ]]; then
   rm -f /etc/nginx/sites-enabled/default
 fi
 
-nginx -t
+if ! nginx -t; then
+  echo "Nginx config inválida. Procura o typo:"
+  echo "  grep -rn proxy_add_x_forward /etc/nginx/"
+  exit 1
+fi
 systemctl enable nginx
 systemctl reload nginx
 
