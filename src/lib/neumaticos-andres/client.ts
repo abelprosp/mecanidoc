@@ -38,11 +38,12 @@ async function parseJson<T>(response: Response): Promise<T> {
   try {
     return JSON.parse(text) as T;
   } catch {
-    throw new NeumaticosAndresApiError(
-      `Resposta inválida da API (${response.status})`,
-      response.status,
-      text
-    );
+    const trimmed = text.trim();
+    const looksHtml = /<\s*(!doctype|html|head|body|form)/i.test(trimmed);
+    const message = looksHtml
+      ? `A API devolveu HTML em vez de JSON (HTTP ${response.status}). Confirme a URL (teste vs produção) e se o login/password são desse ambiente.`
+      : `Resposta inválida da API (${response.status}): ${trimmed.slice(0, 160).replace(/\s+/g, ' ')}`;
+    throw new NeumaticosAndresApiError(message, response.status, text.slice(0, 500));
   }
 }
 
@@ -61,9 +62,11 @@ async function request<T>(
     ...init,
     headers: {
       ...buildHeaders(config),
+      'User-Agent': 'MecaniDoc/1.0',
       ...(init?.headers || {}),
     },
     cache: 'no-store',
+    signal: AbortSignal.timeout(25000),
   });
 
   const body = await parseJson<T>(response);
