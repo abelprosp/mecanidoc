@@ -29,8 +29,8 @@ services:
     container_name: mecanidoc-app
     restart: unless-stopped
     ports:
-      # Host 3010 — a porta 3000 na VPS é de outro sistema.
-      - "127.0.0.1:${MECANIDOC_APP_PORT:-3010}:3000"
+      # Host 3980 — 3000 e 3010 na VPS são de outros serviços.
+      - "127.0.0.1:${MECANIDOC_APP_PORT:-3980}:3000"
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc

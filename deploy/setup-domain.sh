@@ -6,7 +6,7 @@
 #
 # Pré-requisitos:
 #   - DNS A de mecanidoc.com e www.mecanidoc.com → IP desta VPS
-#   - docker compose com a app a escutar em 127.0.0.1:3010
+#   - docker compose com a app a escutar em 127.0.0.1:3980
 #   - Portas 80 e 443 abertas no firewall
 
 set -euo pipefail
@@ -133,7 +133,7 @@ if [[ "$DNS_OK" -ne 1 ]]; then
   echo "Quando dig +short A www.mecanidoc.com = ${EXPECTED_IP}, corre:"
   echo "  sudo certbot --nginx -d ${DOMAIN_WWW} -d ${DOMAIN_APEX}"
   echo ""
-  echo "Por agora: http://${DOMAIN_WWW} (se DNS já apontar) ou http://127.0.0.1:3010"
+  echo "Por agora: http://${DOMAIN_WWW} (se DNS já apontar) ou http://127.0.0.1:3980"
   exit 0
 fi
 
@@ -157,6 +157,6 @@ echo ""
 echo "Pronto."
 echo "  Site:  ${APP_URL}"
 echo "  Apex:  https://${DOMAIN_APEX} → redireciona para www"
-echo "  App:   proxy → 127.0.0.1:3010"
+echo "  App:   proxy → 127.0.0.1:3980"
 echo ""
 echo "Confirma no browser: ${APP_URL}"

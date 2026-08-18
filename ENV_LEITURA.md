@@ -101,7 +101,7 @@ sudo ./deploy/setup-domain.sh
 Isto instala Nginx, pede Let's Encrypt e define `NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com`.
 Exemplo de `.env`: `deploy/.env.vps.example`.
 
-### Checklist rápido (VPS em IP, app em `http://127.0.0.1:3010`)
+### Checklist rápido (VPS em IP, app em `http://127.0.0.1:3980`)
 
 Na pasta do projeto **na VPS** (SSH):
 
@@ -128,7 +128,7 @@ docker compose up -d --force-recreate app
 # Se puxou código novo: docker compose up -d --build --force-recreate app
 
 # 5) Testar login
-curl -sS -X POST http://127.0.0.1:3010/api/auth/login \
+curl -sS -X POST http://127.0.0.1:3980/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"joaogodinho422@gmail.com","password":"Mecanidoc2023-"}'
 # Esperado: HTTP 200 com {"user":{...}}

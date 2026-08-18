@@ -1,6 +1,6 @@
 # Domínio www.mecanidoc.com — HostGator + VPS
 
-A app corre na VPS em `http://127.0.0.1:3010` (pasta `mecanidoc`; Nginx faz proxy para o domínio).
+A app corre na VPS em `http://127.0.0.1:3980` (pasta `mecanidoc`; Nginx faz proxy para o domínio).
 O domínio está na **HostGator**. O site público deve ser `https://www.mecanidoc.com`.
 
 ## 1) DNS na HostGator (obrigatório)
@@ -34,7 +34,7 @@ Só depois disto pedes o certificado SSL.
 ```bash
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-# A app MecaniDoc não usa a porta 3000 (é de outro sistema). Acesso direto interno: 3010.
+# A app MecaniDoc não usa a porta 3000 (é de outro sistema). Acesso direto interno: 3980.
 sudo ufw reload
 ```
 
@@ -70,10 +70,10 @@ sudo certbot --nginx -d www.mecanidoc.com -d mecanidoc.com
 |-----|----------------------|
 | `https://www.mecanidoc.com` | Site MecaniDoc (HTTPS) |
 | `https://mecanidoc.com` | Redireciona para www |
-| `http://127.0.0.1:3010` | App MecaniDoc (só na VPS; Nginx proxyia o domínio) |
+| `http://127.0.0.1:3980` | App MecaniDoc (só na VPS; Nginx proxyia o domínio) |
 
 ## Ficheiros neste repo
 
-- `deploy/nginx/mecanidoc.com.conf` — config Nginx (proxy → porta 3010)
+- `deploy/nginx/mecanidoc.com.conf` — config Nginx (proxy → porta 3980)
 - `deploy/setup-domain.sh` — instala Nginx, SSL e atualiza `.env`
 - `deploy/.env.vps.example` — exemplo de `.env` na VPS
