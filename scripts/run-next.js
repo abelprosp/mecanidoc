@@ -19,7 +19,7 @@ const envLocalPath = path.join(projectRoot, '.env.local');
 if (!fs.existsSync(envPath) && !fs.existsSync(envLocalPath)) {
   console.warn(
     '\n  Aviso: sem .env / .env.local na raiz. Copie .env.example → .env\n' +
-      '  (DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc)\n' +
+      '  (DATABASE_URL=postgresql://mecanidoc:mecanidoc@localhost:5434/mecanidoc)\n' +
       '  Sem isto o login pode falhar mesmo após npm run seed:master-admin.\n'
   );
 }

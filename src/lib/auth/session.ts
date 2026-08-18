@@ -46,7 +46,7 @@ export async function getSessionUserFromCookies(): Promise<SessionUser | null> {
 }
 
 function cookieSecure(): boolean {
-  // Em produção HTTP (ex.: http://IP:3000 na VPS) Secure=true impede o browser de guardar o cookie.
+  // Em produção HTTP (ex.: http://IP:3010 na VPS) Secure=true impede o browser de guardar o cookie.
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim().toLowerCase();
   if (appUrl.startsWith('http://')) return false;
   if (appUrl.startsWith('https://')) return true;

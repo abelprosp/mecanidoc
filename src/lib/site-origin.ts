@@ -17,5 +17,5 @@ export function getSiteOriginFromRequest(request: NextRequest | null): string {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`;
   }
-  return 'http://localhost:3000';
+  return 'http://localhost:3002';
 }

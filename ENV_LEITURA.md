@@ -101,7 +101,7 @@ sudo ./deploy/setup-domain.sh
 Isto instala Nginx, pede Let's Encrypt e define `NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com`.
 Exemplo de `.env`: `deploy/.env.vps.example`.
 
-### Checklist rápido (VPS em IP, ex. `http://72.61.58.208:3000`)
+### Checklist rápido (VPS em IP, app em `http://127.0.0.1:3010`)
 
 Na pasta do projeto **na VPS** (SSH):
 
@@ -111,8 +111,8 @@ cd /caminho/do/mecanidoc   # pasta com docker-compose.yml
 # 1) .env mínimo
 grep -q '^AUTH_SECRET=' .env 2>/dev/null || echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env
 # ajuste/garanta a URL pública HTTP:
-grep -q '^NEXT_PUBLIC_APP_URL=' .env && sed -i.bak 's|^NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=http://72.61.58.208:3000|' .env \
-  || echo 'NEXT_PUBLIC_APP_URL=http://72.61.58.208:3000' >> .env
+grep -q '^NEXT_PUBLIC_APP_URL=' .env && sed -i.bak 's|^NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com|' .env \
+  || echo 'NEXT_PUBLIC_APP_URL=https://www.mecanidoc.com' >> .env
 
 # 2) Postgres + app
 docker compose up -d
@@ -128,7 +128,7 @@ docker compose up -d --force-recreate app
 # Se puxou código novo: docker compose up -d --build --force-recreate app
 
 # 5) Testar login
-curl -sS -X POST http://127.0.0.1:3000/api/auth/login \
+curl -sS -X POST http://127.0.0.1:3010/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"joaogodinho422@gmail.com","password":"Mecanidoc2023-"}'
 # Esperado: HTTP 200 com {"user":{...}}
