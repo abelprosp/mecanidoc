@@ -9,13 +9,13 @@ import Footer from '@/components/Footer';
 import { ChevronDown, ChevronUp, AlertCircle, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
-const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
-
 export default function CheckoutPage() {
   const { items, cartTotal, clearCart, removeFromCart, updateQuantity, getItemLineTotal } = useCart();
   const supabase = createClient();
   const [settings, setSettings] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [stripePublishableKey, setStripePublishableKey] = useState('');
+  const [stripeConfigured, setStripeConfigured] = useState<boolean | null>(null);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -61,6 +61,25 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/stripe/config', { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        const key = typeof data.publishableKey === 'string' ? data.publishableKey.trim() : '';
+        setStripePublishableKey(key);
+        setStripeConfigured(Boolean(data.configured && key));
+      } catch {
+        if (!cancelled) setStripeConfigured(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!embeddedClientSecret || !stripePublishableKey) return;
     const mountEl = embeddedMountRef.current;
     if (!mountEl) return;
@@ -86,7 +105,7 @@ export default function CheckoutPage() {
       cancelled = true;
       instance?.destroy();
     };
-  }, [embeddedClientSecret]);
+  }, [embeddedClientSecret, stripePublishableKey]);
 
   useEffect(() => {
     if (checkoutPhase !== 'payment') return;
@@ -146,8 +165,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!stripePublishableKey) {
-      alert('Paiement indisponible : ajoutez NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY dans la configuration.');
+    if (!stripeConfigured || !stripePublishableKey) {
+      alert('Paiement indisponible : configurez Stripe dans Admin → Paiement Stripe.');
       return;
     }
 
@@ -210,6 +229,7 @@ export default function CheckoutPage() {
 
       const itemsRes = await fetch('/api/checkout/order-items', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: order.id, items: orderItems }),
       });
@@ -231,6 +251,7 @@ export default function CheckoutPage() {
       // Redirecionar para o Stripe Checkout
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -536,7 +557,13 @@ export default function CheckoutPage() {
                  )}
                </div>
 
-               {checkoutPhase === 'details' && (
+               {checkoutPhase === 'details' && stripeConfigured === false && (
+                 <p className="mt-6 text-xs text-red-700 bg-red-50 border border-red-100 rounded p-2">
+                   Paiement indisponible pour le moment. L’administrateur doit configurer Stripe
+                   (Admin → Paiement Stripe).
+                 </p>
+               )}
+               {checkoutPhase === 'details' && stripeConfigured !== false && (
                  <p className="mt-6 text-xs text-gray-600">
                    Vous pourrez régler en toute sécurité via Stripe à l’étape suivante.
                  </p>
@@ -566,7 +593,7 @@ export default function CheckoutPage() {
                {checkoutPhase === 'details' && (
                  <button 
                    onClick={handlePlaceOrder}
-                   disabled={placingOrder}
+                   disabled={placingOrder || stripeConfigured === false}
                    className="w-full mt-6 bg-[#40C4E7] hover:bg-[#3bb0cf] text-white font-bold py-3 rounded text-center transition-colors shadow-sm disabled:opacity-50 flex justify-center items-center gap-2"
                  >
                    {placingOrder && <Loader2 className="animate-spin" size={18} />}

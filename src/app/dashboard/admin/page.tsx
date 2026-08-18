@@ -15,6 +15,7 @@ import PromotionsSection from './PromotionsSection';
 import SupportChatSection from './SupportChatSection';
 import SupportInboxSection from './SupportInboxSection';
 import NeumaticosAndresSection from './NeumaticosAndresSection';
+import StripeSection from './StripeSection';
 
 /** URL externe ou Storage → copie vers bucket et URL du site (/imagem/...). */
 async function normalizeAdminImageUrl(
@@ -77,6 +78,7 @@ export default function AdminDashboard() {
       case 'promotions': return <PromotionsSection />;
       case 'settings': return <SettingsSection />;
       case 'neumaticos-andres': return <NeumaticosAndresSection />;
+      case 'stripe': return <StripeSection />;
       case 'approvals': return <ApprovalsSection />;
       case 'support-chat': return <SupportChatSection />;
       case 'support-inbox': return <SupportInboxSection />;
@@ -103,6 +105,7 @@ export default function AdminDashboard() {
     { id: 'taxes', icon: Percent, label: 'Taxes' },
     { id: 'settings', icon: Settings, label: 'Configuration Globale' },
     { id: 'neumaticos-andres', icon: Truck, label: 'API Fornecedor (Pneus)' },
+    { id: 'stripe', icon: CreditCard, label: 'Paiement Stripe' },
     { id: 'approvals', icon: CheckCircle, label: 'Approbations' },
     { id: 'support-chat', icon: MessageSquare, label: 'Support Chat' },
     { id: 'support-inbox', icon: Inbox, label: 'Inbox Email' },

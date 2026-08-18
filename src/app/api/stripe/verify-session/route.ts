@@ -5,7 +5,7 @@ import {
   markOrderPaid,
   toStripeAmountCents,
 } from '@/lib/stripe-payments';
-import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
+import { getStripe } from '@/lib/stripe-wrapper';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 /**
@@ -13,13 +13,9 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
  * Sert de filet de sécurité si le webhook est en retard (page /checkout/success).
  */
 export async function POST(request: NextRequest) {
-  if (!isStripeConfigured()) {
-    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 });
-  }
-
   const stripe = await getStripe();
   if (!stripe) {
-    return NextResponse.json({ error: 'Stripe is not available' }, { status: 503 });
+    return NextResponse.json({ error: 'Stripe n’est pas configuré' }, { status: 503 });
   }
 
   try {

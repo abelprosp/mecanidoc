@@ -33,3 +33,10 @@ COMMENT ON COLUMN public.orders.stripe_checkout_session_id IS 'ID da Checkout Se
 COMMENT ON COLUMN public.orders.payment_method IS 'Método de pagamento usado';
 COMMENT ON COLUMN public.orders.payment_status IS 'Status do pagamento: pending, paid, failed, refunded, canceled, partially_refunded';
 COMMENT ON TABLE public.stripe_webhook_events IS 'Eventos Stripe já processados (idempotência de webhooks)';
+
+-- Chaves Stripe no painel admin (cifradas com AUTH_SECRET)
+ALTER TABLE public.global_settings
+  ADD COLUMN IF NOT EXISTS stripe_secret_key_enc TEXT,
+  ADD COLUMN IF NOT EXISTS stripe_publishable_key TEXT,
+  ADD COLUMN IF NOT EXISTS stripe_webhook_secret_enc TEXT;
+

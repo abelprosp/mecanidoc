@@ -775,7 +775,10 @@ alter table public.global_settings
   add column if not exists na_api_login text,
   add column if not exists na_api_password_enc text,
   add column if not exists na_api_base_url text,
-  add column if not exists na_api_test_mode boolean default true;
+  add column if not exists na_api_test_mode boolean default true,
+  add column if not exists stripe_secret_key_enc text,
+  add column if not exists stripe_publishable_key text,
+  add column if not exists stripe_webhook_secret_enc text;
 
 create unique index if not exists idx_products_supplier_external_product
   on public.products (supplier_id, external_product_id)

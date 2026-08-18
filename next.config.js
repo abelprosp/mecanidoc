@@ -9,7 +9,7 @@ const nextConfig = {
   output: 'standalone',
   outputFileTracingRoot: projectRoot,
   // ssh2 tem binários nativos: não empacotar (evita erro Turbopack no Vercel).
-  serverExternalPackages: ['ssh2', 'ssh2-sftp-client', 'cpu-features', 'pg', 'bcryptjs'],
+  serverExternalPackages: ['ssh2', 'ssh2-sftp-client', 'cpu-features', 'pg', 'bcryptjs', 'stripe'],
   webpack: (config) => {
     config.context = projectRoot;
     config.resolve = config.resolve || {};

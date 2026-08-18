@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
+import { getStripe } from '@/lib/stripe-wrapper';
+import { getSupabaseAdmin } from '@/lib/neumaticos-andres/server-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import {
   STRIPE_CURRENCY,
@@ -9,26 +10,21 @@ import {
 
 function resolveOrigin(request: NextRequest): string {
   const headerOrigin = request.headers.get('origin');
-  if (headerOrigin) return headerOrigin;
+  if (headerOrigin) return headerOrigin.replace(/\/$/, '');
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
+  if (appUrl.startsWith('http://') || appUrl.startsWith('https://')) return appUrl;
   try {
     return new URL(request.url).origin;
   } catch {
-    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    return 'http://localhost:3002';
   }
 }
 
 export async function POST(request: NextRequest) {
-  if (!isStripeConfigured()) {
-    return NextResponse.json(
-      { error: 'Stripe is not configured. Please set STRIPE_SECRET_KEY in environment variables.' },
-      { status: 503 }
-    );
-  }
-
   const stripe = await getStripe();
   if (!stripe) {
     return NextResponse.json(
-      { error: 'Stripe is not available. Please install the stripe package.' },
+      { error: 'Stripe n’est pas configuré. Ajoutez les clés dans Admin → Paiement Stripe.' },
       { status: 503 }
     );
   }
@@ -152,7 +148,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error: updateError } = await supabase
+    const admin = getSupabaseAdmin();
+    const { error: updateError } = await admin
       .from('orders')
       .update({
         stripe_checkout_session_id: session.id,

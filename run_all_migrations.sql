@@ -174,6 +174,12 @@ comment on column public.orders.payment_method is 'Método de pagamento usado';
 comment on column public.orders.payment_status is 'Status do pagamento: pending, paid, failed, refunded, canceled, partially_refunded';
 comment on table public.stripe_webhook_events is 'Eventos Stripe já processados (idempotência de webhooks)';
 
+alter table public.global_settings
+  add column if not exists stripe_secret_key_enc text,
+  add column if not exists stripe_publishable_key text,
+  add column if not exists stripe_webhook_secret_enc text;
+
+
 -- -----------------------------------------------------------------------------
 -- 4. Marcas (brands)
 -- -----------------------------------------------------------------------------

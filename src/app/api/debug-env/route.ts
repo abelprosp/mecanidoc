@@ -11,5 +11,10 @@ export async function GET() {
     AUTH_SECRET: hasAuthSecret ? 'definido' : '(não definido — necessário para login)',
     UPLOAD_DIR: uploadDir,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? '(não definido)',
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY?.trim() ? 'definido' : '(não definido)',
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()
+      ? 'definido'
+      : '(não definido)',
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET?.trim() ? 'definido' : '(não definido)',
   });
 }

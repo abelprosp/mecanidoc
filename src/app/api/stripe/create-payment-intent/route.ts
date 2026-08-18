@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
+import { getStripe } from '@/lib/stripe-wrapper';
+import { getSupabaseAdmin } from '@/lib/neumaticos-andres/server-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import {
   STRIPE_CURRENCY,
@@ -8,17 +9,10 @@ import {
 } from '@/lib/stripe-payments';
 
 export async function POST(request: NextRequest) {
-  if (!isStripeConfigured()) {
-    return NextResponse.json(
-      { error: 'Stripe is not configured. Please set STRIPE_SECRET_KEY in environment variables.' },
-      { status: 503 }
-    );
-  }
-
   const stripe = await getStripe();
   if (!stripe) {
     return NextResponse.json(
-      { error: 'Stripe is not available. Please install the stripe package.' },
+      { error: 'Stripe n’est pas configuré. Ajoutez les clés dans Admin → Paiement Stripe.' },
       { status: 503 }
     );
   }
@@ -132,7 +126,8 @@ export async function POST(request: NextRequest) {
       { idempotencyKey }
     );
 
-    await supabase
+    const admin = getSupabaseAdmin();
+    await admin
       .from('orders')
       .update({
         stripe_payment_intent_id: paymentIntent.id,

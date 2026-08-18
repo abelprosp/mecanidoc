@@ -6,7 +6,8 @@ import {
   markOrderPaid,
   toStripeAmountCents,
 } from '@/lib/stripe-payments';
-import { getStripe, isStripeConfigured } from '@/lib/stripe-wrapper';
+import { resolveStripeConfig } from '@/lib/stripe-credentials';
+import { getStripe } from '@/lib/stripe-wrapper';
 
 type StripeEvent = {
   id: string;
@@ -16,14 +17,14 @@ type StripeEvent = {
   };
 };
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
 export async function POST(request: NextRequest) {
-  if (!isStripeConfigured() || !webhookSecret) {
+  const config = await resolveStripeConfig();
+  const webhookSecret = config.webhookSecret;
+  if (!config.secretKey || !webhookSecret) {
     return NextResponse.json(
       {
         error:
-          'Stripe webhook is not configured. Please set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in environment variables.',
+          'Stripe webhook is not configured. Defina STRIPE_SECRET_KEY e STRIPE_WEBHOOK_SECRET, ou grave-os em Admin → Paiement Stripe.',
       },
       { status: 503 }
     );
