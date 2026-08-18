@@ -15,9 +15,6 @@ export type NaCredentialsInput = {
 
 export async function resolveNeumaticosAndresConfig(): Promise<NeumaticosAndresConfig> {
   const envConfig = getNeumaticosAndresConfig();
-  if (envConfig.isConfigured) {
-    return envConfig;
-  }
 
   try {
     await ensureIntegrationSettingsSchema();
@@ -27,22 +24,24 @@ export async function resolveNeumaticosAndresConfig(): Promise<NeumaticosAndresC
       .select('na_api_login, na_api_password_enc, na_api_base_url, na_api_test_mode')
       .maybeSingle();
 
-    const login = (data?.na_api_login || '').trim();
-    let password = '';
+    const dbLogin = (data?.na_api_login || '').trim();
+    let dbPassword = '';
     if (data?.na_api_password_enc) {
       try {
-        password = decryptSecret(String(data.na_api_password_enc));
+        dbPassword = decryptSecret(String(data.na_api_password_enc));
       } catch {
-        password = '';
+        dbPassword = '';
       }
     }
 
-    const baseUrl = (
-      (data?.na_api_base_url || '').trim() ||
-      envConfig.baseUrl ||
-      'https://backend.genasa.es'
-    ).replace(/\/$/, '');
-
+    const login = envConfig.login || dbLogin;
+    const password = envConfig.password || dbPassword;
+    // Painel (BD) manda na URL e no modo teste — o .env de teste deixa de bloquear produção.
+    const dbBaseUrl = (data?.na_api_base_url || '').trim();
+    const baseUrl = (dbBaseUrl || envConfig.baseUrl || 'https://backend.genasa.es').replace(
+      /\/$/,
+      ''
+    );
     const testMode =
       typeof data?.na_api_test_mode === 'boolean'
         ? data.na_api_test_mode
@@ -86,7 +85,13 @@ export async function getNeumaticosCredentialsStatus() {
 
     return {
       configured: resolved.isConfigured,
-      source: envConfig.isConfigured ? ('env' as const) : data?.na_api_login ? ('database' as const) : ('none' as const),
+      source: envConfig.isConfigured
+        ? data?.na_api_base_url
+          ? ('mixed' as const)
+          : ('env' as const)
+        : data?.na_api_login
+          ? ('database' as const)
+          : ('none' as const),
       login: resolved.login ? `${resolved.login.slice(0, 2)}***` : null,
       hasPassword: Boolean(resolved.password),
       baseUrl: resolved.baseUrl,

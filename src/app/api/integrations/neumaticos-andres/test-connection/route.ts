@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Falha na conexão';
     const envHint =
-      status?.source === 'env'
-        ? ' (está a usar o .env; o dropdown do painel é ignorado)'
+      status?.source === 'env' && !config.baseUrl.includes('backend.genasa.es')
+        ? ' (o .env ainda aponta para teste; mude NEUMATICOS_ANDRES_BASE_URL para https://backend.genasa.es)'
         : '';
     const isUpstream = error instanceof NeumaticosAndresApiError;
     return NextResponse.json(

@@ -24,7 +24,7 @@ type SetupStatus = {
 
 type CredStatus = {
   configured?: boolean;
-  source?: 'env' | 'database' | 'none';
+  source?: 'env' | 'database' | 'mixed' | 'none';
   login?: string | null;
   hasPassword?: boolean;
   baseUrl?: string;
@@ -53,8 +53,8 @@ export default function NeumaticosAndresSection() {
   const [credForm, setCredForm] = useState({
     login: '',
     password: '',
-    baseUrl: 'https://backend-pre2.genasa.es',
-    testMode: true,
+    baseUrl: 'https://backend.genasa.es',
+    testMode: false,
   });
   const [importForm, setImportForm] = useState({
     limit: 50,
@@ -418,7 +418,16 @@ export default function NeumaticosAndresSection() {
               {credStatus.configured ? 'configurado' : 'não configurado'}
             </span>
             {credStatus.source && credStatus.source !== 'none' && (
-              <> (fonte: {credStatus.source === 'env' ? '.env' : 'painel'})</>
+              <>
+                {' '}
+                (fonte:{' '}
+                {credStatus.source === 'env'
+                  ? '.env'
+                  : credStatus.source === 'mixed'
+                    ? '.env (login) + painel (URL)'
+                    : 'painel'}
+                )
+              </>
             )}
             {credStatus.login && <> · login {credStatus.login}</>}
           </p>
@@ -454,8 +463,8 @@ export default function NeumaticosAndresSection() {
               onChange={(e) => setCredForm({ ...credForm, baseUrl: e.target.value })}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
             >
-              <option value="https://backend-pre2.genasa.es">Teste — backend-pre2.genasa.es</option>
               <option value="https://backend.genasa.es">Produção — backend.genasa.es</option>
+              <option value="https://backend-pre2.genasa.es">Teste — backend-pre2.genasa.es</option>
             </select>
           </div>
           <div className="flex items-end pb-2">

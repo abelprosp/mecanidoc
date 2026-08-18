@@ -174,15 +174,15 @@ Variáveis **só no servidor** (sem `NEXT_PUBLIC_`):
 ```env
 NEUMATICOS_ANDRES_LOGIN=login_fornecido_pelo_andres
 NEUMATICOS_ANDRES_PASSWORD=password_fornecido_pelo_andres
-NEUMATICOS_ANDRES_BASE_URL=https://backend-pre2.genasa.es
-NEUMATICOS_ANDRES_TEST_MODE=1
+NEUMATICOS_ANDRES_BASE_URL=https://backend.genasa.es
+NEUMATICOS_ANDRES_TEST_MODE=0
 CRON_SECRET=um_segredo_longo_aleatorio
 AUTH_SECRET=segredo_longo_minimo_16_chars
 ```
 
-- **Teste:** `NEUMATICOS_ANDRES_BASE_URL=https://backend-pre2.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=1`
-- **Produção:** `https://backend.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=0`
-- **Alternativa:** pode configurar login/password no painel Admin → Neumáticos Andrés (cifrado com `AUTH_SECRET`). O `.env` tem prioridade se existir.
+- **Produção:** `NEUMATICOS_ANDRES_BASE_URL=https://backend.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=0`
+- **Teste:** `https://backend-pre2.genasa.es` e `NEUMATICOS_ANDRES_TEST_MODE=1`
+- Login/password: `.env` se existir, senão o painel Admin. A **URL e o modo teste** do painel passam a ter prioridade sobre o `.env`.
 
 ### Ordem de ativação
 
