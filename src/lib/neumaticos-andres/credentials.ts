@@ -60,32 +60,60 @@ export async function resolveNeumaticosAndresConfig(): Promise<NeumaticosAndresC
   }
 }
 
-export async function getNeumaticosCredentialsStatus() {
-  await ensureIntegrationSettingsSchema();
-  const envConfig = getNeumaticosAndresConfig();
-  const admin = createAdminDbClient();
-  const { data } = await admin
-    .from('global_settings')
-    .select('id, na_api_login, na_api_password_enc, na_api_base_url, na_api_test_mode')
-    .maybeSingle();
-
-  const resolved = await resolveNeumaticosAndresConfig();
-
+function emptyCredentialsStatus(envConfig: NeumaticosAndresConfig) {
   return {
-    configured: resolved.isConfigured,
-    source: envConfig.isConfigured ? ('env' as const) : data?.na_api_login ? ('database' as const) : ('none' as const),
-    login: resolved.login ? `${resolved.login.slice(0, 2)}***` : null,
-    hasPassword: Boolean(resolved.password),
-    baseUrl: resolved.baseUrl,
-    testMode: resolved.testMode,
-    settingsId: data?.id || null,
+    configured: envConfig.isConfigured,
+    source: envConfig.isConfigured ? ('env' as const) : ('none' as const),
+    login: envConfig.login ? `${envConfig.login.slice(0, 2)}***` : null,
+    hasPassword: Boolean(envConfig.password),
+    baseUrl: envConfig.baseUrl,
+    testMode: envConfig.testMode,
+    settingsId: null as string | null,
   };
+}
+
+export async function getNeumaticosCredentialsStatus() {
+  const envConfig = getNeumaticosAndresConfig();
+  try {
+    await ensureIntegrationSettingsSchema();
+    const admin = createAdminDbClient();
+    const { data } = await admin
+      .from('global_settings')
+      .select('id, na_api_login, na_api_password_enc, na_api_base_url, na_api_test_mode')
+      .maybeSingle();
+
+    const resolved = await resolveNeumaticosAndresConfig();
+
+    return {
+      configured: resolved.isConfigured,
+      source: envConfig.isConfigured ? ('env' as const) : data?.na_api_login ? ('database' as const) : ('none' as const),
+      login: resolved.login ? `${resolved.login.slice(0, 2)}***` : null,
+      hasPassword: Boolean(resolved.password),
+      baseUrl: resolved.baseUrl,
+      testMode: resolved.testMode,
+      settingsId: data?.id || null,
+    };
+  } catch (error) {
+    console.error('NA credentials status:', error);
+    return emptyCredentialsStatus(envConfig);
+  }
 }
 
 export async function saveNeumaticosCredentials(input: NaCredentialsInput) {
   await ensureIntegrationSettingsSchema();
   const admin = createAdminDbClient();
-  const { data: existing } = await admin.from('global_settings').select('id, na_api_password_enc').maybeSingle();
+  let existing: { id?: string } | null = null;
+  try {
+    const result = await admin.from('global_settings').select('id').maybeSingle();
+    existing = result.data;
+  } catch (error) {
+    await ensureIntegrationSettingsSchema();
+    const result = await admin.from('global_settings').select('id').maybeSingle();
+    existing = result.data;
+    if (!existing && error) {
+      console.warn('NA credentials: leitura de global_settings falhou, a inserir linha nova.');
+    }
+  }
 
   const payload: Record<string, unknown> = {};
 

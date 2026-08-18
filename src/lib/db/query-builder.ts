@@ -54,6 +54,20 @@ function quoteIdent(name: string) {
   return `"${name.replace(/"/g, '""')}"`;
 }
 
+function sqlSelectList(columns: string): string {
+  const trimmed = columns.trim();
+  if (!trimmed || trimmed === '*') return '*';
+  return trimmed
+    .split(',')
+    .map((part) => {
+      const col = part.trim();
+      if (!col || col === '*') return col || '*';
+      if (/[->(]/.test(col)) return col;
+      return quoteIdent(col);
+    })
+    .join(', ');
+}
+
 /** Coluna SQL — suporta extração JSONB (`specs->>width`). */
 function sqlColumnRef(column: string): string {
   const jsonText = column.match(/^([a-zA-Z_][a-zA-Z0-9_]*)->>([a-zA-Z_][a-zA-Z0-9_]*)$/);
@@ -387,7 +401,7 @@ export class QueryBuilder {
 
         const { columns, embeds } = parseEmbeds(this.selectRaw);
         const { clause, params } = this.buildWhere();
-        let sql = `SELECT ${columns === '*' ? '*' : columns} FROM ${quoteIdent(this.table)} ${clause}`;
+        let sql = `SELECT ${sqlSelectList(columns)} FROM ${quoteIdent(this.table)} ${clause}`;
         if (this.orders.length) {
           sql += ` ORDER BY ${this.orders.map((o) => `${quoteIdent(o.column)} ${o.ascending ? 'ASC' : 'DESC'}`).join(', ')}`;
         }
@@ -462,6 +476,9 @@ export class QueryBuilder {
 
       return { data: null, error: { message: 'Operação não suportada' } };
     } catch (error) {
+      // Dentro de transação: relançar para ROLLBACK. Devolver { error } e depois
+      // COMMIT deixa o Postgres em "current transaction is aborted" (HTTP 500).
+      if (this.client) throw error;
       return { data: null, error: toDbError(error) };
     }
   }

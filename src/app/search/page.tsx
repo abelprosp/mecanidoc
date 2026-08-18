@@ -330,9 +330,6 @@ function SearchContent() {
         console.error('Error fetching products:', error);
       } else {
         console.log('Produtos encontrados:', data?.length || 0);
-        if (data && data.length > 0) {
-          console.log('Primeiro produto:', data[0]);
-        }
         setProducts(data || []);
       }
       setLoading(false);

@@ -92,7 +92,9 @@ export default function NeumaticosAndresSection() {
 
   const loadCredentials = async () => {
     try {
-      const res = await fetch('/api/integrations/neumaticos-andres/credentials');
+      const res = await fetch('/api/integrations/neumaticos-andres/credentials', {
+        credentials: 'include',
+      });
       const data = await res.json();
       if (res.ok) {
         setCredStatus(data);
@@ -148,6 +150,7 @@ export default function NeumaticosAndresSection() {
     try {
       const res = await fetch('/api/integrations/neumaticos-andres/credentials', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           login: credForm.login || undefined,

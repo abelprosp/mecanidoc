@@ -33,7 +33,11 @@ export async function withUserContext<T>(
     await client.query('COMMIT');
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* ignore */
+    }
     throw error;
   } finally {
     client.release();
@@ -49,7 +53,11 @@ export async function withAdminContext<T>(fn: (client: PoolClient) => Promise<T>
     await client.query('COMMIT');
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* ignore */
+    }
     throw error;
   } finally {
     client.release();
