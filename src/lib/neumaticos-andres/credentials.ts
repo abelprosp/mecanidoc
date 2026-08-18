@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createAdminDbClient } from '@/lib/db/client';
+import { ensureIntegrationSettingsSchema } from '@/lib/db/ensure-schema';
 import { decryptSecret, encryptSecret } from '@/lib/supplier-api/crypto';
 import { getNeumaticosAndresConfig, type NeumaticosAndresConfig } from './config';
 
@@ -19,6 +20,7 @@ export async function resolveNeumaticosAndresConfig(): Promise<NeumaticosAndresC
   }
 
   try {
+    await ensureIntegrationSettingsSchema();
     const admin = createAdminDbClient();
     const { data } = await admin
       .from('global_settings')
@@ -59,6 +61,7 @@ export async function resolveNeumaticosAndresConfig(): Promise<NeumaticosAndresC
 }
 
 export async function getNeumaticosCredentialsStatus() {
+  await ensureIntegrationSettingsSchema();
   const envConfig = getNeumaticosAndresConfig();
   const admin = createAdminDbClient();
   const { data } = await admin
@@ -80,6 +83,7 @@ export async function getNeumaticosCredentialsStatus() {
 }
 
 export async function saveNeumaticosCredentials(input: NaCredentialsInput) {
+  await ensureIntegrationSettingsSchema();
   const admin = createAdminDbClient();
   const { data: existing } = await admin.from('global_settings').select('id, na_api_password_enc').maybeSingle();
 

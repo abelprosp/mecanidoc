@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { createAdminDbClient } from '@/lib/db/client';
-import { getPool } from '@/lib/db/pool';
+import { ensureIntegrationSettingsSchema } from '@/lib/db/ensure-schema';
 import { decryptSecret, encryptSecret } from '@/lib/supplier-api/crypto';
 
 export type StripeResolvedConfig = {
@@ -21,17 +21,8 @@ export type StripeCredentialsInput = {
   clearWebhookSecret?: boolean;
 };
 
-let schemaReady = false;
-
 export async function ensureStripeSettingsSchema(): Promise<void> {
-  if (schemaReady) return;
-  await getPool().query(`
-    ALTER TABLE public.global_settings
-      ADD COLUMN IF NOT EXISTS stripe_secret_key_enc text,
-      ADD COLUMN IF NOT EXISTS stripe_publishable_key text,
-      ADD COLUMN IF NOT EXISTS stripe_webhook_secret_enc text
-  `);
-  schemaReady = true;
+  await ensureIntegrationSettingsSchema();
 }
 
 function trimEnv(name: string): string {

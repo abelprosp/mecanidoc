@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireMasterUser } from '@/lib/admin-auth-server';
+import { ensureIntegrationSettingsSchema } from '@/lib/db/ensure-schema';
 import { resolveNeumaticosAndresConfig } from '@/lib/neumaticos-andres/credentials';
 import { getSupabaseAdmin } from '@/lib/neumaticos-andres/server-helpers';
 
@@ -17,11 +18,12 @@ export async function GET() {
   };
 
   try {
+    await ensureIntegrationSettingsSchema();
     const admin = getSupabaseAdmin();
 
     const { error: settingsError } = await admin
       .from('global_settings')
-      .select('na_integration_enabled')
+      .select('na_integration_enabled, na_api_login')
       .limit(1);
 
     checks.databaseMigration = !settingsError;
