@@ -14,7 +14,12 @@ function productLookupId(product: {
 
 export async function syncNeumaticosAndresStock(
   admin: DbClient,
-  options?: { postCode?: string; productIds?: string[] }
+  options?: {
+    postCode?: string;
+    productIds?: string[];
+    delayMs?: number;
+    onProgress?: (snapshot: SyncStockResult) => void;
+  }
 ): Promise<SyncStockResult> {
   const logs: string[] = [];
   let updated = 0;
@@ -97,6 +102,18 @@ export async function syncNeumaticosAndresStock(
       const msg = err instanceof Error ? err.message : 'Erro desconhecido';
       logs.push(`Erro no lote ${i / BATCH_SIZE + 1}: ${msg}`);
     }
+
+    const delayMs = Math.max(options?.delayMs ?? 80, 0);
+    if (delayMs > 0 && i + BATCH_SIZE < eligible.length) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+
+    options?.onProgress?.({
+      updated,
+      skipped,
+      errors,
+      logs: [...logs, `Progresso: ${Math.min(i + BATCH_SIZE, eligible.length)}/${eligible.length}`],
+    });
   }
 
   logs.push(`Sync concluído: ${updated} atualizado(s), ${skipped} ignorado(s), ${errors} erro(s).`);

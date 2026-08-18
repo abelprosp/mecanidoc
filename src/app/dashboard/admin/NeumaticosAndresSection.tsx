@@ -144,6 +144,22 @@ export default function NeumaticosAndresSection() {
     loadGtinEnrich();
   }, []);
 
+  const waitForNaJob = async (jobId: string) => {
+    for (let i = 0; i < 450; i++) {
+      const res = await fetch(
+        `/api/integrations/neumaticos-andres/jobs?id=${encodeURIComponent(jobId)}`,
+        { credentials: 'include' }
+      );
+      const job = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(job.error || `Job HTTP ${res.status}`);
+      if (Array.isArray(job.logs)) setLogs(job.logs);
+      if (job.status === 'done') return job;
+      if (job.status === 'error') throw new Error(job.error || 'O job falhou');
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    throw new Error('Ainda a correr no servidor — volte a verificar daqui a um minuto.');
+  };
+
   const saveCredentials = async () => {
     setSavingCreds(true);
     setConnectionResult(null);
@@ -226,15 +242,25 @@ export default function NeumaticosAndresSection() {
 
   const runStockSync = async () => {
     setSyncingStock(true);
-    setLogs([]);
+    setLogs(['A iniciar sync de stock…']);
     try {
       const res = await fetch('/api/integrations/neumaticos-andres/sync-stock', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro sync stock');
+      const data = await res.json().catch(() => ({}));
+      if (data.jobId) {
+        const job = await waitForNaJob(data.jobId);
+        const result = job.result || {};
+        setLogs(job.logs || result.logs || []);
+        alert(
+          `Stock sincronizado: ${result.updated ?? 0} atualizados, ${result.skipped ?? 0} ignorados.`
+        );
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || `Erro sync stock (${res.status})`);
       setLogs(data.logs || []);
       alert(`Stock sincronizado: ${data.updated} atualizados, ${data.skipped} ignorados.`);
     } catch (error: unknown) {
@@ -266,10 +292,11 @@ export default function NeumaticosAndresSection() {
 
   const runCatalogImport = async () => {
     setImportingCatalog(true);
-    setLogs([]);
+    setLogs(['A iniciar importação…']);
     try {
       const res = await fetch('/api/integrations/neumaticos-andres/import-catalog', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           limit: Number(importForm.limit) || 50,
@@ -280,8 +307,24 @@ export default function NeumaticosAndresSection() {
           articles: importForm.articles || undefined,
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Erro ao importar catálogo');
+      const data = await res.json().catch(() => ({}));
+      if (data.jobId) {
+        const job = await waitForNaJob(data.jobId);
+        const result = job.result || {};
+        setLogs(job.logs || result.logs || []);
+        setStats((prev) => ({
+          ...prev,
+          products: prev.products + (Number(result.inserted) || 0),
+        }));
+        alert(
+          `Pneus importados: ${result.inserted || 0} novos, ${result.updated || 0} atualizados (${result.skipped || 0} ignorados).`
+        );
+        await checkSetup();
+        return;
+      }
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || `Erro ao importar catálogo (${res.status})`);
+      }
       setLogs(data.logs || []);
       setStats((prev) => ({
         ...prev,

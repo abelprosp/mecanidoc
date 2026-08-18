@@ -17,6 +17,7 @@ export type ImportCatalogOptions = {
   postCode?: string;
   delayMs?: number;
   category?: string | null;
+  onProgress?: (snapshot: ImportCatalogResult) => void;
 };
 
 export type ImportCatalogResult = {
@@ -188,6 +189,15 @@ export async function importNeumaticosCatalog(
     if (delayMs > 0 && i + batchSize < articleNumbers.length) {
       await sleep(delayMs);
     }
+
+    options.onProgress?.({
+      scanned,
+      inserted,
+      updated,
+      skipped,
+      errors,
+      logs: [...logs, `Progresso: ${inserted + updated}/${limit} válidos · varridos ${scanned}`],
+    });
   }
 
   logs.push(
