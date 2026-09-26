@@ -1,20 +1,44 @@
 import { NextResponse } from 'next/server';
+import { requireMasterUser } from '@/lib/admin-auth-server';
 
-/** Só para desenvolvimento: confirma variáveis de ambiente críticas. */
+/**
+ * Diagnóstico de configuração. Indisponível em produção; fora de produção exige
+ * sessão master. Nunca devolve valores de segredos, apenas presença.
+ */
 export async function GET() {
-  const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '(não definido)';
-  const hasAuthSecret = Boolean(process.env.AUTH_SECRET || process.env.JWT_SECRET);
-  const uploadDir = process.env.UPLOAD_DIR || './uploads';
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const auth = await requireMasterUser();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
+  let dbUser = '(não definido)';
+  let dbHost = '(não definido)';
+  try {
+    const u = new URL(dbUrl);
+    dbUser = u.username || '(sem utilizador)';
+    dbHost = `${u.hostname}:${u.port || '5432'}${u.pathname}`;
+  } catch {
+    /* URL inválida ou ausente */
+  }
+
+  const defined = (name: string) => (process.env[name]?.trim() ? 'definido' : '(não definido)');
 
   return NextResponse.json({
-    DATABASE_URL: dbUrl.replace(/:[^:@]+@/, ':***@'),
-    AUTH_SECRET: hasAuthSecret ? 'definido' : '(não definido — necessário para login)',
-    UPLOAD_DIR: uploadDir,
+    DATABASE_USER: dbUser,
+    DATABASE_HOST: dbHost,
+    DB_ADMIN_ROLE: process.env.DB_ADMIN_ROLE || 'mecanidoc_admin',
+    AUTH_SECRET: defined('AUTH_SECRET'),
+    CRON_SECRET: defined('CRON_SECRET'),
+    UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? '(não definido)',
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY?.trim() ? 'definido' : '(não definido)',
-    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()
-      ? 'definido'
-      : '(não definido)',
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET?.trim() ? 'definido' : '(não definido)',
+    STRIPE_SECRET_KEY: defined('STRIPE_SECRET_KEY'),
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: defined('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'),
+    STRIPE_WEBHOOK_SECRET: defined('STRIPE_WEBHOOK_SECRET'),
+    SMTP_HOST: defined('SMTP_HOST'),
   });
 }

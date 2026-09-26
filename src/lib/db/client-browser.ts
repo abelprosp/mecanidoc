@@ -7,6 +7,7 @@ type Filter = {
 
 type OrderBy = { column: string; ascending: boolean };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DbResult<T = any> = {
   data: T | null;
   error: { message: string; code?: string } | null;
@@ -17,6 +18,8 @@ class BrowserQueryBuilder {
   private table: string;
   private operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   private selectRaw = '*';
+  /** Colunas devolvidas (RETURNING) após insert/update/upsert. */
+  private returningRaw = '*';
   private countOnly = false;
   private filters: Filter[] = [];
   private orders: OrderBy[] = [];
@@ -33,6 +36,7 @@ class BrowserQueryBuilder {
       table: this.table,
       operation: this.operation,
       select: this.selectRaw,
+      returning: this.returningRaw,
       countOnly: this.countOnly,
       payload: this.payload ?? undefined,
       filters: this.filters,
@@ -42,9 +46,16 @@ class BrowserQueryBuilder {
     };
   }
 
+  /**
+   * Em modo leitura define a projeção. Depois de insert/update/upsert apenas define
+   * as colunas devolvidas — a operação de escrita mantém-se (insert(...).select().single()).
+   */
   select(columns = '*', options?: { count?: 'exact'; head?: boolean }) {
-    this.operation = 'select';
-    this.selectRaw = columns;
+    if (this.operation !== 'select') {
+      this.returningRaw = columns || '*';
+      return this;
+    }
+    this.selectRaw = columns || '*';
     if (options?.count === 'exact' && options?.head) this.countOnly = true;
     return this;
   }
@@ -198,31 +209,74 @@ class BrowserAuth {
     });
     const json = await res.json();
     if (!res.ok) return { data: { user: null, session: null }, error: { message: json.error || 'Login failed' } };
+    // Segundo fator necessário: sem sessão ainda; o chamador deve pedir o código e usar verifyMfa().
+    if (json.mfaRequired) {
+      return { data: { user: null, session: null, mfaRequired: true as const, challenge: json.challenge as string }, error: null };
+    }
     this.cachedUser = json.user;
     this.emit('SIGNED_IN', { user: json.user });
     return { data: { user: json.user, session: { user: json.user } }, error: null };
   }
 
-  async signUp(input: {
+  /** Conclui o login com o código da app de autenticação (ou código de recuperação). */
+  async verifyMfa(challenge: string, code: string) {
+    const res = await fetch('/api/auth/mfa/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ challenge, code }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { data: { user: null, session: null }, error: { message: json.error || 'Code incorrect' } };
+    this.cachedUser = json.user;
+    this.emit('SIGNED_IN', { user: json.user });
+    return { data: { user: json.user, session: { user: json.user } }, error: null };
+  }
+
+  /**
+   * Registo com papel validado no servidor. `garage`/`company` criam a entidade
+   * associada na mesma transação (garagem por aprovar, empresa sem desconto).
+   */
+  async register(input: {
     email: string;
     password: string;
-    options?: { data?: Record<string, unknown> };
+    fullName: string;
+    role: 'customer' | 'garage' | 'company';
+    phone?: string;
+    garage?: Record<string, unknown>;
+    company?: { companyName: string; vatNumber?: string };
   }) {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({
-        email: input.email,
-        password: input.password,
-        metadata: input.options?.data || {},
-      }),
+      body: JSON.stringify(input),
     });
-    const json = await res.json();
-    if (!res.ok) return { data: { user: null, session: null }, error: { message: json.error || 'Register failed' } };
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        data: { user: null, session: null },
+        error: { message: json.error || 'Register failed', field: json.field as string | undefined },
+      };
+    }
     this.cachedUser = json.user;
     this.emit('SIGNED_IN', { user: json.user });
     return { data: { user: json.user, session: { user: json.user } }, error: null };
+  }
+
+  /** Compatibilidade com a API antiga (cliente simples). */
+  async signUp(input: {
+    email: string;
+    password: string;
+    options?: { data?: Record<string, unknown> };
+  }) {
+    const data = input.options?.data || {};
+    return this.register({
+      email: input.email,
+      password: input.password,
+      fullName: String(data.full_name || ''),
+      role: 'customer',
+    });
   }
 
   async signOut() {

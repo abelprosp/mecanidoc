@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { 
-  Building2, ShoppingCart, Percent, FileText, LogOut, Loader2, Save, User 
-} from 'lucide-react';
+import { Building2, ShoppingCart, Percent, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import DashboardShell from '@/components/dashboard/DashboardShell';
 
 export default function EnterpriseDashboard() {
   const [activeTab, setActiveTab] = useState('orders');
@@ -164,40 +163,18 @@ export default function EnterpriseDashboard() {
   }
 
   return (
-    <div className="flex h-screen bg-[#F1F1F1]">
-      <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
-        <div className="p-6 border-b">
-          <span className="text-xl font-bold text-gray-800">Espace Pro</span>
-          <span className="text-xs block text-gray-400 mt-1">{company?.company_name || 'Entreprise'}</span>
-        </div>
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          <button 
-            onClick={() => setActiveTab('orders')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'orders' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <ShoppingCart size={20} /> Commandes
-          </button>
-          <button 
-            onClick={() => setActiveTab('discounts')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'discounts' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <Percent size={20} /> Mes Remises
-          </button>
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'profile' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <Building2 size={20} /> Profil Entreprise
-          </button>
-        </nav>
-        <div className="p-4 border-t">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-            <LogOut size={20} /> Déconnexion
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto p-8">
+    <DashboardShell
+      title="Espace Pro"
+      subtitle={company?.company_name || 'Entreprise'}
+      items={[
+        { key: 'orders', label: 'Commandes', icon: ShoppingCart },
+        { key: 'discounts', label: 'Mes Remises', icon: Percent },
+        { key: 'profile', label: 'Profil Entreprise', icon: Building2 },
+      ]}
+      activeKey={activeTab}
+      onSelect={setActiveTab}
+      onSignOut={handleLogout}
+    >
         
         {activeTab === 'orders' && (
           <div className="space-y-6">
@@ -388,7 +365,6 @@ export default function EnterpriseDashboard() {
            </div>
         )}
 
-      </main>
-    </div>
+    </DashboardShell>
   );
 }

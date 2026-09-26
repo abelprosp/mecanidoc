@@ -40,48 +40,23 @@ export default function RegisterCompanyPage() {
     }
 
     try {
-      // 1. Create Auth User
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Utilisateur + profil (rôle company) + fiche entreprise en une seule transaction côté serveur.
+      // La remise B2B est attribuée ensuite par l'administrateur.
+      const { data: authData, error: authError } = await supabase.auth.register({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: formData.username, // Using username as display name for now
-            role: 'company', // Important for the Trigger
-          }
-        }
+        fullName: formData.username,
+        role: 'company',
+        company: { companyName: formData.companyName },
       });
 
-      if (authError) throw authError;
-
+      if (authError) throw new Error(authError.message);
       if (authData.user) {
-        // 2. Insert into Companies Table
-        // Note: The 'profiles' entry is created automatically by the DB trigger on auth.users insert
-        
-        const { error: companyError } = await supabase
-          .from('companies')
-          .insert({
-            profile_id: authData.user.id,
-            company_name: formData.companyName,
-            // discount_tier default is set in DB schema
-          });
-
-        if (companyError) {
-            console.error("Company insert error:", companyError);
-        }
-
-        await supabase
-          .from('profiles')
-          .update({ supplier_promotion_pending: false })
-          .eq('id', authData.user.id);
-
-        // Redirect to Dashboard
         router.push('/dashboard/entreprise');
       }
-
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Une erreur est survenue lors de l'inscription.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue lors de l'inscription.";
+      setError(message);
     } finally {
       setLoading(false);
     }

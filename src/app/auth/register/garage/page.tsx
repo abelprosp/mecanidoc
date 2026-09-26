@@ -68,63 +68,46 @@ export default function RegisterGaragePage() {
       return;
     }
 
+    if (!Object.values(formData.tireTypes).some(Boolean)) {
+      setError('Sélectionnez au moins un type de pneus monté.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // 1. Create Auth User
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Utilisateur + profil (rôle garage) + fiche garage créés en une seule transaction côté serveur.
+      // Le garage reste "en attente d'approbation" jusqu'à validation par l'administrateur.
+      const { data: authData, error: authError } = await supabase.auth.register({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: `${formData.firstName} ${formData.lastName}`,
-            role: 'garage', // Important for the Trigger
-          }
-        }
+        fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+        role: 'garage',
+        phone: formData.phone1,
+        garage: {
+          name: formData.garageName,
+          address: formData.address,
+          streetNumber: formData.streetNumber,
+          addressComplement: formData.complement,
+          zipCode: formData.zipCode,
+          city: formData.city,
+          country: formData.country,
+          phonePrimary: formData.phone1,
+          phoneSecondary: formData.phone2,
+          companyName: formData.companyName,
+          siret: formData.siret,
+          legalForm: formData.legalForm,
+          tireTypes: formData.tireTypes,
+          openingHours: formData.openingHours,
+        },
       });
 
-      if (authError) throw authError;
-
+      if (authError) throw new Error(authError.message);
       if (authData.user) {
-        // 2. Insert into Garages Table (Using the ID from Auth)
-        // Note: The 'profiles' entry is created automatically by the DB trigger on auth.users insert
-        
-        const { error: garageError } = await supabase
-          .from('garages')
-          .insert({
-            profile_id: authData.user.id,
-            name: formData.garageName,
-            address: `${formData.streetNumber} ${formData.address} ${formData.complement}`.trim(),
-            zip_code: formData.zipCode,
-            city: formData.city,
-            country: formData.country,
-            phone_primary: formData.phone1,
-            phone_secondary: formData.phone2,
-            company_name: formData.companyName,
-            siret: formData.siret,
-            legal_form: formData.legalForm,
-            tire_types: formData.tireTypes,
-            opening_hours: formData.openingHours,
-            is_approved: false,
-            installation_price: 0 
-          });
-
-        if (garageError) {
-            // Determine if we need to manually insert profile if trigger failed or is not set up perfectly
-            console.error("Garage insert error:", garageError);
-            // Non-blocking for demo, but in prod handle cleanup
-        }
-
-        await supabase
-          .from('profiles')
-          .update({ supplier_promotion_pending: false })
-          .eq('id', authData.user.id);
-
-        // Redirect to Dashboard
         router.push('/dashboard/garage');
       }
-
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Une erreur est survenue lors de l'inscription.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue lors de l'inscription.";
+      setError(message);
     } finally {
       setLoading(false);
     }

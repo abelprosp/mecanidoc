@@ -148,12 +148,13 @@ export default function ProductPage() {
   }
 
   // Garantir que specs seja um objeto (pode vir como string JSON do banco)
-  let specs: any = {};
+  // Cópia local: nunca mutar o objeto vindo do estado (`product.specs`).
+  let specs: Record<string, any> = {};
   try {
     if (typeof product.specs === 'string') {
-      specs = JSON.parse(product.specs);
+      specs = { ...JSON.parse(product.specs) };
     } else {
-      specs = product.specs || {};
+      specs = { ...(product.specs || {}) };
     }
   } catch (e) {
     console.error('Error parsing specs:', e);
@@ -170,22 +171,17 @@ export default function ProductPage() {
       })()
     : (product.labels || {});
   
-  // Garantir que autres_categories seja sempre um array
-  if (specs.autres_categories) {
-    if (typeof specs.autres_categories === 'string') {
-      // Se for string, converter para array
-      specs.autres_categories = specs.autres_categories
-        .split(/[,;|]/)
-        .map((cat: string) => cat.trim())
-        .filter((cat: string) => cat.length > 0);
-    } else if (!Array.isArray(specs.autres_categories)) {
-      // Se não for array nem string, tentar converter
-      specs.autres_categories = [];
-    }
-  } else {
-    // Se não existir, inicializar como array vazio
-    specs.autres_categories = [];
-  }
+  // Garantir que autres_categories seja sempre um array (na cópia local)
+  const rawCategories = specs.autres_categories;
+  specs = {
+    ...specs,
+    autres_categories:
+      typeof rawCategories === 'string'
+        ? rawCategories.split(/[,;|]/).map((cat: string) => cat.trim()).filter((cat: string) => cat.length > 0)
+        : Array.isArray(rawCategories)
+          ? rawCategories
+          : [],
+  };
   const fuelColor = (labels.fuel === 'A' || labels.fuel === 'B') ? 'bg-green-500 border-green-500' : (labels.fuel === 'C' || labels.fuel === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
   const wetColor = (labels.wet === 'A' || labels.wet === 'B') ? 'bg-green-500 border-green-500' : (labels.wet === 'C' || labels.wet === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
 
@@ -245,11 +241,8 @@ export default function ProductPage() {
 
             {/* Trust Box */}
             <div className="bg-gray-50 rounded-lg p-4 w-full text-center border border-gray-100">
-               <div className="flex justify-center text-yellow-400 gap-1 mb-2">
-                 {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-               </div>
-               <p className="text-xs font-bold text-gray-700 mb-1">Note moyenne : 4.8/5 sur 2138 avis vérifiés</p>
-               <div className="flex flex-col gap-1 text-[10px] text-gray-500 mt-3">
+               <p className="text-xs font-bold text-gray-700 mb-1">Achat sécurisé avec MecaniDoc</p>
+               <div className="flex flex-col gap-1 text-xs text-gray-500 mt-3">
                  <div className="flex items-center justify-center gap-1"><Check size={10} className="text-green-500"/> Client satisfait partout en France</div>
                  <div className="flex items-center justify-center gap-1"><Truck size={10} className="text-green-500"/> Livraison rapide & sécurisée</div>
                  <div className="flex items-center justify-center gap-1"><ShieldCheck size={10} className="text-green-500"/> Service de confiance</div>
@@ -260,10 +253,7 @@ export default function ProductPage() {
           {/* Right Column: Info & Action */}
           <div className="w-full md:w-7/12 p-8">
             <div className="flex justify-between items-start mb-2">
-              <div className="flex text-yellow-400 gap-1 text-sm">
-                {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" className="text-yellow-400" />)}
-                <span className="text-gray-400 ml-1 text-xs">5.0/5 (Nouveau)</span>
-              </div>
+              <span className="text-gray-400 text-xs">Aucun avis pour le moment</span>
             </div>
 
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">

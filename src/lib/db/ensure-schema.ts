@@ -2,32 +2,41 @@ import 'server-only';
 
 import { getPool } from '@/lib/db/pool';
 
-let ready = false;
+let checked = false;
 
-const INTEGRATION_COLUMNS: Array<{ name: string; ddl: string }> = [
-  { name: 'na_api_login', ddl: 'text' },
-  { name: 'na_api_password_enc', ddl: 'text' },
-  { name: 'na_api_base_url', ddl: 'text' },
-  { name: 'na_api_test_mode', ddl: 'boolean DEFAULT true' },
-  { name: 'stripe_secret_key_enc', ddl: 'text' },
-  { name: 'stripe_publishable_key', ddl: 'text' },
-  { name: 'stripe_webhook_secret_enc', ddl: 'text' },
+const INTEGRATION_COLUMNS = [
+  'na_api_login',
+  'na_api_password_enc',
+  'na_api_base_url',
+  'na_api_test_mode',
+  'stripe_secret_key_enc',
+  'stripe_publishable_key',
+  'stripe_webhook_secret_enc',
 ];
 
-/** Colunas de integrações adicionadas depois do volume Postgres já existir. */
+/**
+ * A aplicação já não executa DDL em runtime (o utilizador de ligação não é dono das
+ * tabelas). Esta função apenas verifica que as colunas de integração existem e, se
+ * faltarem, regista um aviso claro a apontar para a migração.
+ */
 export async function ensureIntegrationSettingsSchema(): Promise<void> {
-  if (ready) return;
-  const pool = getPool();
-  let allOk = true;
-  for (const col of INTEGRATION_COLUMNS) {
-    try {
-      await pool.query(
-        `ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS ${col.name} ${col.ddl}`
+  if (checked) return;
+  try {
+    const { rows } = await getPool().query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_schema = 'public' and table_name = 'global_settings' and column_name = any($1)`,
+      [INTEGRATION_COLUMNS]
+    );
+    const present = new Set(rows.map((r) => r.column_name));
+    const missing = INTEGRATION_COLUMNS.filter((c) => !present.has(c));
+    if (missing.length) {
+      console.error(
+        `[db] global_settings sem colunas ${missing.join(', ')}. ` +
+          'Aplique docker/postgres/init/02-schema.sql (secção "Supplier public API keys + NA credentials") via scripts/db-harden.sh.'
       );
-    } catch (error) {
-      allOk = false;
-      console.error(`ensureIntegrationSettingsSchema: falha ao adicionar ${col.name}:`, error);
     }
+    checked = true;
+  } catch (error) {
+    console.error('ensureIntegrationSettingsSchema: verificação falhou:', error);
   }
-  if (allOk) ready = true;
 }

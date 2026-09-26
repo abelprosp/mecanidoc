@@ -40,33 +40,24 @@ export default function RegisterClientPage() {
     }
 
     try {
-      // 1. Create Auth User
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Le serveur crée l'utilisateur et le profil (rôle client) ; la file d'approbation
+      // master (promotion fournisseur) est renseignée côté serveur.
+      const { data: authData, error: authError } = await supabase.auth.register({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: `${formData.firstName} ${formData.lastName}`,
-            role: 'customer', // Default role
-          }
-        }
+        fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+        role: 'customer',
       });
 
-      if (authError) throw authError;
-
+      if (authError) throw new Error(authError.message);
       if (authData.user) {
-        // File d'approbation master : compte client visible dans Admin > Approbations (promotion fournisseur)
-        await supabase
-          .from('profiles')
-          .update({ supplier_promotion_pending: true })
-          .eq('id', authData.user.id);
-
-        router.push('/dashboard/client');
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirect');
+        router.push(redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard/client');
       }
-
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Une erreur est survenue lors de l'inscription.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue lors de l'inscription.";
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -1,436 +1,195 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { ChevronDown, Filter, Loader2, ChevronUp } from 'lucide-react';
-import {
-  applyCategoryToQuery,
-  applyPaTipoToQuery,
-  applySpecsFieldFilters,
-  productMatchesPaTipo,
-  productMatchesUiCategory,
-  specFieldMatches,
-  normalizeSpecValue,
-} from '@/lib/product-query-helpers';
+import { ChevronDown, Filter, Loader2, ChevronUp, ChevronLeft, ChevronRight, X } from 'lucide-react';
+
+type Facets = {
+  widths: string[];
+  heights: string[];
+  diameters: string[];
+  brands: Array<{ id: string | null; name: string }>;
+};
+
+type SearchResponse = {
+  items: Array<Record<string, unknown> & { id: string }>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  facets: Facets;
+};
+
+const EMPTY_FACETS: Facets = { widths: [], heights: [], diameters: [], brands: [] };
+
+/** Parâmetros de URL que a pesquisa entende (fonte de verdade = URL). */
+const FILTER_KEYS = ['category', 'width', 'height', 'diameter', 'brand', 'season', 'q', 'load_index', 'speed_index', 'pa_tipo', 'price_min', 'price_max', 'sort', 'page', 'product_ids', 'promo_id'] as const;
 
 function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
-  const [products, setProducts] = useState<any[]>([]);
+
+  const [result, setResult] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
-  const [dimensionSpecs, setDimensionSpecs] = useState<any[]>([]);
-  const [brandList, setBrandList] = useState<{ id: string | null; name: string }[]>([]);
-  const [promoBanner, setPromoBanner] = useState<{
-    title: string;
-    discount_text?: string | null;
-    description?: string | null;
-  } | null>(null);
-  const promoProductIds = useMemo(
-    () =>
-      (searchParams.get('product_ids') || '')
-        .split(',')
-        .map((id) => id.trim())
-        .filter(Boolean),
-    [searchParams]
+  const [priceDraft, setPriceDraft] = useState({ min: searchParams.get('price_min') || '', max: searchParams.get('price_max') || '' });
+  const [promoBanner, setPromoBanner] = useState<{ title: string; discount_text?: string | null; description?: string | null } | null>(null);
+
+  const get = useCallback((k: string) => searchParams.get(k) || '', [searchParams]);
+  const category = get('category') || 'Toutes';
+  const season = get('season') || 'Tous';
+  const page = Math.max(1, Number.parseInt(get('page') || '1', 10) || 1);
+  const promoProductIds = useMemo(() => get('product_ids').split(',').map((s) => s.trim()).filter(Boolean), [get]);
+  const promoId = get('promo_id');
+
+  /** Atualiza a URL (e portanto a pesquisa). `page` volta a 1 salvo indicação em contrário. */
+  const updateParams = useCallback(
+    (changes: Record<string, string | null>, opts: { keepPage?: boolean } = {}) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(changes)) {
+        const isDefault = (k === 'category' && v === 'Toutes') || (k === 'season' && v === 'Tous');
+        if (v === null || v === '' || isDefault) next.delete(k);
+        else next.set(k, v);
+      }
+      if (!opts.keepPage) next.delete('page');
+      const qs = next.toString();
+      router.replace(qs ? `/search?${qs}` : '/search', { scroll: false });
+    },
+    [router, searchParams]
   );
 
-  const [filters, setFilters] = useState({
-    category: searchParams.get('category') || 'Toutes',
-    width: searchParams.get('width') || '',
-    height: searchParams.get('height') || '',
-    diameter: searchParams.get('diameter') || '',
-    brand: searchParams.get('brand') || '',
-    season: searchParams.get('season') || 'Tous',
-    searchQuery: searchParams.get('q') || '',
-    load_index: searchParams.get('load_index') || '',
-    speed_index: searchParams.get('speed_index') || '',
-    pa_tipo: searchParams.get('pa_tipo') || '',
-  });
-
+  // Pesquisa no servidor sempre que a URL muda
   useEffect(() => {
-    const fetchDimensionSpecs = async () => {
-      let q = supabase
-        .from('products')
-        .select('specs')
-        .not('specs', 'is', null)
-        .eq('is_active', true);
-      q = applyCategoryToQuery(q, filters.category);
-      q = applyPaTipoToQuery(q, filters.pa_tipo);
-      const { data } = await q;
-      if (data) {
-        const valid = data.map((r: any) => r.specs).filter((s: any) => s && s.width);
-        setDimensionSpecs(valid);
-      }
-    };
-    fetchDimensionSpecs();
-  }, [filters.category, filters.pa_tipo]);
-
-  useEffect(() => {
-    const fetchBrands = async () => {
-      let q = supabase
-        .from('products')
-        .select('brand_id, brand, brands(id, name)')
-        .eq('is_active', true);
-      q = applyCategoryToQuery(q, filters.category);
-      q = applyPaTipoToQuery(q, filters.pa_tipo);
-      const { data } = await q;
-      if (data) {
-        const seen = new Set<string>();
-        const list: { id: string | null; name: string }[] = [];
-        data.forEach((p: any) => {
-          const name = (p.brands?.name || p.brand || '').trim();
-          if (!name) return;
-          const key = p.brand_id || name;
-          if (seen.has(key)) return;
-          seen.add(key);
-          list.push({ id: p.brands?.id || p.brand_id || null, name });
-        });
-        list.sort((a, b) => a.name.localeCompare(b.name));
-        setBrandList(list);
-      }
-    };
-    fetchBrands();
-  }, [filters.category, filters.pa_tipo]);
-
-  const availableWidths = useMemo(() => {
-    const w = new Set(dimensionSpecs.map(s => s.width).filter(Boolean));
-    return Array.from(w).sort((a, b) => Number(a) - Number(b));
-  }, [dimensionSpecs]);
-
-  const availableHeights = useMemo(() => {
-    if (!filters.width) return [];
-    const h = new Set(
-      dimensionSpecs
-        .filter((s) => specFieldMatches(s.width, filters.width))
-        .map((s) => s.height)
-        .filter(Boolean)
-    );
-    return Array.from(h).sort((a, b) => Number(a) - Number(b));
-  }, [dimensionSpecs, filters.width]);
-
-  const availableDiameters = useMemo(() => {
-    if (!filters.width || !filters.height) return [];
-    const d = new Set(
-      dimensionSpecs
-        .filter(
-          (s) =>
-            specFieldMatches(s.width, filters.width) &&
-            specFieldMatches(s.height, filters.height)
-        )
-        .map((s) => s.diameter)
-        .filter(Boolean)
-    );
-    return Array.from(d).sort((a, b) => Number(a) - Number(b));
-  }, [dimensionSpecs, filters.width, filters.height]);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      
-      // Se houver filtro de marca, buscar primeiro o ID da marca
-      let brandId: string | null = null;
-      if (filters.brand) {
-        const brandName = filters.brand.trim();
-        console.log('Buscando marca:', brandName);
-        
-        // Tentar busca exata primeiro
-        let { data: brandData, error: brandError } = await supabase
-          .from('brands')
-          .select('id, name')
-          .ilike('name', brandName)
-          .limit(1)
-          .maybeSingle();
-        
-        console.log('Busca exata:', brandData, brandError);
-        
-        // Se não encontrou, tentar busca parcial
-        if (!brandData) {
-          const { data: partialMatch, error: partialError } = await supabase
-            .from('brands')
-            .select('id, name')
-            .ilike('name', `%${brandName}%`)
-            .limit(1)
-            .maybeSingle();
-          brandData = partialMatch;
-          console.log('Busca parcial:', partialMatch, partialError);
-        }
-        
-        if (brandData) {
-          brandId = brandData.id;
-          console.log('Marca encontrada, ID:', brandId);
-        } else {
-          console.log('Marca não encontrada na tabela brands');
-        }
-      }
-      
-      let query = supabase
-        .from('products')
-        .select('*, brands(id, name, logo_url)')
-        .eq('is_active', true);
-
-      // Apply Search Query (busca geral por qualquer atributo)
-      if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
-        const searchTerm = filters.searchQuery.trim().toLowerCase();
-        query = query.or(`name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,pa_tipo.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
-      }
-
-      query = applyCategoryToQuery(query, filters.category);
-      query = applyPaTipoToQuery(query, filters.pa_tipo);
-      query = applySpecsFieldFilters(query, filters);
-
-      let data: any[] = [];
-      let error: any = null;
-
-      // Se houver filtro de marca, fazer buscas e combinar
-      if (filters.brand) {
-        const brandName = filters.brand.trim();
-        console.log('Aplicando filtro de marca:', { brandName, brandId });
-        
-        const results: any[] = [];
-        
-        // Primeiro, fazer buscas de teste SEM filtros para diagnosticar
-        if (brandId) {
-          const { data: testData } = await supabase
-            .from('products')
-            .select('id, brand_id, brand, category, is_active')
-            .eq('brand_id', brandId)
-            .limit(10);
-          console.log('🔍 Teste brand_id (sem outros filtros):', testData?.length || 0);
-          if (testData && testData.length > 0) {
-            console.log('Exemplo produto:', testData[0]);
-          }
-        }
-        
-        const { data: testData2 } = await supabase
-          .from('products')
-          .select('id, brand_id, brand, category, is_active')
-          .ilike('brand', `%${brandName}%`)
-          .limit(10);
-        console.log('🔍 Teste brand texto (sem outros filtros):', testData2?.length || 0);
-        if (testData2 && testData2.length > 0) {
-          console.log('Exemplo produto:', testData2[0]);
-        }
-        
-        // Se encontrou produtos nos testes, usar esses resultados também
-        if (testData2 && testData2.length > 0) {
-          // Buscar os produtos completos
-          const productIds = testData2.map((p: any) => p.id);
-          const { data: fullProducts } = await supabase
-            .from('products')
-            .select('*, brands(id, name, logo_url)')
-            .in('id', productIds)
-            .eq('is_active', true);
-          
-          if (fullProducts) {
-            // Aplicar filtro de categoria no resultado se necessário
-            let filtered = fullProducts;
-            if (filters.category && filters.category !== 'Toutes') {
-              filtered = filtered.filter((p: any) =>
-                productMatchesUiCategory(p.category, filters.category)
-              );
-            }
-            if (filters.pa_tipo?.trim()) {
-              filtered = filtered.filter((p: any) =>
-                productMatchesPaTipo(p.pa_tipo, filters.pa_tipo)
-              );
-            }
-            console.log('Produtos encontrados por brand texto (após filtro categoria):', filtered.length);
-            results.push(...filtered);
-          }
-        }
-        
-        // Busca 1: Por brand_id se existir
-        if (brandId) {
-          let query1 = supabase
-            .from('products')
-            .select('*, brands(id, name, logo_url)')
-            .eq('is_active', true)
-            .eq('brand_id', brandId);
-          
-          query1 = applyCategoryToQuery(query1, filters.category);
-          query1 = applyPaTipoToQuery(query1, filters.pa_tipo);
-          query1 = applySpecsFieldFilters(query1, filters);
-          
-          const { data: data1, error: error1 } = await query1;
-          console.log('Busca por brand_id:', data1?.length || 0, error1);
-          if (data1 && data1.length > 0) {
-            console.log('Primeiro produto encontrado por brand_id:', data1[0]);
-            results.push(...data1);
-          }
-          if (error1) {
-            console.error('Erro na busca por brand_id:', error1);
-            error = error1;
-          }
-        }
-        
-        // Busca 2: Por brand texto (sempre fazer esta busca também)
-        let query2 = supabase
-          .from('products')
-          .select('*, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .ilike('brand', `%${brandName}%`);
-        
-        query2 = applyCategoryToQuery(query2, filters.category);
-        query2 = applyPaTipoToQuery(query2, filters.pa_tipo);
-        query2 = applySpecsFieldFilters(query2, filters);
-        
-        const { data: data2, error: error2 } = await query2;
-        console.log('Busca por brand texto:', data2?.length || 0, error2);
-        if (data2 && data2.length > 0) {
-          console.log('Primeiro produto encontrado por brand texto:', data2[0]);
-          results.push(...data2);
-        }
-        if (error2) {
-          console.error('Erro na busca por brand texto:', error2);
-          error = error2;
-        }
-        
-        // Combinar resultados, remover duplicatas e garantir categoria (caminho marca é complexo)
-        let uniqueProducts = results.filter((product, index, self) => 
-          index === self.findIndex((p) => p.id === product.id)
-        );
-        if (filters.category && filters.category !== 'Toutes') {
-          uniqueProducts = uniqueProducts.filter((p) =>
-            productMatchesUiCategory(p.category, filters.category)
-          );
-        }
-        if (filters.pa_tipo?.trim()) {
-          uniqueProducts = uniqueProducts.filter((p) =>
-            productMatchesPaTipo(p.pa_tipo, filters.pa_tipo)
-          );
-        }
-        data = uniqueProducts;
-        console.log('Total único após combinar:', data.length);
-      } else {
-        // Sem filtro de marca, busca normal
-        const result = await query;
-        let rows = result.data || [];
-        if (filters.category && filters.category !== 'Toutes') {
-          rows = rows.filter((p: any) => productMatchesUiCategory(p.category, filters.category));
-        }
-        if (filters.pa_tipo?.trim()) {
-          rows = rows.filter((p: any) => productMatchesPaTipo(p.pa_tipo, filters.pa_tipo));
-        }
-        data = rows;
-        error = result.error;
-      }
-
-      if (promoProductIds.length > 0) {
-        const ids = new Set(promoProductIds);
-        data = data.filter((p) => ids.has(String(p.id)));
-      }
-
-      if (error) {
-        console.error('Error fetching products:', error);
-      } else {
-        console.log('Produtos encontrados:', data?.length || 0);
-        setProducts(data || []);
-      }
-      setLoading(false);
-    };
-
-    fetchProducts();
-  }, [filters, searchParams, promoProductIds]); // Re-run when filters or URL params change
-
-  // Update filters when URL params change (e.g. from Hero)
-  useEffect(() => {
-    const seasonParam = searchParams.get('season');
-    const qParam = searchParams.get('q');
-    setFilters(prev => ({
-      ...prev,
-      category: searchParams.get('category') || 'Toutes',
-      width: searchParams.get('width') || '',
-      height: searchParams.get('height') || '',
-      diameter: searchParams.get('diameter') || '',
-      brand: searchParams.get('brand') || '',
-      season: seasonParam !== null ? (seasonParam || 'Tous') : prev.season,
-      load_index: searchParams.get('load_index') || '',
-      speed_index: searchParams.get('speed_index') || '',
-      pa_tipo: searchParams.get('pa_tipo') || '',
-      searchQuery: qParam !== null ? qParam : prev.searchQuery,
-    }));
+    const controller = new AbortController();
+    const qs = new URLSearchParams();
+    for (const k of FILTER_KEYS) {
+      const v = searchParams.get(k);
+      if (v) qs.set(k, v);
+    }
+    setLoading(true);
+    setError(null);
+    fetch(`/api/products/search?${qs.toString()}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return (await res.json()) as SearchResponse;
+      })
+      .then((data) => {
+        setResult(data);
+        setLoading(false);
+      })
+      .catch((e) => {
+        if ((e as Error).name === 'AbortError') return;
+        console.error('search:', e);
+        setError('La recherche est momentanément indisponible. Veuillez réessayer.');
+        setLoading(false);
+      });
+    return () => controller.abort();
   }, [searchParams]);
 
-  const promoId = searchParams.get('promo_id');
-
+  // Sincroniza rascunho de preço quando a URL muda externamente
   useEffect(() => {
-    if (!promoId?.trim()) {
+    setPriceDraft({ min: searchParams.get('price_min') || '', max: searchParams.get('price_max') || '' });
+  }, [searchParams]);
+
+  // Banner de promoção
+  useEffect(() => {
+    if (!promoId.trim()) {
       setPromoBanner(null);
       return;
     }
     let cancelled = false;
+    const supabase = createClient();
     (async () => {
-      const { data, error } = await supabase
+      const { data, error: err } = await supabase
         .from('promotions')
         .select('title, discount_text, description')
         .eq('id', promoId.trim())
         .maybeSingle();
       if (cancelled) return;
-      if (error || !data) {
+      if (err || !data) {
         setPromoBanner({ title: 'Offre promotionnelle' });
         return;
       }
-      setPromoBanner({
-        title: data.title,
-        discount_text: data.discount_text,
-        description: data.description,
-      });
+      setPromoBanner({ title: data.title, discount_text: data.discount_text, description: data.description });
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- client Supabase instable entre renders
   }, [promoId]);
 
   const dismissPromoBanner = () => {
-    const p = new URLSearchParams(searchParams.toString());
-    p.delete('promo_id');
-    p.delete('product_ids');
-    const qs = p.toString();
-    router.replace(qs ? `/search?${qs}` : '/search');
+    updateParams({ promo_id: null, product_ids: null });
     setPromoBanner(null);
   };
 
+  const applyPrice = () => {
+    updateParams({ price_min: priceDraft.min.trim() || null, price_max: priceDraft.max.trim() || null });
+  };
+
+  const goToPage = (p: number) => {
+    updateParams({ page: p > 1 ? String(p) : null }, { keepPage: true });
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const facets = result?.facets ?? EMPTY_FACETS;
+  const products = result?.items ?? [];
+  const total = result?.total ?? 0;
+  const totalPages = result?.totalPages ?? 1;
+
+  const activeChips: Array<{ key: string; label: string }> = [];
+  if (get('brand')) activeChips.push({ key: 'brand', label: get('brand') });
+  if (get('width')) activeChips.push({ key: 'width', label: `Largeur ${get('width')}` });
+  if (get('height')) activeChips.push({ key: 'height', label: `Hauteur ${get('height')}` });
+  if (get('diameter')) activeChips.push({ key: 'diameter', label: `R${get('diameter')}` });
+  if (get('load_index')) activeChips.push({ key: 'load_index', label: `Charge ${get('load_index')}` });
+  if (get('speed_index')) activeChips.push({ key: 'speed_index', label: `Vitesse ${get('speed_index')}` });
+  if (get('pa_tipo')) activeChips.push({ key: 'pa_tipo', label: get('pa_tipo') });
+  if (get('q')) activeChips.push({ key: 'q', label: `« ${get('q')} »` });
+  if (get('price_min') || get('price_max')) activeChips.push({ key: 'price', label: `${get('price_min') || '0'} € – ${get('price_max') || '∞'} €` });
+
+  const removeChip = (key: string) => {
+    if (key === 'price') updateParams({ price_min: null, price_max: null });
+    else if (key === 'width') updateParams({ width: null, height: null, diameter: null });
+    else if (key === 'height') updateParams({ height: null, diameter: null });
+    else updateParams({ [key]: null });
+  };
+
+  const selectClass = 'w-full border border-gray-300 rounded px-3 py-2 text-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500';
+
   return (
     <div className="layout-container py-4 md:py-8 flex flex-col md:flex-row gap-8">
-      
       {/* Sidebar Filters */}
       <aside className="w-full md:w-64 flex-shrink-0">
         <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
-          {/* Header com botão de expandir/colapsar no mobile */}
           <button
+            type="button"
             onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
             className="w-full flex items-center justify-between md:pointer-events-none mb-4"
+            aria-expanded={isFiltersExpanded}
+            aria-controls="search-filters"
           >
             <h2 className="font-bold text-gray-800 flex items-center gap-2">
-              <Filter size={18} /> Filtres
+              <Filter size={18} aria-hidden /> Filtres
             </h2>
-            {/* Ícone de expandir/colapsar - apenas visível no mobile */}
             <div className="md:hidden">
-              {isFiltersExpanded ? (
-                <ChevronUp size={20} className="text-gray-600" />
-              ) : (
-                <ChevronDown size={20} className="text-gray-600" />
-              )}
+              {isFiltersExpanded ? <ChevronUp size={20} className="text-gray-600" aria-hidden /> : <ChevronDown size={20} className="text-gray-600" aria-hidden />}
             </div>
           </button>
-          
-          {/* Conteúdo dos filtros - colapsado no mobile por padrão */}
-          <div className={`space-y-4 ${isFiltersExpanded ? 'block' : 'hidden md:block'}`}>
-            {/* Category first – dimensions filtered by category */}
+
+          <div id="search-filters" className={`space-y-4 ${isFiltersExpanded ? 'block' : 'hidden md:block'}`}>
             <div>
-              <label className="text-xs font-bold text-gray-600 mb-1 block">Catégorie :</label>
+              <label htmlFor="f-category" className="text-xs font-bold text-gray-600 mb-1 block">Catégorie :</label>
               <div className="relative">
-                <select 
-                  value={filters.category}
-                  onChange={(e) => setFilters({...filters, category: e.target.value, width: '', height: '', diameter: '', brand: '', load_index: '', speed_index: '', pa_tipo: ''})}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm appearance-none bg-white"
+                <select
+                  id="f-category"
+                  value={category}
+                  onChange={(e) => updateParams({ category: e.target.value, width: null, height: null, diameter: null, brand: null, load_index: null, speed_index: null, pa_tipo: null })}
+                  className={selectClass}
                 >
                   <option value="Toutes">Toutes</option>
                   <option value="Auto">Auto</option>
@@ -438,154 +197,160 @@ function SearchContent() {
                   <option value="Camion">Camion</option>
                   <option value="Tracteurs">Tracteurs</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" aria-hidden />
               </div>
             </div>
 
-            {/* Dimensions Filter (by category) */}
             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-              <label className="text-xs font-bold text-gray-700 mb-2 block uppercase">Dimensions</label>
+              <p className="text-xs font-bold text-gray-700 mb-2 block uppercase">Dimensions</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] text-gray-500 mb-1 block">Largeur</label>
-                  <select 
-                    value={filters.width}
-                    onChange={(e) => setFilters({...filters, width: e.target.value, height: '', diameter: ''})}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white"
-                  >
+                  <label htmlFor="f-width" className="text-xs text-gray-500 mb-1 block">Largeur</label>
+                  <select id="f-width" value={get('width')} onChange={(e) => updateParams({ width: e.target.value, height: null, diameter: null })} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white">
                     <option value="">--</option>
-                    {availableWidths.map(w => <option key={w} value={w}>{w}</option>)}
+                    {facets.widths.map((w) => <option key={w} value={w}>{w}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-500 mb-1 block">Hauteur</label>
-                  <select 
-                    value={filters.height}
-                    onChange={(e) => setFilters({...filters, height: e.target.value, diameter: ''})}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white"
-                  >
+                  <label htmlFor="f-height" className="text-xs text-gray-500 mb-1 block">Hauteur</label>
+                  <select id="f-height" value={get('height')} disabled={!get('width')} onChange={(e) => updateParams({ height: e.target.value, diameter: null })} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white disabled:bg-gray-100">
                     <option value="">--</option>
-                    {availableHeights.map(h => <option key={h} value={h}>{h}</option>)}
+                    {facets.heights.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-500 mb-1 block">Diamètre</label>
-                  <select 
-                    value={filters.diameter}
-                    onChange={(e) => setFilters({...filters, diameter: e.target.value})}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white"
-                  >
+                  <label htmlFor="f-diameter" className="text-xs text-gray-500 mb-1 block">Diamètre</label>
+                  <select id="f-diameter" value={get('diameter')} disabled={!get('height')} onChange={(e) => updateParams({ diameter: e.target.value })} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white disabled:bg-gray-100">
                     <option value="">--</option>
-                    {availableDiameters.map(d => <option key={d} value={d}>{d}</option>)}
+                    {facets.diameters.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
               </div>
             </div>
 
-            {/* Brand (if not in URL) – filtered by category */}
-            {!searchParams.get('brand') && (
-              <div>
-                <label className="text-xs font-bold text-gray-600 mb-1 block">Marque :</label>
-                <div className="relative">
-                  <select
-                    value={filters.brand}
-                    onChange={(e) => setFilters({...filters, brand: e.target.value})}
-                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm appearance-none bg-white"
-                  >
-                    <option value="">--</option>
-                    {brandList.map((b) => (
-                      <option key={b.id || b.name} value={b.name}>{b.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-            )}
-
-            {/* Price Range (Mock UI) */}
             <div>
-              <label className="text-xs font-bold text-gray-600 mb-1 block">Prix :</label>
-              <div className="flex gap-2">
-                <input type="number" placeholder="€ Min" className="w-full border border-gray-300 rounded px-2 py-2 text-sm" />
-                <input type="number" placeholder="€ Max" className="w-full border border-gray-300 rounded px-2 py-2 text-sm" />
-              </div>
-            </div>
-
-            {/* Season */}
-            <div>
-              <label className="text-xs font-bold text-gray-600 mb-1 block">Clima :</label>
+              <label htmlFor="f-brand" className="text-xs font-bold text-gray-600 mb-1 block">Marque :</label>
               <div className="relative">
-                <select 
-                  value={filters.season}
-                  onChange={(e) => setFilters({...filters, season: e.target.value})}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm appearance-none bg-white"
-                >
-                  <option value="Tous">Tous</option>
+                <select id="f-brand" value={get('brand')} onChange={(e) => updateParams({ brand: e.target.value })} className={selectClass}>
+                  <option value="">--</option>
+                  {facets.brands.map((b) => <option key={b.id || b.name} value={b.name}>{b.name}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" aria-hidden />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-600 mb-1 block">Prix (HT) :</p>
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  applyPrice();
+                }}
+              >
+                <input type="number" min={0} inputMode="decimal" aria-label="Prix minimum" placeholder="€ Min" value={priceDraft.min} onChange={(e) => setPriceDraft({ ...priceDraft, min: e.target.value })} onBlur={applyPrice} className="w-full border border-gray-300 rounded px-2 py-2 text-sm" />
+                <input type="number" min={0} inputMode="decimal" aria-label="Prix maximum" placeholder="€ Max" value={priceDraft.max} onChange={(e) => setPriceDraft({ ...priceDraft, max: e.target.value })} onBlur={applyPrice} className="w-full border border-gray-300 rounded px-2 py-2 text-sm" />
+                <button type="submit" className="sr-only">Appliquer</button>
+              </form>
+            </div>
+
+            <div>
+              <label htmlFor="f-season" className="text-xs font-bold text-gray-600 mb-1 block">Saison :</label>
+              <div className="relative">
+                <select id="f-season" value={season} onChange={(e) => updateParams({ season: e.target.value })} className={selectClass}>
+                  <option value="Tous">Toutes</option>
                   <option value="Été">Été</option>
                   <option value="Hiver">Hiver</option>
                   <option value="4 Saisons">4 Saisons</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" aria-hidden />
               </div>
             </div>
-
           </div>
         </div>
       </aside>
 
-      {/* Product Grid */}
-      <div className="flex-1">
+      {/* Results */}
+      <div className="flex-1 min-w-0">
         {promoBanner && (
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-[#0066CC]/25 bg-[#0066CC]/8 px-4 py-3 text-sm text-gray-900">
             <div className="min-w-0">
               <p className="font-bold text-[#0066CC]">Promotion</p>
               <p className="mt-0.5 font-semibold text-gray-900">{promoBanner.title}</p>
-              {promoBanner.discount_text ? (
-                <p className="mt-1 text-base font-bold text-gray-800">{promoBanner.discount_text}</p>
-              ) : null}
-              {promoBanner.description ? (
-                <p className="mt-1 text-gray-600 leading-snug">{promoBanner.description}</p>
-              ) : null}
+              {promoBanner.discount_text ? <p className="mt-1 text-base font-bold text-gray-800">{promoBanner.discount_text}</p> : null}
+              {promoBanner.description ? <p className="mt-1 text-gray-600 leading-snug">{promoBanner.description}</p> : null}
             </div>
-            <button
-              type="button"
-              onClick={dismissPromoBanner}
-              className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-            >
+            <button type="button" onClick={dismissPromoBanner} className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
               Fermer
             </button>
           </div>
         )}
         {promoProductIds.length > 0 && (
           <div className="mb-4 rounded-xl border border-emerald-300/70 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
-            Filtre promo actif: {promoProductIds.length} produit(s) sélectionné(s) dans cette offre.
+            Filtre promo actif : {promoProductIds.length} produit(s) sélectionné(s) dans cette offre.
           </div>
         )}
-        <div className="mb-4 flex justify-between items-center">
+
+        <div className="mb-4 flex flex-wrap justify-between items-center gap-3">
           <h1 className="text-xl font-bold text-gray-800">
-            Résultats de recherche 
-            {filters.brand && <span className="text-[#0066CC]"> {filters.brand}</span>}
-            {filters.width && <span className="text-gray-500 text-sm ml-2">({filters.width}/{filters.height} R{filters.diameter})</span>}
+            Résultats de recherche
+            {get('brand') && <span className="text-[#0066CC]"> {get('brand')}</span>}
+            {get('width') && <span className="text-gray-500 text-sm ml-2">({get('width')}{get('height') ? `/${get('height')}` : ''}{get('diameter') ? ` R${get('diameter')}` : ''})</span>}
           </h1>
-          <span className="text-sm text-gray-500">{products.length} produits trouvés</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500" aria-live="polite">{loading ? 'Recherche…' : `${total} produit${total > 1 ? 's' : ''}`}</span>
+            <label className="sr-only" htmlFor="f-sort">Trier</label>
+            <select id="f-sort" value={get('sort') || 'relevance'} onChange={(e) => updateParams({ sort: e.target.value === 'relevance' ? null : e.target.value })} className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white">
+              <option value="relevance">Pertinence</option>
+              <option value="price_asc">Prix croissant</option>
+              <option value="price_desc">Prix décroissant</option>
+              <option value="name_asc">Nom A–Z</option>
+            </select>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="animate-spin text-gray-400" size={48} />
+        {activeChips.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {activeChips.map((c) => (
+              <button key={c.key} type="button" onClick={() => removeChip(c.key)} className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50" aria-label={`Retirer le filtre ${c.label}`}>
+                {c.label} <X size={12} aria-hidden />
+              </button>
+            ))}
+            <button type="button" onClick={() => router.replace(category !== 'Toutes' ? `/search?category=${encodeURIComponent(category)}` : '/search')} className="text-xs text-[#0066CC] hover:underline px-2">
+              Tout effacer
+            </button>
           </div>
+        )}
+
+        {error ? (
+          <div className="bg-white rounded-lg p-12 text-center text-red-600" role="alert">{error}</div>
+        ) : loading && !result ? (
+          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-400" size={48} aria-label="Chargement" /></div>
         ) : products.length === 0 ? (
           <div className="bg-white rounded-lg p-12 text-center text-gray-500">
-            Aucun produit ne correspond à votre recherche.
+            <p className="font-medium text-gray-700 mb-2">Aucun produit ne correspond à votre recherche.</p>
+            <p className="text-sm">Essayez d&apos;élargir les dimensions ou de retirer un filtre.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className={`flex flex-col gap-6 ${loading ? 'opacity-60 transition-opacity' : ''}`} aria-busy={loading}>
             {products.map((product) => (
               <div key={product.id} className="w-full">
                 <ProductCard product={product} />
               </div>
             ))}
           </div>
+        )}
+
+        {totalPages > 1 && (
+          <nav className="mt-8 flex items-center justify-center gap-2" aria-label="Pagination">
+            <button type="button" onClick={() => goToPage(page - 1)} disabled={page <= 1} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-40">
+              <ChevronLeft size={16} aria-hidden /> Précédent
+            </button>
+            <span className="text-sm text-gray-600 px-2">Page {page} / {totalPages}</span>
+            <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= totalPages} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-40">
+              Suivant <ChevronRight size={16} aria-hidden />
+            </button>
+          </nav>
         )}
       </div>
     </div>
@@ -596,7 +361,7 @@ export default function SearchPage() {
   return (
     <main className="min-h-screen bg-[#F1F1F1]">
       <Header />
-      <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>}>
+      <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin" aria-label="Chargement" /></div>}>
         <SearchContent />
       </Suspense>
       <Footer />

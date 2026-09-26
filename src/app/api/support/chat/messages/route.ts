@@ -29,10 +29,16 @@ export async function GET(request: NextRequest) {
     const allowed = admin.ok || (user && conversation.user_id === user.id) || (!user && guestToken && conversation.guest_token === guestToken);
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+    // `after` (ISO) devolve só mensagens novas — usado pelo polling incremental.
+    const afterRaw = request.nextUrl.searchParams.get('after');
+    const after = afterRaw && !Number.isNaN(Date.parse(afterRaw)) ? new Date(afterRaw).toISOString() : null;
+
     const messages = await db.query(
       `select id, sender_type, sender_name, sender_email, body, is_read, created_at
-       from public.support_messages where conversation_id = $1 order by created_at asc`,
-      [conversationId]
+       from public.support_messages
+       where conversation_id = $1 and ($2::timestamptz is null or created_at > $2::timestamptz)
+       order by created_at asc`,
+      [conversationId, after]
     );
 
     if (admin.ok) {
@@ -43,7 +49,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ conversation, messages: messages.rows });
+    return NextResponse.json(
+      { conversation, messages: messages.rows, incremental: after !== null },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
   } catch (error) {
     console.error('support chat messages get error', error);
     return NextResponse.json({ error: 'Falha ao buscar mensagens.' }, { status: 500 });

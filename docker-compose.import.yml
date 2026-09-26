@@ -13,7 +13,8 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc
+      # Scripts de import fazem DDL/bulk load → usam o superutilizador (nunca a app).
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mecanidoc}:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-mecanidoc}
     depends_on:
       postgres:
         condition: service_healthy

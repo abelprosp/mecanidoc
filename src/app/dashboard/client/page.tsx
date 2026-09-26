@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { 
-  Package, MapPin, CreditCard, Heart, LogOut, Loader2, Save, User, ExternalLink, Truck
-} from 'lucide-react';
+import { Package, MapPin, LogOut, Loader2, User, ExternalLink, Truck, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import SecuritySettings from '@/components/account/SecuritySettings';
 
 export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState('orders');
@@ -159,11 +158,11 @@ export default function ClientDashboard() {
               >
                 <User size={18} /> Mon Profil & Adresses
               </button>
-              <button 
-                className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 cursor-not-allowed"
-                disabled
+              <button
+                onClick={() => setActiveTab('security')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'security' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
               >
-                <CreditCard size={18} /> Moyens de paiement (Bientôt)
+                <ShieldCheck size={18} /> Sécurité
               </button>
               <div className="border-t border-gray-100 my-2"></div>
               <button 
@@ -283,6 +282,13 @@ export default function ClientDashboard() {
                   <p>Vous n'avez pas encore passé de commande.</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h1 className="text-2xl font-bold text-gray-800 mb-6">Sécurité du compte</h1>
+              <SecuritySettings />
             </div>
           )}
 

@@ -11,7 +11,6 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
-import { createClient } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 import PromoBanner from './PromoBanner';
 
@@ -151,7 +150,6 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
-  const supabase = createClient();
 
   // Busca de produtos
   useEffect(() => {
@@ -160,83 +158,23 @@ export default function Header() {
       return;
     }
 
+    const controller = new AbortController();
+
     const searchProducts = async () => {
       setSearchLoading(true);
-      const query = searchQuery.trim().toLowerCase();
-      
       try {
-        // Buscar produtos por múltiplos atributos
-        let productsQuery = supabase
-          .from('products')
-          .select('*, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .limit(10);
-
-        // Busca por nome do produto
-        const { data: byName } = await supabase
-          .from('products')
-          .select('*, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .ilike('name', `%${query}%`)
-          .limit(10);
-
-        // Busca por marca
-        const { data: byBrand } = await supabase
-          .from('products')
-          .select('*, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .ilike('brand', `%${query}%`)
-          .limit(10);
-
-        // Busca por categoria
-        const { data: byCategory } = await supabase
-          .from('products')
-          .select('*, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .ilike('category', `%${query}%`)
-          .limit(10);
-
-        // Busca por pa_tipo
-        const { data: byPaTipo } = await supabase
-          .from('products')
-          .select('*, brands(id, name, logo_url)')
-          .eq('is_active', true)
-          .ilike('pa_tipo', `%${query}%`)
-          .limit(10);
-
-        // Busca nas especificações (specs JSONB) - fazer múltiplas queries
-        const specsQueries = [
-          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { width: query }).limit(10),
-          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { height: query }).limit(10),
-          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { diameter: query }).limit(10),
-          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { load_index: query }).limit(10),
-          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { speed_index: query }).limit(10),
-          supabase.from('products').select('*, brands(id, name, logo_url)').eq('is_active', true).contains('specs', { season: query }).limit(10),
-        ];
-        
-        const specsResults = await Promise.all(specsQueries.map(q => q));
-        const bySpecs = specsResults.flatMap(result => result.data || []);
-
-        // Combinar todos os resultados e remover duplicatas
-        const allResults = [
-          ...(byName || []),
-          ...(byBrand || []),
-          ...(byCategory || []),
-          ...(byPaTipo || []),
-          ...(bySpecs || [])
-        ];
-
-        // Remover duplicatas por ID
-        const uniqueResults = allResults.filter((product, index, self) => 
-          index === self.findIndex((p) => p.id === product.id)
-        );
-
-        setSearchResults(uniqueResults.slice(0, 10));
+        // Uma única consulta no servidor (nome, marca, categoria, tipo e specs).
+        const res = await fetch(`/api/products/suggest?q=${encodeURIComponent(searchQuery.trim())}`, {
+          signal: controller.signal,
+        });
+        const json = res.ok ? await res.json() : { data: [] };
+        setSearchResults(Array.isArray(json.data) ? json.data : []);
       } catch (error) {
+        if ((error as Error)?.name === 'AbortError') return;
         console.error('Error searching products:', error);
         setSearchResults([]);
       } finally {
-        setSearchLoading(false);
+        if (!controller.signal.aborted) setSearchLoading(false);
       }
     };
 
@@ -244,7 +182,10 @@ export default function Header() {
       searchProducts();
     }, 300);
 
-    return () => clearTimeout(debounceTimer);
+    return () => {
+      clearTimeout(debounceTimer);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   // Focar no input quando o modal abrir
@@ -296,7 +237,7 @@ export default function Header() {
                 {item.title} <ChevronDown size={14} className="opacity-60 shrink-0" aria-hidden />
               </Link>
               
-              <div className="absolute left-0 right-0 top-full z-[60] hidden w-full group-hover:block pointer-events-none group-hover:pointer-events-auto">
+              <div className="absolute left-0 right-0 top-full z-[60] hidden w-full group-hover:block group-focus-within:block pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
                 <div className="w-full bg-white border border-gray-200 border-t-0 shadow-xl rounded-b-lg animate-in fade-in slide-in-from-top-1 duration-200">
                   <div className="flex w-full">
                     {item.columns.map((column, colIndex) => (

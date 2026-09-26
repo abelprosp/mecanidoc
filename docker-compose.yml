@@ -4,9 +4,12 @@ services:
     container_name: mecanidoc-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: mecanidoc
-      POSTGRES_PASSWORD: mecanidoc
-      POSTGRES_DB: mecanidoc
+      # Superutilizador: só para init/migrações. A app NÃO liga com este utilizador.
+      POSTGRES_USER: ${POSTGRES_USER:-mecanidoc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-mecanidoc}
+      # Password do papel mecanidoc_app (criado por docker/postgres/init/01-roles.sh)
+      MECANIDOC_APP_DB_PASSWORD: ${MECANIDOC_APP_DB_PASSWORD:?Defina MECANIDOC_APP_DB_PASSWORD no .env}
     ports:
       # Host 5434 — não usar 5432 (outra stack na VPS). Rede Docker interna continua 5432.
       - "127.0.0.1:${MECANIDOC_POSTGRES_PORT:-5434}:5432"
@@ -14,7 +17,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mecanidoc -d mecanidoc"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mecanidoc} -d ${POSTGRES_DB:-mecanidoc}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -33,10 +36,16 @@ services:
       - "127.0.0.1:${MECANIDOC_APP_PORT:-3980}:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc
-      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production-use-openssl-rand-hex-32}
+      # Utilizador sem privilégios; RLS aplica-se. Operações de servidor fazem SET ROLE mecanidoc_admin.
+      DATABASE_URL: postgresql://mecanidoc_app:${MECANIDOC_APP_DB_PASSWORD:?Defina MECANIDOC_APP_DB_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-mecanidoc}
+      DB_ADMIN_ROLE: mecanidoc_admin
+      # Sem valores por defeito: gerar com `openssl rand -hex 32`
+      AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no .env (openssl rand -hex 32)}
+      CRON_SECRET: ${CRON_SECRET:?Defina CRON_SECRET no .env (openssl rand -hex 32)}
       UPLOAD_DIR: /app/uploads
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://www.mecanidoc.com}
+      # Só definir "1" se a app for servida em HTTP puro (sem proxy TLS). Cookies ficam sem Secure.
+      ALLOW_INSECURE_COOKIES: ${ALLOW_INSECURE_COOKIES:-0}
       NEUMATICOS_ANDRES_LOGIN: ${NEUMATICOS_ANDRES_LOGIN:-}
       NEUMATICOS_ANDRES_PASSWORD: ${NEUMATICOS_ANDRES_PASSWORD:-}
       NEUMATICOS_ANDRES_BASE_URL: ${NEUMATICOS_ANDRES_BASE_URL:-https://backend.genasa.es}
@@ -44,12 +53,24 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      CRON_SECRET: ${CRON_SECRET:-local-cron-secret}
+      # E-mail transacional (recuperação de password). Se vazio, usa as definições SMTP do suporte (Admin).
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      # /api/health verifica app + ligação à BD (a imagem node inclui wget via busybox/alpine)
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
 volumes:
   postgres_data:

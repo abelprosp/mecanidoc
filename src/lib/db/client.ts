@@ -169,51 +169,165 @@ export function createAdminDbClient(): DbClient {
   };
 }
 
-export async function registerUser(input: {
+/** Papéis que um utilizador pode escolher no registo. `supplier` e `master` são atribuídos pelo master. */
+export const SELF_SERVICE_ROLES = ['customer', 'garage', 'company'] as const;
+export type SelfServiceRole = (typeof SELF_SERVICE_ROLES)[number];
+
+export type GarageRegistration = {
+  name: string;
+  address: string;
+  streetNumber?: string;
+  addressComplement?: string;
+  zipCode: string;
+  city: string;
+  country: string;
+  phonePrimary: string;
+  phoneSecondary?: string;
+  companyName: string;
+  siret: string;
+  legalForm: string;
+  tireTypes: Record<string, boolean>;
+  openingHours?: string;
+};
+
+export type CompanyRegistration = {
+  companyName: string;
+  vatNumber?: string;
+};
+
+export type RegisterUserInput = {
   email: string;
   password: string;
-  metadata?: Record<string, unknown>;
-}) {
+  fullName: string;
+  role: SelfServiceRole;
+  phone?: string;
+  garage?: GarageRegistration;
+  company?: CompanyRegistration;
+};
+
+export class RegistrationError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/**
+ * Cria utilizador + perfil (+ garagem/empresa) numa única transação. O papel é
+ * validado no servidor; garagens começam por aprovar e empresas sem desconto.
+ */
+export async function registerUser(input: RegisterUserInput) {
+  if (!SELF_SERVICE_ROLES.includes(input.role)) {
+    throw new RegistrationError('Rôle non autorisé.', 400);
+  }
+  if (input.role === 'garage' && !input.garage) {
+    throw new RegistrationError('Informations du garage manquantes.', 400);
+  }
+  if (input.role === 'company' && !input.company) {
+    throw new RegistrationError("Informations de l'entreprise manquantes.", 400);
+  }
+
   return withAdminContext(async (client) => {
     const email = input.email.trim().toLowerCase();
     const existing = await client.query('SELECT id FROM public.users WHERE lower(email) = $1 LIMIT 1', [email]);
     if (existing.rows[0]) {
-      throw new Error('User already registered');
+      throw new RegistrationError('Un compte existe déjà avec cet e-mail.', 409);
     }
 
     const id = randomUUID();
     const passwordHash = await hashPassword(input.password);
-    const fullName = (input.metadata?.full_name as string) || email.split('@')[0];
+    const fullName = input.fullName.trim() || email.split('@')[0];
+    const metadata = { full_name: fullName, role: input.role };
 
+    // email_confirmed_at fica NULL até o utilizador clicar no link de verificação.
     await client.query(
-      `INSERT INTO public.users (id, email, password_hash, raw_user_meta_data)
-       VALUES ($1, $2, $3, $4::jsonb)`,
-      [id, email, passwordHash, JSON.stringify(input.metadata || {})]
+      `INSERT INTO public.users (id, email, password_hash, raw_user_meta_data, email_confirmed_at)
+       VALUES ($1, $2, $3, $4::jsonb, NULL)`,
+      [id, email, passwordHash, JSON.stringify(metadata)]
     );
 
+    // Clientes entram na fila de aprovação do master (promoção a fornecedor) — comportamento existente.
     await client.query(
-      `INSERT INTO public.profiles (id, email, full_name, role)
-       VALUES ($1, $2, $3, 'customer')
-       ON CONFLICT (id) DO NOTHING`,
-      [id, email, fullName]
+      `INSERT INTO public.profiles (id, email, full_name, role, phone, supplier_promotion_pending)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, email, fullName, input.role, input.phone?.trim() || null, input.role === 'customer']
     );
 
-    return { id, email };
+    if (input.role === 'garage' && input.garage) {
+      const g = input.garage;
+      await client.query(
+        `INSERT INTO public.garages (
+           profile_id, name, address, street_number, address_complement, zip_code, city, country,
+           phone_primary, phone_secondary, company_name, siret, legal_form, tire_types, opening_hours,
+           is_approved, installation_price, commission_balance
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, false, 0, 0)`,
+        [
+          id,
+          g.name,
+          g.address,
+          g.streetNumber || null,
+          g.addressComplement || null,
+          g.zipCode,
+          g.city,
+          g.country,
+          g.phonePrimary,
+          g.phoneSecondary || null,
+          g.companyName,
+          g.siret,
+          g.legalForm,
+          JSON.stringify(g.tireTypes || {}),
+          g.openingHours || null,
+        ]
+      );
+    }
+
+    if (input.role === 'company' && input.company) {
+      await client.query(
+        `INSERT INTO public.companies (profile_id, company_name, vat_number, discount_tier)
+         VALUES ($1, $2, $3, 0)`,
+        [id, input.company.companyName, input.company.vatNumber || null]
+      );
+    }
+
+    return { id, email, role: input.role };
   });
 }
 
-export async function loginUser(email: string, password: string) {
+export type AuthenticatedUser = {
+  id: string;
+  email: string;
+  sessionVersion: number;
+  mfaEnabled: boolean;
+  emailConfirmed: boolean;
+};
+
+export async function loginUser(email: string, password: string): Promise<AuthenticatedUser> {
   return withAdminContext(async (client) => {
     const normalized = email.trim().toLowerCase();
-    const { rows } = await client.query<{ id: string; email: string; password_hash: string }>(
-      'SELECT id, email, password_hash FROM public.users WHERE lower(email) = $1 LIMIT 1',
+    const { rows } = await client.query<{
+      id: string;
+      email: string;
+      password_hash: string;
+      session_version: number | null;
+      mfa_enabled: boolean | null;
+      email_confirmed_at: Date | null;
+    }>(
+      `SELECT id, email, password_hash, session_version, mfa_enabled, email_confirmed_at
+         FROM public.users WHERE lower(email) = $1 LIMIT 1`,
       [normalized]
     );
     const user = rows[0];
     if (!user) throw new Error('Invalid login credentials');
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) throw new Error('Invalid login credentials');
-    return { id: user.id, email: user.email };
+    return {
+      id: user.id,
+      email: user.email,
+      sessionVersion: Number(user.session_version ?? 1),
+      mfaEnabled: Boolean(user.mfa_enabled),
+      emailConfirmed: user.email_confirmed_at !== null,
+    };
   });
 }
 

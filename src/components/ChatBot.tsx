@@ -1,8 +1,9 @@
 ﻿"use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, MessageCircle, Send, UserRound, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { usePolling } from '@/hooks/usePolling';
 
 type Message = {
   id: string;
@@ -51,13 +52,30 @@ export default function ChatBot() {
     setLoading(false);
   };
 
-  const loadMessages = async (id: string, token: string | null) => {
+  const messagesRef = useRef<Message[]>([]);
+  messagesRef.current = messages;
+
+  /** Carrega só mensagens novas (após a última conhecida). Devolve true se houve novidades. */
+  const loadMessages = useCallback(async (id: string, token: string | null): Promise<boolean> => {
     const params = new URLSearchParams({ conversationId: id });
     if (token) params.set('guestToken', token);
-    const response = await fetch(`/api/support/chat/messages?${params.toString()}`);
+    const last = messagesRef.current[messagesRef.current.length - 1];
+    if (last) params.set('after', last.created_at);
+    const response = await fetch(`/api/support/chat/messages?${params.toString()}`, { cache: 'no-store' });
+    if (!response.ok) return false;
     const data = await response.json();
-    if (response.ok) setMessages(data.messages || []);
-  };
+    const incoming: Message[] = data.messages || [];
+    if (!data.incremental) {
+      setMessages(incoming);
+      return incoming.length !== messagesRef.current.length;
+    }
+    if (incoming.length === 0) return false;
+    setMessages((prev) => {
+      const known = new Set(prev.map((m) => m.id));
+      return [...prev, ...incoming.filter((m) => !known.has(m.id))];
+    });
+    return true;
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -68,17 +86,18 @@ export default function ChatBot() {
       await syncSession(token);
     };
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só no mount
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !conversationId) return;
-    const interval = setInterval(() => loadMessages(conversationId, guestToken), 4000);
-    return () => clearInterval(interval);
-  }, [isOpen, conversationId, guestToken]);
+  // Polling adaptativo: 4s quando há atividade, até 30s quando não há; pausa com a aba oculta.
+  const { bump } = usePolling(
+    () => (conversationId ? loadMessages(conversationId, guestToken) : Promise.resolve(false)),
+    { baseMs: 4000, maxMs: 30_000, enabled: isOpen && Boolean(conversationId) }
+  );
 
   const handleSend = async () => {
     if (!conversationId || !inputMessage.trim() || sending) return;
@@ -97,6 +116,7 @@ export default function ChatBot() {
     if (response.ok) {
       setInputMessage('');
       await loadMessages(conversationId, guestToken);
+      bump();
     }
     setSending(false);
   };

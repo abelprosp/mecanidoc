@@ -12,9 +12,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.mecanidoc.com";
+
 export const metadata: Metadata = {
-  title: "MecaniDoc - Pneus Auto, Moto, Camion",
-  description: "Roulez en toute sécurité avec mecanidoc.com",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "MecaniDoc - Pneus Auto, Moto, Camion",
+    template: "%s | MecaniDoc",
+  },
+  description: "Pneus auto, moto, camion et tracteur au meilleur prix, avec montage dans un garage partenaire près de chez vous.",
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: "MecaniDoc",
+    title: "MecaniDoc - Pneus Auto, Moto, Camion",
+    description: "Pneus auto, moto, camion et tracteur au meilleur prix, avec montage dans un garage partenaire près de chez vous.",
+    images: [{ url: "/logo.png" }],
+  },
+  robots: { index: true, follow: true },
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",

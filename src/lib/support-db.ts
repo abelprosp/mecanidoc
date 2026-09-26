@@ -1,99 +1,45 @@
-import { randomUUID } from 'crypto';
-import { Pool } from 'pg';
-import { getDatabaseUrl } from '@/lib/db/pool';
+import 'server-only';
 
-let pool: Pool | null = null;
+import { randomUUID } from 'crypto';
+import { getAdminPool, type AdminQueryable } from '@/lib/db/pool';
+
 let schemaReady = false;
 
-export function getSupportPool() {
-  if (pool) return pool;
-  pool = new Pool({ connectionString: getDatabaseUrl() });
-  return pool;
+/**
+ * Pool com papel administrativo (BYPASSRLS). As tabelas de suporte têm RLS ativo sem
+ * políticas, por isso só são acessíveis por aqui — as rotas /api/support fazem a
+ * autorização (sessão master, dono da conversa ou token de convidado) antes de consultar.
+ */
+export function getSupportPool(): AdminQueryable {
+  return getAdminPool();
 }
 
+const SUPPORT_TABLES = [
+  'support_conversations',
+  'support_messages',
+  'support_email_threads',
+  'support_email_messages',
+  'support_mail_settings',
+];
+
+/**
+ * Verifica que as tabelas de suporte existem. O esquema é criado pelas migrações
+ * (docker/postgres/init/05-support.sql + 02-schema.sql); a app não executa DDL.
+ */
 export async function ensureSupportSchema() {
   if (schemaReady) return;
-
-  const db = getSupportPool();
-  await db.query(`
-    create table if not exists public.support_conversations (
-      id text primary key,
-      user_id text,
-      guest_token text,
-      subject text,
-      channel text not null default 'chat',
-      status text not null default 'open',
-      assigned_admin_id text,
-      assigned_admin_email text,
-      customer_name text,
-      customer_email text,
-      last_message_at timestamptz not null default now(),
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
+  const { rows } = await getSupportPool().query<{ table_name: string }>(
+    `select table_name from information_schema.tables
+      where table_schema = 'public' and table_name = any($1)`,
+    [SUPPORT_TABLES]
+  );
+  const present = new Set(rows.map((r) => r.table_name));
+  const missing = SUPPORT_TABLES.filter((t) => !present.has(t));
+  if (missing.length) {
+    throw new Error(
+      `Tabelas de suporte em falta: ${missing.join(', ')}. Execute scripts/db-harden.sh (aplica 05-support.sql).`
     );
-
-    create table if not exists public.support_messages (
-      id text primary key,
-      conversation_id text not null references public.support_conversations(id) on delete cascade,
-      sender_type text not null,
-      sender_name text,
-      sender_email text,
-      body text not null,
-      metadata jsonb not null default '{}'::jsonb,
-      is_read boolean not null default false,
-      created_at timestamptz not null default now()
-    );
-
-    create table if not exists public.support_email_threads (
-      id text primary key,
-      external_id text unique,
-      subject text,
-      from_name text,
-      from_email text not null,
-      assigned_admin_id text,
-      assigned_admin_email text,
-      status text not null default 'open',
-      preview text,
-      last_message_at timestamptz not null default now(),
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
-    );
-
-    create table if not exists public.support_email_messages (
-      id text primary key,
-      thread_id text not null references public.support_email_threads(id) on delete cascade,
-      external_id text unique,
-      direction text not null,
-      from_name text,
-      from_email text,
-      to_email text,
-      subject text,
-      body_text text,
-      body_html text,
-      created_at timestamptz not null default now()
-    );
-
-    create index if not exists idx_support_conversations_last_message on public.support_conversations(last_message_at desc);
-    create index if not exists idx_support_messages_conversation on public.support_messages(conversation_id, created_at asc);
-    create index if not exists idx_support_email_threads_last_message on public.support_email_threads(last_message_at desc);
-    create index if not exists idx_support_email_messages_thread on public.support_email_messages(thread_id, created_at asc);
-
-    create table if not exists public.support_mail_settings (
-      id uuid primary key default gen_random_uuid(),
-      smtp_host text,
-      smtp_port integer default 587,
-      smtp_user text,
-      smtp_pass text,
-      smtp_from text,
-      imap_host text,
-      imap_port integer default 993,
-      imap_user text,
-      imap_pass text,
-      imap_mailbox text default 'INBOX',
-      updated_at timestamptz not null default timezone('utc'::text, now())
-    );
-  `);
-
+  }
   schemaReady = true;
 }
 

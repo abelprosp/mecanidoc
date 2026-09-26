@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Loader2 } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize-html';
 
 const TIRE_IMAGE_URL = 'https://www.gpservicosautomotivos.com.br/wp-content/uploads/2022/06/pneus.png';
 
@@ -105,6 +106,8 @@ export default function DynamicPage() {
   if (content && (slug === 'garantie-pneus' || slug === 'garantie-mecanidoc')) {
     content = content.replace(/https:\/\/images\.unsplash\.com\/[^"'\s]+/g, TIRE_IMAGE_URL);
   }
+  // Conteúdo editado no admin: remove scripts, handlers e URLs perigosas antes de injetar.
+  content = sanitizeHtml(content);
 
   return (
     <main className="min-h-screen bg-white flex flex-col">

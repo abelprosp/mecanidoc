@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { 
-  Wrench, MapPin, Calendar, DollarSign, UserCheck, Star, Save, Loader2, LogOut
-} from 'lucide-react';
+import { Wrench, MapPin, Calendar, DollarSign, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import DashboardShell from '@/components/dashboard/DashboardShell';
 
 export default function GarageDashboard() {
   const [activeTab, setActiveTab] = useState('appointments');
@@ -88,31 +87,18 @@ export default function GarageDashboard() {
   if (loading) return <div className="flex h-screen items-center justify-center bg-[#F1F1F1]"><Loader2 className="animate-spin text-blue-600" size={48} /></div>;
 
   return (
-    <div className="flex h-screen bg-[#F1F1F1]">
-      <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
-        <div className="p-6 border-b">
-          <span className="text-xl font-bold text-gray-800">Mon Garage</span>
-          <span className="text-xs block text-gray-400 mt-1">Espace Partenaire</span>
-        </div>
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          <button onClick={() => setActiveTab('appointments')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'appointments' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <Calendar size={20} /> Rendez-vous
-          </button>
-          <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'profile' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <MapPin size={20} /> Profil Garage
-          </button>
-          <button onClick={() => setActiveTab('credits')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'credits' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <DollarSign size={20} /> Mes Crédits
-          </button>
-        </nav>
-        <div className="p-4 border-t">
-          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-            <LogOut size={20} /> Déconnexion
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto p-8">
+    <DashboardShell
+      title="Mon Garage"
+      subtitle="Espace Partenaire"
+      items={[
+        { key: 'appointments', label: 'Rendez-vous', icon: Calendar },
+        { key: 'profile', label: 'Profil Garage', icon: MapPin },
+        { key: 'credits', label: 'Mes Crédits', icon: DollarSign },
+      ]}
+      activeKey={activeTab}
+      onSelect={setActiveTab}
+      onSignOut={handleSignOut}
+    >
         {activeTab === 'appointments' && (
           <>
             <header className="mb-8">
@@ -211,7 +197,6 @@ export default function GarageDashboard() {
             </div>
            </>
         )}
-      </main>
-    </div>
+    </DashboardShell>
   );
 }

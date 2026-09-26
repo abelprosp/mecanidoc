@@ -14,11 +14,19 @@ type Filter = {
 type OrderBy = { column: string; ascending: boolean };
 type EmbedSpec = { name: string; columns: string; nested?: EmbedSpec[] };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DbResult<T = any> = {
   data: T | null;
   error: DbError | null;
   count?: number | null;
 };
+
+export type DbOperation = 'select' | 'insert' | 'update' | 'delete' | 'upsert';
+
+/** Limite máximo de linhas devolvidas por uma única consulta. */
+export const MAX_QUERY_LIMIT = 1000;
+/** Limite aplicado quando o chamador não indica nenhum. */
+export const DEFAULT_QUERY_LIMIT = 500;
 
 const TABLE_FK: Record<string, Record<string, { table: string; localKey: string; foreignKey: string; many?: boolean }>> = {
   products: {
@@ -36,6 +44,24 @@ const TABLE_FK: Record<string, Record<string, { table: string; localKey: string;
   },
 };
 
+const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+export class DbValidationError extends Error {
+  code = 'DB_VALIDATION';
+}
+
+/** Garante que `name` é um identificador SQL simples (coluna/tabela). */
+export function assertIdent(name: string, what = 'identificador'): string {
+  if (typeof name !== 'string' || !IDENT_RE.test(name)) {
+    throw new DbValidationError(`${what} inválido: ${JSON.stringify(name)}`);
+  }
+  return name;
+}
+
+function quoteIdent(name: string) {
+  return `"${assertIdent(name).replace(/"/g, '""')}"`;
+}
+
 function parseEmbeds(selectRaw: string): { columns: string; embeds: EmbedSpec[] } {
   const embeds: EmbedSpec[] = [];
   let rest = selectRaw.trim();
@@ -43,17 +69,17 @@ function parseEmbeds(selectRaw: string): { columns: string; embeds: EmbedSpec[] 
   const embedRegex = /(\w+)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
   let match: RegExpExecArray | null;
   while ((match = embedRegex.exec(rest)) !== null) {
-    embeds.push({ name: match[1], columns: match[2].trim() });
+    embeds.push({ name: assertIdent(match[1], 'relação'), columns: match[2].trim() });
   }
   rest = rest.replace(embedRegex, '').replace(/,\s*,/g, ',').replace(/,\s*$/g, '').trim();
   const columns = rest.replace(/^,\s*/, '') || '*';
   return { columns, embeds };
 }
 
-function quoteIdent(name: string) {
-  return `"${name.replace(/"/g, '""')}"`;
-}
-
+/**
+ * Converte uma lista de colunas (`a, b, specs->>width`) numa lista SQL segura.
+ * Qualquer expressão fora de identificador simples ou extração JSONB é rejeitada.
+ */
 function sqlSelectList(columns: string): string {
   const trimmed = columns.trim();
   if (!trimmed || trimmed === '*') return '*';
@@ -61,9 +87,8 @@ function sqlSelectList(columns: string): string {
     .split(',')
     .map((part) => {
       const col = part.trim();
-      if (!col || col === '*') return col || '*';
-      if (/[->(]/.test(col)) return col;
-      return quoteIdent(col);
+      if (!col || col === '*') return '*';
+      return sqlColumnRef(col);
     })
     .join(', ');
 }
@@ -72,9 +97,18 @@ function sqlSelectList(columns: string): string {
 function sqlColumnRef(column: string): string {
   const jsonText = column.match(/^([a-zA-Z_][a-zA-Z0-9_]*)->>([a-zA-Z_][a-zA-Z0-9_]*)$/);
   if (jsonText) {
-    return `${quoteIdent(jsonText[1])}->>'${jsonText[2].replace(/'/g, "''")}'`;
+    return `${quoteIdent(jsonText[1])}->>'${jsonText[2]}'`;
   }
   return quoteIdent(column);
+}
+
+function normalizeLimit(n: unknown): number | null {
+  if (n == null) return null;
+  const num = typeof n === 'number' ? n : Number(n);
+  if (!Number.isFinite(num) || num < 0) {
+    throw new DbValidationError('limit inválido');
+  }
+  return Math.min(Math.floor(num), MAX_QUERY_LIMIT);
 }
 
 async function attachNested(
@@ -87,7 +121,7 @@ async function attachNested(
   if (!rel) return;
   const fk = parentRow[rel.localKey];
   if (!fk) return;
-  const childCols = embed.columns === '*' ? '*' : embed.columns.split(',').map((c) => c.trim()).join(', ');
+  const childCols = sqlSelectList(embed.columns);
   const { rows } = await query<Record<string, unknown>>(
     `SELECT ${childCols} FROM ${quoteIdent(rel.table)} WHERE ${quoteIdent(rel.foreignKey)} = $1 LIMIT 1`,
     [fk],
@@ -101,8 +135,10 @@ export class QueryBuilder {
   private client: PoolClient | undefined;
   private userId: string | null | undefined;
   private admin: boolean;
-  private operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
+  private operation: DbOperation = 'select';
   private selectRaw = '*';
+  /** Colunas devolvidas por RETURNING em insert/update/upsert. */
+  private returningRaw = '*';
   private countOnly = false;
   private headOnly = false;
   private filters: Filter[] = [];
@@ -112,7 +148,7 @@ export class QueryBuilder {
   private singleMode: 'none' | 'single' | 'maybe' = 'none';
 
   constructor(table: string, client?: PoolClient, userId?: string | null, admin = false) {
-    this.table = table;
+    this.table = assertIdent(table, 'tabela');
     this.client = client;
     this.userId = userId;
     this.admin = admin;
@@ -122,12 +158,20 @@ export class QueryBuilder {
     this.client = client;
   }
 
+  getOperation(): DbOperation {
+    return this.operation;
+  }
+
+  getTable(): string {
+    return this.table;
+  }
+
   serialize() {
     return {
-      admin: this.admin,
       table: this.table,
       operation: this.operation,
       select: this.selectRaw,
+      returning: this.returningRaw,
       countOnly: this.countOnly,
       payload: this.payload ?? undefined,
       filters: this.filters,
@@ -137,13 +181,26 @@ export class QueryBuilder {
     };
   }
 
+  /**
+   * Em modo leitura define a projeção. Depois de insert/update/upsert define apenas
+   * as colunas devolvidas (RETURNING) — não altera a operação.
+   */
   select(columns = '*', options?: { count?: 'exact'; head?: boolean }) {
-    this.operation = 'select';
-    this.selectRaw = columns;
+    if (this.operation !== 'select') {
+      this.returningRaw = columns || '*';
+      return this;
+    }
+    this.selectRaw = columns || '*';
     if (options?.count === 'exact' && options?.head) {
       this.countOnly = true;
       this.headOnly = true;
     }
+    return this;
+  }
+
+  /** Usado por /api/db para repor a projeção RETURNING serializada. */
+  returning(columns: string) {
+    this.returningRaw = columns || '*';
     return this;
   }
 
@@ -221,7 +278,7 @@ export class QueryBuilder {
   }
 
   limit(n: number) {
-    this.limitN = n;
+    this.limitN = normalizeLimit(n);
     return this;
   }
 
@@ -279,7 +336,7 @@ export class QueryBuilder {
         params.push(f.value);
       } else if (f.type === 'ilike') {
         parts.push(`${sqlColumnRef(f.column)} ILIKE $${idx++}`);
-        params.push(f.value);
+        params.push(String(f.value ?? ''));
       } else if (f.type === 'neq') {
         parts.push(`${sqlColumnRef(f.column)} <> $${idx++}`);
         params.push(f.value);
@@ -287,7 +344,7 @@ export class QueryBuilder {
         const orParts: string[] = [];
         for (const item of String(f.value).split(',')) {
           const trimmed = item.trim();
-          const match = trimmed.match(/^([a-zA-Z0-9_]+)\.(ilike|eq)\.(.+)$/);
+          const match = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\.(ilike|eq)\.(.+)$/);
           if (!match) continue;
           const col = match[1];
           const op = match[2];
@@ -318,13 +375,13 @@ export class QueryBuilder {
       if (rel.many) {
         const parentIds = rows.map((r) => r.id).filter(Boolean);
         if (!parentIds.length) continue;
-        const childCols = embed.columns === '*' ? '*' : embed.columns.split(',').map((c) => c.trim()).join(', ');
         const nestedMatch = embed.columns.match(/(\w+)\s*\(([^)]+)\)/);
-        let baseCols = childCols;
+        let baseCols = '*';
         const nested: EmbedSpec[] = [];
         if (nestedMatch) {
-          baseCols = '*';
-          nested.push({ name: nestedMatch[1], columns: nestedMatch[2].trim() });
+          nested.push({ name: assertIdent(nestedMatch[1], 'relação'), columns: nestedMatch[2].trim() });
+        } else {
+          baseCols = sqlSelectList(embed.columns);
         }
 
         const { rows: children } = await query<Record<string, unknown>>(
@@ -335,26 +392,51 @@ export class QueryBuilder {
           this.client
         );
 
-        for (const row of rows) {
-          const matched = children.filter((c) => c.__parent_id === row.id);
-          for (const child of matched) delete child.__parent_id;
-
-          if (nested.length) {
-            for (const child of matched) {
-              for (const n of nested) {
-                await attachNested(child, n, rel.table, this.client);
+        // Carrega relações aninhadas em lote (evita uma consulta por linha filha).
+        if (nested.length) {
+          for (const n of nested) {
+            const nestedRel = TABLE_FK[rel.table]?.[n.name];
+            if (!nestedRel || nestedRel.many) continue;
+            const fkValues = Array.from(
+              new Set(children.map((c) => c[nestedRel.localKey]).filter(Boolean))
+            );
+            if (!fkValues.length) continue;
+            const { rows: nestedRows } = await query<Record<string, unknown>>(
+              `SELECT ${sqlSelectList(n.columns)}, ${quoteIdent(nestedRel.foreignKey)} AS __child_id
+               FROM ${quoteIdent(nestedRel.table)}
+               WHERE ${quoteIdent(nestedRel.foreignKey)} = ANY($1)`,
+              [fkValues],
+              this.client
+            );
+            const byId = new Map(nestedRows.map((r) => [r.__child_id, r]));
+            for (const child of children) {
+              const hit = byId.get(child[nestedRel.localKey]);
+              if (hit) {
+                const copy = { ...hit };
+                delete copy.__child_id;
+                child[n.name] = copy;
               }
             }
           }
+        }
 
-          row[embed.name] = matched;
+        const byParent = new Map<unknown, Record<string, unknown>[]>();
+        for (const child of children) {
+          const parentId = child.__parent_id;
+          delete child.__parent_id;
+          const list = byParent.get(parentId) || [];
+          list.push(child);
+          byParent.set(parentId, list);
+        }
+        for (const row of rows) {
+          row[embed.name] = byParent.get(row.id) || [];
         }
       } else {
         const fkValues = rows.map((r) => r[rel.localKey]).filter(Boolean);
         if (!fkValues.length) continue;
-        const childCols = embed.columns === '*' ? '*' : embed.columns.split(',').map((c) => c.trim()).join(', ');
+        const childCols = sqlSelectList(embed.columns);
         const { rows: children } = await query<Record<string, unknown>>(
-          `SELECT ${childCols}, id AS __child_id FROM ${quoteIdent(rel.table)} WHERE id = ANY($1)`,
+          `SELECT ${childCols}, ${quoteIdent(rel.foreignKey)} AS __child_id FROM ${quoteIdent(rel.table)} WHERE ${quoteIdent(rel.foreignKey)} = ANY($1)`,
           [fkValues],
           this.client
         );
@@ -362,13 +444,25 @@ export class QueryBuilder {
         for (const row of rows) {
           const child = byId.get(row[rel.localKey]);
           if (child) {
-            delete child.__child_id;
-            row[embed.name] = child;
+            const copy = { ...child };
+            delete copy.__child_id;
+            row[embed.name] = copy;
           }
         }
       }
     }
 
+    return rows;
+  }
+
+  private payloadRows(): Record<string, unknown>[] {
+    const rows = Array.isArray(this.payload) ? this.payload : this.payload ? [this.payload] : [];
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        throw new DbValidationError('payload inválido');
+      }
+      for (const key of Object.keys(row)) assertIdent(key, 'coluna');
+    }
     return rows;
   }
 
@@ -403,12 +497,14 @@ export class QueryBuilder {
         const { clause, params } = this.buildWhere();
         let sql = `SELECT ${sqlSelectList(columns)} FROM ${quoteIdent(this.table)} ${clause}`;
         if (this.orders.length) {
-          sql += ` ORDER BY ${this.orders.map((o) => `${quoteIdent(o.column)} ${o.ascending ? 'ASC' : 'DESC'}`).join(', ')}`;
+          sql += ` ORDER BY ${this.orders.map((o) => `${sqlColumnRef(o.column)} ${o.ascending ? 'ASC' : 'DESC'}`).join(', ')}`;
         }
-        if (this.limitN != null) sql += ` LIMIT ${this.limitN}`;
+        const effectiveLimit =
+          this.singleMode !== 'none' ? Math.min(this.limitN ?? 2, 2) : (this.limitN ?? DEFAULT_QUERY_LIMIT);
+        sql += ` LIMIT ${effectiveLimit}`;
 
         const { rows } = await query<Record<string, unknown>>(sql, params, this.client);
-        let dataRows = await this.attachEmbeds(rows, embeds);
+        const dataRows = await this.attachEmbeds(rows, embeds);
 
         if (this.singleMode === 'single') {
           if (dataRows.length !== 1) {
@@ -423,8 +519,10 @@ export class QueryBuilder {
       }
 
       if (this.operation === 'insert' || this.operation === 'upsert') {
-        const rows = Array.isArray(this.payload) ? this.payload : [this.payload!];
+        const rows = this.payloadRows();
+        if (!rows.length) return { data: [], error: null };
         const inserted: Record<string, unknown>[] = [];
+        const returning = sqlSelectList(this.returningRaw);
 
         for (const row of rows) {
           const data = { ...row };
@@ -437,7 +535,7 @@ export class QueryBuilder {
                      VALUES (${placeholders})`;
 
           if (this.operation === 'upsert') {
-            const updates = cols.filter((c) => c !== 'id').map((c, i) => `${quoteIdent(c)} = EXCLUDED.${quoteIdent(c)}`);
+            const updates = cols.filter((c) => c !== 'id').map((c) => `${quoteIdent(c)} = EXCLUDED.${quoteIdent(c)}`);
             if (updates.length) {
               sql += ` ON CONFLICT (id) DO UPDATE SET ${updates.join(', ')}`;
             } else {
@@ -445,31 +543,51 @@ export class QueryBuilder {
             }
           }
 
-          sql += ' RETURNING *';
+          sql += ` RETURNING ${returning}`;
           const { rows: result } = await query<Record<string, unknown>>(sql, vals, this.client);
           if (result[0]) inserted.push(result[0]);
         }
 
-        if (this.singleMode === 'single' || this.singleMode === 'maybe') {
+        if (this.singleMode === 'single') {
+          if (inserted.length !== 1) {
+            return { data: null, error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' } };
+          }
+          return { data: inserted[0], error: null };
+        }
+        if (this.singleMode === 'maybe') {
           return { data: inserted[0] ?? null, error: null };
         }
         return { data: inserted, error: null };
       }
 
       if (this.operation === 'update') {
-        const data = this.payload as Record<string, unknown>;
+        const [data] = this.payloadRows();
+        if (!data) return { data: [], error: null };
         const cols = Object.keys(data);
+        if (!cols.length) return { data: [], error: null };
         const vals = Object.values(data);
         const { clause, params } = this.buildWhere(cols.length + 1);
+        if (!clause) {
+          throw new DbValidationError('update sem filtro não é permitido');
+        }
         const setClause = cols.map((c, i) => `${quoteIdent(c)} = $${i + 1}`).join(', ');
-        const sql = `UPDATE ${quoteIdent(this.table)} SET ${setClause} ${clause} RETURNING *`;
+        const sql = `UPDATE ${quoteIdent(this.table)} SET ${setClause} ${clause} RETURNING ${sqlSelectList(this.returningRaw)}`;
         const { rows } = await query<Record<string, unknown>>(sql, [...vals, ...params], this.client);
-        if (this.singleMode === 'single') return { data: rows[0] ?? null, error: null };
+        if (this.singleMode === 'single') {
+          if (rows.length !== 1) {
+            return { data: null, error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' } };
+          }
+          return { data: rows[0], error: null };
+        }
+        if (this.singleMode === 'maybe') return { data: rows[0] ?? null, error: null };
         return { data: rows, error: null };
       }
 
       if (this.operation === 'delete') {
         const { clause, params } = this.buildWhere();
+        if (!clause) {
+          throw new DbValidationError('delete sem filtro não é permitido');
+        }
         await query(`DELETE FROM ${quoteIdent(this.table)} ${clause}`, params, this.client);
         return { data: null, error: null };
       }

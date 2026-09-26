@@ -1,20 +1,22 @@
 # Só PostgreSQL para desenvolvimento local (npm run dev)
+# Requer no .env: POSTGRES_PASSWORD e MECANIDOC_APP_DB_PASSWORD (podem ser simples em dev).
 services:
   postgres:
     image: postgres:16-alpine
     container_name: mecanidoc-postgres-dev
     restart: unless-stopped
     environment:
-      POSTGRES_USER: mecanidoc
-      POSTGRES_PASSWORD: mecanidoc
-      POSTGRES_DB: mecanidoc
+      POSTGRES_USER: ${POSTGRES_USER:-mecanidoc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mecanidoc}
+      POSTGRES_DB: ${POSTGRES_DB:-mecanidoc}
+      MECANIDOC_APP_DB_PASSWORD: ${MECANIDOC_APP_DB_PASSWORD:-mecanidoc_app}
     ports:
       - "5433:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mecanidoc -d mecanidoc"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mecanidoc} -d ${POSTGRES_DB:-mecanidoc}"]
       interval: 5s
       timeout: 5s
       retries: 10

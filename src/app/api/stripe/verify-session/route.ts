@@ -87,10 +87,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Synchronisation si le webhook n'est pas encore passé
+      // Synchronisation si le webhook n'est pas encore passé (transition atomique, idempotente)
       if (order.payment_status !== 'paid') {
         const admin = getSupabaseAdmin();
-        await markOrderPaid(admin, order.id, {
+        const result = await markOrderPaid(admin, order.id, {
           paymentIntentId: extractPaymentIntentId(session.payment_intent),
           checkoutSessionId: session.id,
           customerId:
@@ -99,7 +99,16 @@ export async function POST(request: NextRequest) {
               : session.customer && typeof session.customer === 'object'
                 ? (session.customer as { id?: string }).id
                 : null,
+          amountCents: typeof session.amount_total === 'number' ? session.amount_total : null,
+          currency: session.currency || null,
         });
+        if (!result.ok) {
+          console.error('verify-session markOrderPaid:', result.error);
+          return NextResponse.json(
+            { status: 'error', paymentStatus: order.payment_status, stripePaymentStatus, sessionStatus, orderId: order.id, error: 'Vérification impossible' },
+            { status: result.code === 'DB_ERROR' ? 500 : 409 }
+          );
+        }
       }
 
       return NextResponse.json({

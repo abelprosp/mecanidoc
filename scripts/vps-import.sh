@@ -27,8 +27,29 @@ if [[ -z "$NETWORK" ]]; then
   exit 1
 fi
 
+# Credenciais do superutilizador (scripts de import fazem DDL/bulk load) a partir do .env
+env_value() {
+  local key="$1" f val
+  for f in .env.local .env; do
+    [[ -f "$f" ]] || continue
+    val=$(grep -E "^${key}=" "$f" | tail -1 | cut -d= -f2- || true)
+    if [[ -n "$val" ]]; then
+      val="${val%\"}"; val="${val#\"}"; val="${val%\'}"; val="${val#\'}"
+      printf '%s' "$val"
+      return
+    fi
+  done
+}
+PG_SUPER_USER="${POSTGRES_USER:-$(env_value POSTGRES_USER)}"; PG_SUPER_USER="${PG_SUPER_USER:-mecanidoc}"
+PG_SUPER_PASS="${POSTGRES_PASSWORD:-$(env_value POSTGRES_PASSWORD)}"
+PG_DB="${POSTGRES_DB:-$(env_value POSTGRES_DB)}"; PG_DB="${PG_DB:-mecanidoc}"
+if [[ -z "$PG_SUPER_PASS" ]]; then
+  echo "Erro: POSTGRES_PASSWORD não definido (.env)." >&2
+  exit 1
+fi
+
 # Variáveis do .env / .env.local
-ENV_ARGS=(-e "DATABASE_URL=postgresql://mecanidoc:mecanidoc@postgres:5432/mecanidoc")
+ENV_ARGS=(-e "DATABASE_URL=postgresql://${PG_SUPER_USER}:${PG_SUPER_PASS}@postgres:5432/${PG_DB}")
 # Propagar overrides do shell (ex.: MASTER_ADMIN_EMAIL=... npm run seed:master-admin:vps)
 for key in MASTER_ADMIN_EMAIL MASTER_ADMIN_PASSWORD MASTER_ADMIN_NAME; do
   if [[ -n "${!key:-}" ]]; then
