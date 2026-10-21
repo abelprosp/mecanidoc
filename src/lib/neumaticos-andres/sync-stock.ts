@@ -9,7 +9,11 @@ function productLookupId(product: {
   ean?: string | null;
   external_product_id?: string | null;
 }): string | null {
-  return (product.ean || product.external_product_id || '').trim() || null;
+  // Andrés identifica por product-id interno (ex. 100123). EAN do nosso catálogo
+  // muitas vezes não existe no armazém deles.
+  const external = (product.external_product_id || '').trim();
+  if (external) return external;
+  return (product.ean || '').trim() || null;
 }
 
 export async function syncNeumaticosAndresStock(
@@ -63,8 +67,6 @@ export async function syncNeumaticosAndresStock(
 
         if (!article || article.success === 0) {
           skipped++;
-          const errMsg = article?.errors?.[0]?.['error-message'] || 'Artigo não encontrado';
-          logs.push(`Skip ${lookupId}: ${errMsg}`);
           continue;
         }
 
@@ -116,6 +118,11 @@ export async function syncNeumaticosAndresStock(
     });
   }
 
+  if (skipped) {
+    logs.push(
+      `${skipped} produto(s) do MecaniDoc não existem no catálogo Andrés (EAN/ref de outro fornecedor). Não é erro de login.`
+    );
+  }
   logs.push(`Sync concluído: ${updated} atualizado(s), ${skipped} ignorado(s), ${errors} erro(s).`);
   return { updated, skipped, errors, logs };
 }
