@@ -29,14 +29,14 @@ export type ImportCatalogResult = {
   logs: string[];
 };
 
-function isValidArticle(article: NaStockArticle): boolean {
-  const ean = normalizeEan(article.ean);
-  return (
-    article.success === 1 &&
-    Number(article.price) > 0 &&
-    Number(article.amount) > 0 &&
-    ean.length >= 8
-  );
+function skipReason(article: NaStockArticle): string | null {
+  if (article.success !== 1) return 'missing';
+  if (!(Number(article.price) > 0)) return 'no_price';
+  if (!(Number(article.amount) > 0)) return 'no_stock';
+  if (normalizeEan(article.ean).length < 8 && !String(article['product-id'] || '').trim()) {
+    return 'no_id';
+  }
+  return null;
 }
 
 function sleep(ms: number) {
@@ -133,22 +133,23 @@ export async function importNeumaticosCatalog(
   let skipped = 0;
   let errors = 0;
 
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+  const limit = Math.min(Math.max(options.limit ?? 200, 1), 2000);
   const batchSize = Math.min(Math.max(options.batchSize ?? 25, 1), 50);
-  const postCode = options.postCode || '75001';
+  const postCode = options.postCode || '28001';
   const delayMs = Math.max(options.delayMs ?? 150, 0);
   const category = options.category?.trim() || null;
+  const skipCounts: Record<string, number> = {};
 
   let articleNumbers = (options.articleNumbers || [])
     .map((a) => String(a).trim())
     .filter(Boolean);
 
   if (!articleNumbers.length) {
-    const from = Math.max(options.from ?? 100000, 1);
-    const to = Math.max(options.to ?? from + limit * 20, from);
-    const span = Math.min(to - from + 1, limit * 40);
+    const from = Math.max(options.from ?? 10000, 1);
+    const to = Math.max(options.to ?? 80000, from);
+    const span = Math.min(to - from + 1, Math.max(limit * 80, 5000));
     articleNumbers = Array.from({ length: span }, (_, i) => String(from + i));
-    logs.push(`Varredura de refs ${from}–${from + span - 1} (limite ${limit} produtos válidos).`);
+    logs.push(`Varredura de refs Andrés ${from}–${from + span - 1} (limite ${limit} produtos com stock).`);
   } else {
     logs.push(`${articleNumbers.length} artigo(s) pedidos.`);
   }
@@ -165,8 +166,10 @@ export async function importNeumaticosCatalog(
 
       for (const article of articles) {
         if (inserted + updated >= limit) break;
-        if (!isValidArticle(article)) {
+        const reason = skipReason(article);
+        if (reason) {
           skipped++;
+          skipCounts[reason] = (skipCounts[reason] || 0) + 1;
           continue;
         }
         try {
@@ -200,6 +203,10 @@ export async function importNeumaticosCatalog(
     });
   }
 
+  if (skipped) {
+    const parts = Object.entries(skipCounts).map(([k, n]) => `${k}=${n}`);
+    logs.push(`Ignorados (${skipped}): ${parts.join(', ') || 'sem detalhe'} (missing = ref inexistente na Andrés).`);
+  }
   logs.push(
     `Concluído: ${inserted} criados, ${updated} atualizados, ${skipped} ignorados, ${errors} erros (varridos ${scanned}).`
   );

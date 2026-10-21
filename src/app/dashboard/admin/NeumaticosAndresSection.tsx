@@ -58,10 +58,10 @@ export default function NeumaticosAndresSection() {
     testMode: false,
   });
   const [importForm, setImportForm] = useState({
-    limit: 50,
-    from: 100000,
-    to: 102000,
-    postCode: '75001',
+    limit: 200,
+    from: 10000,
+    to: 80000,
+    postCode: '28001',
     category: '',
     articles: '',
   });
@@ -548,7 +548,7 @@ export default function NeumaticosAndresSection() {
             <input
               type="number"
               min={1}
-              max={200}
+              max={2000}
               value={importForm.limit}
               onChange={(e) => setImportForm({ ...importForm, limit: Number(e.target.value) })}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm"

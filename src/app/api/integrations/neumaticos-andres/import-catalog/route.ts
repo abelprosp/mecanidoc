@@ -27,7 +27,7 @@ function parseImportBody(body: Record<string, unknown>) {
     to: typeof body.to === 'number' ? body.to : Number(body.to) || undefined,
     limit: typeof body.limit === 'number' ? body.limit : Number(body.limit) || 50,
     batchSize: typeof body.batchSize === 'number' ? body.batchSize : undefined,
-    postCode: typeof body.postCode === 'string' ? body.postCode : '75001',
+    postCode: typeof body.postCode === 'string' ? body.postCode : '28001',
     delayMs: typeof body.delayMs === 'number' ? body.delayMs : 150,
     category: typeof body.category === 'string' ? body.category : null,
   };
