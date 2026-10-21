@@ -97,7 +97,7 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
                 />
               ) : (
                 <span className="text-xs font-bold text-gray-800 uppercase">
-                  {product.brands?.name || product.brand || 'Marque'}
+                  {product.brands?.name || product.brand || 'Pneu'}
                 </span>
               )}
             </div>
