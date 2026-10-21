@@ -145,8 +145,14 @@ export async function importNeumaticosCatalog(
     .filter(Boolean);
 
   if (!articleNumbers.length) {
-    const from = Math.max(options.from ?? 10000, 1);
-    const to = Math.max(options.to ?? 80000, from);
+    let from = Math.max(Number(options.from) || 10000, 1);
+    let to = Math.max(Number(options.to) || 80000, 1);
+    if (to < from) {
+      const swap = from;
+      from = to;
+      to = swap;
+      logs.push(`Intervalo invertido — a varrer ${from}–${to}.`);
+    }
     const span = Math.min(to - from + 1, Math.max(limit * 80, 5000));
     articleNumbers = Array.from({ length: span }, (_, i) => String(from + i));
     logs.push(`Varredura de refs Andrés ${from}–${from + span - 1} (limite ${limit} produtos com stock).`);

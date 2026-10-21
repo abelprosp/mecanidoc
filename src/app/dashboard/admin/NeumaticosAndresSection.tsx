@@ -299,6 +299,17 @@ export default function NeumaticosAndresSection() {
   };
 
   const runCatalogImport = async () => {
+    let from = Number(importForm.from) || 10000;
+    let to = Number(importForm.to) || 80000;
+    if (to < from) {
+      const swap = from;
+      from = to;
+      to = swap;
+      setImportForm((prev) => ({ ...prev, from, to }));
+    }
+    const articles = (importForm.articles || '').trim();
+    const looksPlaceholder = /\.\.\.|4019238/.test(articles);
+
     setImportingCatalog(true);
     setLogs(['A iniciar importação…']);
     try {
@@ -309,11 +320,11 @@ export default function NeumaticosAndresSection() {
         body: JSON.stringify({
           force: true,
           limit: Number(importForm.limit) || 200,
-          from: Number(importForm.from) || 10000,
-          to: Number(importForm.to) || 80000,
+          from,
+          to,
           postCode: importForm.postCode || '28001',
           category: importForm.category || null,
-          articles: importForm.articles || undefined,
+          articles: articles && !looksPlaceholder ? articles : undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -579,7 +590,7 @@ export default function NeumaticosAndresSection() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">Varredura — de</label>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Varredura — de (menor, ex. 10000)</label>
             <input
               type="number"
               value={importForm.from}
@@ -588,7 +599,7 @@ export default function NeumaticosAndresSection() {
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">Varredura — até</label>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Varredura — até (maior, ex. 80000)</label>
             <input
               type="number"
               value={importForm.to}
@@ -604,7 +615,7 @@ export default function NeumaticosAndresSection() {
               value={importForm.articles}
               onChange={(e) => setImportForm({ ...importForm, articles: e.target.value })}
               rows={2}
-              placeholder="3286341675412, 4019238..."
+              placeholder="vazio = usa o intervalo De/Até"
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
             />
           </div>
