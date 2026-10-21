@@ -20,6 +20,7 @@
     "docker:logs": "docker compose logs -f",
     "docker:postgres": "docker compose up postgres -d",
     "seed:na-example": "node scripts/seed-neumaticos-andres-example.mjs",
+    "purge:products": "node scripts/purge-products.mjs",
     "seed:master-admin": "node scripts/seed-master-admin.mjs",
     "seed:master-admin:vps": "bash scripts/vps-import.sh seed-master-admin.mjs",
     "seed:brand-logos": "node scripts/seed-brand-logos.mjs",
