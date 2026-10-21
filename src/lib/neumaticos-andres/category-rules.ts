@@ -1,13 +1,14 @@
 import 'server-only';
 
-/** Regras leves de categoria por prefixo EAN (catálogo europeu NA). */
+/** Regras de categoria/marca por prefixo GS1 (catálogo europeu). */
 
 export const PRODUCT_CATEGORIES = ['Auto', 'Moto', 'Camion', 'Tracteur'] as const;
 export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 
-const PREFIX_RULES: Array<{ prefix: string; brand: string | null; category: ProductCategory }> = [
+export const PREFIX_RULES: Array<{ prefix: string; brand: string | null; category: ProductCategory }> = [
   { prefix: '3831126', brand: 'Mitas', category: 'Moto' },
   { prefix: '3831127', brand: 'Mitas', category: 'Moto' },
+  { prefix: '383', brand: 'Mitas', category: 'Moto' },
   { prefix: '545200', brand: 'Dunlop', category: 'Moto' },
   { prefix: '4029234', brand: 'Metzeler', category: 'Moto' },
   { prefix: '869063', brand: 'Heidenau', category: 'Moto' },
@@ -27,17 +28,34 @@ const PREFIX_RULES: Array<{ prefix: string; brand: string | null; category: Prod
   { prefix: '4024068', brand: 'Continental', category: 'Auto' },
   { prefix: '4038526', brand: 'Continental', category: 'Auto' },
   { prefix: '4050496', brand: 'Continental', category: 'Auto' },
+  { prefix: '403234', brand: 'Continental', category: 'Auto' },
+  { prefix: '401923', brand: 'Continental', category: 'Auto' },
   { prefix: '8808956', brand: 'Nexen', category: 'Auto' },
   { prefix: '8807622', brand: 'Hankook', category: 'Auto' },
   { prefix: '8808563', brand: 'Kumho', category: 'Auto' },
+  { prefix: '880762', brand: 'Hankook', category: 'Auto' },
+  { prefix: '880856', brand: 'Kumho', category: 'Auto' },
   { prefix: '8590341', brand: 'Barum', category: 'Auto' },
+  { prefix: '859034', brand: 'Barum', category: 'Auto' },
   { prefix: '6959956', brand: 'Triangle', category: 'Auto' },
+  { prefix: '6950306', brand: 'Linglong', category: 'Auto' },
+  { prefix: '695030', brand: 'Linglong', category: 'Auto' },
+  { prefix: '693388', brand: 'Sailun', category: 'Auto' },
+  { prefix: '697190', brand: 'Goodride', category: 'Auto' },
+  { prefix: '697654', brand: 'Westlake', category: 'Auto' },
   { prefix: '8903635', brand: 'MRF', category: 'Auto' },
   { prefix: '3528703', brand: 'Kleber', category: 'Auto' },
+  { prefix: '352870', brand: 'Michelin', category: 'Auto' },
   { prefix: '8019227', brand: 'Pirelli', category: 'Auto' },
+  { prefix: '801922', brand: 'Pirelli', category: 'Auto' },
   { prefix: '3286340', brand: 'Sava', category: 'Auto' },
-  { prefix: '5420068', brand: null, category: 'Auto' },
+  { prefix: '328634', brand: 'Sava', category: 'Auto' },
+  { prefix: '5420068', brand: 'Giti', category: 'Auto' },
   { prefix: '5600944', brand: 'Falken', category: 'Auto' },
+  { prefix: '496881', brand: 'Yokohama', category: 'Auto' },
+  { prefix: '498191', brand: 'Toyo', category: 'Auto' },
+  { prefix: '641944', brand: 'Nokian', category: 'Auto' },
+  { prefix: '471778', brand: 'Maxxis', category: 'Auto' },
 ];
 
 export function normalizeEan(raw: unknown): string {
@@ -47,10 +65,33 @@ export function normalizeEan(raw: unknown): string {
 export function classifyByEanPrefix(ean: string) {
   const n = normalizeEan(ean);
   if (n.length < 8) return null;
-  return (
-    PREFIX_RULES.find((r) => n.startsWith(r.prefix)) ||
-    (n.startsWith('383') ? { brand: 'Mitas', category: 'Moto' as const } : null)
-  );
+  const sorted = [...PREFIX_RULES].sort((a, b) => b.prefix.length - a.prefix.length);
+  return sorted.find((r) => n.startsWith(r.prefix)) || null;
+}
+
+export function formatTireName(input: {
+  brand?: string | null;
+  ean?: string | null;
+  naRef?: string | null;
+  width?: string | null;
+  height?: string | null;
+  diameter?: string | null;
+  loadIndex?: string | null;
+  speedIndex?: string | null;
+  model?: string | null;
+}) {
+  const size =
+    input.width && input.height && input.diameter
+      ? `${input.width}/${input.height} R${input.diameter}`
+      : '';
+  const load = [input.loadIndex, input.speedIndex].filter(Boolean).join('');
+  const parts = [input.brand, input.model, size, load].filter(Boolean);
+  if (parts.length >= 2) return parts.join(' ');
+  if (parts.length === 1 && size) return parts[0];
+  if (input.brand && input.ean) return `${input.brand} · EAN ${input.ean}`;
+  if (input.brand && input.naRef) return `${input.brand} · Ref. ${input.naRef}`;
+  if (input.ean) return `Pneu EAN ${input.ean}`;
+  return `Pneu ref. ${input.naRef || '?'}`;
 }
 
 export function buildProductMeta(ean: string, naRef: string | null) {
@@ -58,27 +99,18 @@ export function buildProductMeta(ean: string, naRef: string | null) {
   const category = rule?.category || 'Auto';
   const brand = rule?.brand || null;
   const normalized = normalizeEan(ean);
+  const name = formatTireName({ brand, ean: normalized || null, naRef });
 
-  if (!rule) {
-    return {
-      name: `Pneu NA Ref. ${naRef || '?'}`,
-      brand: null,
-      category,
-      description: `Importado da API Neumáticos Andrés. EAN ${normalized}.`,
-      specs: { source: 'neumaticos_andres', na_ref: naRef, season: 'Été', vehicle_type: category },
-    };
-  }
-
-  const refPart = naRef ? ` · Ref. ${naRef}` : '';
   return {
-    name: rule.brand ? `${rule.brand} Pneu${refPart}` : `Pneu NA Ref. ${naRef || '?'}`,
+    name,
     brand,
     category,
-    description: `Pneu ${rule.brand}. EAN ${normalized}.`,
+    description: brand
+      ? `Pneu ${brand}. EAN ${normalized || '—'}${naRef ? ` · réf. Andrés ${naRef}` : ''}.`
+      : `Importé Neumáticos Andrés. EAN ${normalized || '—'} · réf. ${naRef || '—'}.`,
     specs: {
       source: 'neumaticos_andres',
       na_ref: naRef,
-      season: 'Été',
       vehicle_type: category,
     },
   };

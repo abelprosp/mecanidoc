@@ -3,8 +3,10 @@ import 'server-only';
 import type { DbClient } from '@/lib/db/client';
 import { getStockMany } from './client';
 import { resolveNeumaticosAndresConfig } from './credentials';
-import { buildProductMeta, normalizeEan } from './category-rules';
+import { buildProductMeta, formatTireName, normalizeEan } from './category-rules';
 import { NEUMATICOS_ANDRES_SUPPLIER, type NaStockArticle } from './types';
+import { fetchProductByGtin } from '@/lib/gtin-enrich/client';
+import { parseTireSpecsFromText } from '@/lib/gtin-enrich/tire-size-parse';
 
 export type ImportCatalogOptions = {
   /** IDs de artigo (EAN ou product-id) a consultar. */
@@ -59,13 +61,50 @@ async function upsertArticle(
     return 'skipped';
   }
 
+  let name = meta.name;
+  let brand = meta.brand;
+  let description = meta.description;
+  let category = meta.category;
+  let specs: Record<string, unknown> = { ...meta.specs };
+  let images: string[] | undefined;
+
+  if (ean.length >= 8) {
+    try {
+      const detail = await fetchProductByGtin(ean, { naRef: productId || null });
+      if (detail) {
+        const parsed = parseTireSpecsFromText(detail.name || detail.description || '');
+        specs = { ...specs, ...(detail.specs || {}), ...parsed };
+        brand = detail.brand || brand;
+        category = (detail.category as typeof category) || category;
+        description = detail.description || description;
+        images = detail.imageUrl ? [detail.imageUrl] : undefined;
+        name = formatTireName({
+          brand,
+          ean,
+          naRef: productId || null,
+          model: typeof specs.model === 'string' ? specs.model : null,
+          width: specs.width != null ? String(specs.width) : null,
+          height: specs.height != null ? String(specs.height) : null,
+          diameter: specs.diameter != null ? String(specs.diameter) : null,
+          loadIndex: specs.load_index != null ? String(specs.load_index) : null,
+          speedIndex: specs.speed_index != null ? String(specs.speed_index) : null,
+        });
+        if (detail.name && (parsed.width || detail.name.length > name.length)) {
+          name = detail.name;
+        }
+      }
+    } catch {
+      /* heurística já está no meta */
+    }
+  }
+
   const metadata = {
     source: 'api_import',
     supplier_price: price,
     schedule_details: schedule,
     estimated_delivery_date: schedule[0]?.['delivery-date'] ?? null,
     imported_at: new Date().toISOString(),
-    detected_category: meta.category,
+    detected_category: category,
   };
 
   const { data: byExternal } = await admin
@@ -86,12 +125,12 @@ async function upsertArticle(
     existingId = byEan?.id;
   }
 
-  const payload = {
-    name: meta.name,
-    description: meta.description,
-    brand: meta.brand,
-    category: meta.category,
-    specs: meta.specs,
+  const payload: Record<string, unknown> = {
+    name,
+    description,
+    brand,
+    category,
+    specs,
     base_price: price,
     stock_quantity: stock,
     ean,
@@ -101,6 +140,7 @@ async function upsertArticle(
     last_stock_sync_at: new Date().toISOString(),
     is_active: true,
   };
+  if (images?.length) payload.images = images;
 
   if (existingId) {
     const { error } = await admin.from('products').update(payload).eq('id', existingId);
