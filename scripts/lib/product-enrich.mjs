@@ -3,6 +3,7 @@
  */
 import { fetchEprelProductByGtin } from './eprel-client.mjs';
 import { getGtinCache, setGtinCache, sleep } from './gtin-cache.mjs';
+import { resolveSuperuserDatabaseUrl } from './resolve-database-url.mjs';
 
 const GTINHUB = (process.env.GTINHUB_BASE_URL || 'https://gtinhub.com/api/v1').replace(/\/$/, '');
 const UPC_TRIAL = 'https://api.upcitemdb.com/prod/trial/lookup';
@@ -674,5 +675,5 @@ export function parseScriptArgs(argv) {
 }
 
 export function getDbUrl() {
-  return process.env.DATABASE_URL || 'postgresql://mecanidoc:mecanidoc@localhost:5432/mecanidoc';
+  return resolveSuperuserDatabaseUrl().url;
 }

@@ -42,6 +42,12 @@ export async function getProductById(id: string): Promise<CatalogProduct | null>
         applies_to: string;
         is_active: boolean;
       }>(`select rate, is_percentage, applies_to, is_active from public.taxes where is_active = true`);
+      const taxes = taxRows.map((t) => ({
+        rate: Number(t.rate) || 0,
+        is_percentage: Boolean(t.is_percentage),
+        applies_to: String(t.applies_to || 'all'),
+        is_active: Boolean(t.is_active),
+      }));
       const base = Number(row.base_price) || 0;
       const category = String(row.category || 'Auto');
       const specs = typeof row.specs === 'string' ? JSON.parse(row.specs) : row.specs || {};
@@ -52,7 +58,7 @@ export async function getProductById(id: string): Promise<CatalogProduct | null>
         name: String(row.name || ''),
         description: row.description ? String(row.description) : null,
         base_price: base,
-        final_price: calculateFinalPrice(base, category, taxRows),
+        final_price: calculateFinalPrice(base, category, taxes),
         category,
         brand: (row.brand_row_name || row.brand) ? String(row.brand_row_name || row.brand) : null,
         brand_id: row.brand_id ? String(row.brand_id) : null,
