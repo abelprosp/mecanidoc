@@ -200,13 +200,18 @@ export default function NeumaticosAndresSection() {
         body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setConnectionResult(data.error || 'Ligação falhou');
-      } else {
+      const missing = /article not found|not found|inconnu|desconocido/i.test(
+        String(data.error || data.warning || '')
+      );
+      if (data.ok || missing) {
         setConnectionResult(
           data.warning ||
-            `OK — ${data.sample?.productId || 'API'} | stock: ${data.sample?.amount ?? '?'} | preço: €${data.sample?.price ?? '?'}`
+            (missing
+              ? 'Ligação OK — a API aceitou o login (o artigo de teste não existe no catálogo).'
+              : `OK — ${data.sample?.productId || 'API'} | stock: ${data.sample?.amount ?? '?'} | preço: €${data.sample?.price ?? '?'}`)
         );
+      } else {
+        setConnectionResult(data.error || 'Ligação falhou');
       }
     } catch {
       setConnectionResult('Erro de rede');

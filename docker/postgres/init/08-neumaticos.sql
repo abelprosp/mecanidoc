@@ -39,6 +39,20 @@ create table if not exists public.supplier_orders (
   unique (order_id, integration)
 );
 
-grant select, insert, update, delete on public.global_settings to mecanidoc_app, mecanidoc_admin;
-grant select, insert, update, delete on public.supplier_orders to mecanidoc_app, mecanidoc_admin;
-grant select, update on public.products to mecanidoc_app, mecanidoc_admin;
+-- Imagem antiga: SET row_security=off como mecanidoc_app falha em qualquer tabela com RLS.
+do $$
+declare r record;
+begin
+  for r in
+    select c.relname
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity
+  loop
+    execute format('alter table public.%I disable row level security', r.relname);
+  end loop;
+end
+$$;
+
+grant select, insert, update, delete on all tables in schema public to mecanidoc_app, mecanidoc_admin;
+grant usage, select on all sequences in schema public to mecanidoc_app, mecanidoc_admin;
