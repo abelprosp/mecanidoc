@@ -8,12 +8,13 @@ export function lookupEanHeuristics(gtin: string, naRef?: string | null): GtinPr
   const rule = classifyByEanPrefix(ean);
   if (!rule) return null;
 
+  const brand = rule.brand ?? undefined;
   return {
     gtin: ean,
-    name: formatTireName({ brand: rule.brand, ean, naRef }),
-    brand: rule.brand,
-    description: rule.brand
-      ? `Pneu ${rule.brand}. EAN ${ean}${naRef ? ` — réf. Andrés ${naRef}` : ''}.`
+    name: formatTireName({ brand, ean, naRef: naRef ?? undefined }),
+    brand,
+    description: brand
+      ? `Pneu ${brand}. EAN ${ean}${naRef ? ` — réf. Andrés ${naRef}` : ''}.`
       : `EAN ${ean}${naRef ? ` — réf. Andrés ${naRef}` : ''}.`,
     category: rule.category,
     specs: {
