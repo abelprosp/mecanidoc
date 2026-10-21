@@ -22,9 +22,10 @@ begin
   execute 'alter default privileges in schema public grant usage, select on sequences to mecanidoc_app, mecanidoc_admin';
   execute 'alter default privileges in schema public grant execute on functions to mecanidoc_app, mecanidoc_admin';
 
-  -- A tabela de credenciais nunca é lida pelo papel de utilizador: só via SET ROLE mecanidoc_admin.
+  -- Login (imagem antiga) lê public.users como mecanidoc_app.
+  -- Sem GRANT + RLS off, o login devolve 401/500. O papel admin continua a ter acesso total.
   if to_regclass('public.users') is not null then
-    execute 'revoke all on public.users from mecanidoc_app';
+    execute 'grant select, update on public.users to mecanidoc_app, mecanidoc_admin';
   end if;
   if to_regclass('public.password_reset_tokens') is not null then
     execute 'revoke all on public.password_reset_tokens from mecanidoc_app';

@@ -101,7 +101,10 @@ drop policy if exists "Master can insert profiles" on public.profiles;
 create policy "Master can insert profiles" on public.profiles
   for insert with check (auth.is_master());
 
--- global_settings: master já tem "for all"; garantir with check
+-- global_settings: leitura pública + escrita só master
+drop policy if exists "Settings viewable by everyone" on public.global_settings;
+create policy "Settings viewable by everyone" on public.global_settings
+  for select using (true);
 drop policy if exists "Settings editable by master only" on public.global_settings;
 create policy "Settings editable by master only" on public.global_settings
   for all using (auth.is_master()) with check (auth.is_master());
@@ -125,6 +128,9 @@ drop policy if exists "Authenticated users can delete promotions" on public.prom
 drop policy if exists "Master can manage promotions" on public.promotions;
 create policy "Master can manage promotions" on public.promotions
   for all using (auth.is_master()) with check (auth.is_master());
+drop policy if exists "Promotions are viewable by everyone" on public.promotions;
+create policy "Promotions are viewable by everyone" on public.promotions
+  for select using (true);
 
 -- garages: inserção passa a ser feita pelo servidor no registo
 drop policy if exists "Garages can insert own data" on public.garages;

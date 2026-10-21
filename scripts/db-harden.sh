@@ -42,7 +42,9 @@ docker compose exec -T \
   -e POSTGRES_DB="$PGDB" \
   "$SERVICE" bash -s < docker/postgres/init/01-roles.sh
 
-echo "→ 2/4 esquema de segurança"
+echo "→ 2/5 auth.uid + esquema de segurança"
+run_psql_file docker/postgres/init/00-extensions.sql
+echo "→ 3/5 esquema de segurança"
 # Volume antigo pode não ter tabelas criadas depois do primeiro init.
 # Criar antes de 06-security.sql (o ALTER TABLE falha se a relação não existir).
 docker compose exec -T "$SERVICE" psql -v ON_ERROR_STOP=1 -U "$PGUSER_SUPER" -d "$PGDB" <<'SQL'
