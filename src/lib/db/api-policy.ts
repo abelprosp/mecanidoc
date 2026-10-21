@@ -79,6 +79,7 @@ export const TABLE_POLICIES: Record<string, TablePolicy> = {
   supplier_orders: { select: 'auth', ...NO_WRITE },
   order_shipments: { select: 'auth', ...NO_WRITE },
   supplier_api_keys: { select: 'auth', ...NO_WRITE },
+  garage_appointments: { select: 'auth', ...NO_WRITE },
 
   // Administração
   support_mail_settings: { select: 'master', ...MASTER_ONLY_WRITE },

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Loader2, RefreshCcw, Send } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/ui';
 import { usePolling } from '@/hooks/usePolling';
 
 type Conversation = {
@@ -142,18 +143,18 @@ export default function SupportChatSection() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Support Chat</h1>
-          <p className="text-sm text-gray-500">Conversations du site traitées par l&apos;admin.</p>
-        </div>
-        <button onClick={() => bumpConversations()} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-          <RefreshCcw size={16} /> Actualiser
-        </button>
-      </header>
+      <AdminPageHeader
+        title="Chat support"
+        description="Conversations du site traitées par l’équipe."
+        actions={
+          <button onClick={() => bumpConversations()} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            <RefreshCcw size={16} /> Actualiser
+          </button>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <section className="rounded-xl border bg-white">
+        <section className="admin-card">
           <div className="border-b p-4 font-semibold text-gray-800">Conversations</div>
           <div className="max-h-[70vh] overflow-y-auto">
             {loading ? <div className="flex justify-center p-6"><Loader2 className="animate-spin" /></div> : null}
@@ -180,7 +181,7 @@ export default function SupportChatSection() {
           </div>
         </section>
 
-        <section className="rounded-xl border bg-white">
+        <section className="admin-card">
           {!selected ? (
             <div className="flex min-h-[500px] items-center justify-center text-gray-500">Choisissez une conversation.</div>
           ) : (

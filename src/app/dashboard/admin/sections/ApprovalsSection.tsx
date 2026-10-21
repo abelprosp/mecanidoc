@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { AdminEmpty, AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 
 export default function ApprovalsSection() { 
   const supabase = createClient();
@@ -99,7 +100,7 @@ export default function ApprovalsSection() {
     setPendingSuppliers(pendingSuppliers.filter(s => s.id !== id));
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   const totalPending =
     pendingCustomers.length + garages.length + pendingSuppliers.length;
@@ -107,18 +108,15 @@ export default function ApprovalsSection() {
   if (totalPending === 0) {
     return (
       <div>
-        <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-gray-800">Approbations en attente</h1>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-          <CheckCircle className="mx-auto text-green-500 mb-3" size={48} />
-          <p className="text-gray-600">Aucune approbation en attente</p>
-        </div>
+        <AdminPageHeader title="Approbations" description="Garages, fournisseurs et promotions de compte." />
+        <AdminEmpty title="Aucune approbation en attente" hint="Les nouvelles demandes apparaîtront ici." icon={<CheckCircle size={22} />} />
       </div>
     );
   }
 
   return (
     <div className="space-y-10">
-      <h1 className="text-xl md:text-2xl font-bold text-gray-800">Approbations en attente</h1>
+      <AdminPageHeader title="Approbations" description="Validez les partenaires avant qu’ils n’apparaissent en boutique." />
 
       {/* Comptes clients → fournisseur */}
       <section>
@@ -133,7 +131,7 @@ export default function ApprovalsSection() {
         ) : (
           <div className="space-y-3 md:space-y-4">
             {pendingCustomers.map((row) => (
-              <div key={row.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+              <div key={row.id} className="admin-card p-4 md:p-6">
                 <div className="flex flex-col gap-4">
                   <div>
                     <h3 className="font-bold text-gray-800">{row.full_name || 'Sans nom'}</h3>
@@ -186,7 +184,7 @@ export default function ApprovalsSection() {
         ) : (
           <div className="space-y-3 md:space-y-4">
             {garages.map((garage) => (
-              <div key={garage.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+              <div key={garage.id} className="admin-card p-4 md:p-6">
                 <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-800 text-lg">{garage.name}</h3>
@@ -222,7 +220,7 @@ export default function ApprovalsSection() {
         ) : (
           <div className="space-y-3 md:space-y-4">
             {pendingSuppliers.map((s) => (
-              <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+              <div key={s.id} className="admin-card p-4 md:p-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
                   <h3 className="font-bold text-gray-800">{s.company_name}</h3>
                   <p className="text-gray-400 text-xs mt-1">{new Date(s.created_at).toLocaleDateString('fr-FR')}</p>

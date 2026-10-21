@@ -64,6 +64,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ conversation, messages: messages.rows });
   } catch (error) {
     console.error('support chat session error', error);
+    const { isDbUnavailable, publicDbErrorMessage } = await import('@/lib/db/errors');
+    if (isDbUnavailable(error)) {
+      return NextResponse.json({ error: publicDbErrorMessage() }, { status: 503 });
+    }
     return NextResponse.json({ error: 'Falha ao abrir sessão de suporte.' }, { status: 500 });
   }
 }

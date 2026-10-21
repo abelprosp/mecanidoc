@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { Lock, Mail, Loader2, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { publicAuthError } from '@/lib/auth/public-error';
 
 function safeRedirect(raw: string | null): string | null {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return null;
@@ -71,7 +72,7 @@ function LoginForm() {
       }
       if (data.user) await goAfterLogin(data.user.id);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la connexion');
+      setError(publicAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ function LoginForm() {
       }
       if (data.user) await goAfterLogin(data.user.id);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Code incorrect');
+      setError(publicAuthError(err, 'Code incorrect'));
     } finally {
       setLoading(false);
     }

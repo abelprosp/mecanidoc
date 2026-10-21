@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { Pool, type PoolClient } from 'pg';
+import { isDbUnavailable, publicDbErrorMessage } from './errors';
 
 let pool: Pool | null = null;
 
@@ -17,10 +18,22 @@ let adminModePromise: Promise<AdminMode> | null = null;
 
 export const DB_ADMIN_ROLE = (process.env.DB_ADMIN_ROLE || 'mecanidoc_admin').replace(/[^a-zA-Z0-9_]/g, '');
 
+/**
+ * Constrói a URL a partir de PGHOST/PGUSER/PGPASSWORD para não partir
+ * se a senha tiver `@`, `#` ou `%` (o compose interpolado na URL falha nesses casos).
+ */
 export function getDatabaseUrl(): string {
+  const host = process.env.PGHOST?.trim();
+  const user = process.env.PGUSER?.trim();
+  const pass = process.env.PGPASSWORD ?? process.env.MECANIDOC_APP_DB_PASSWORD;
+  const db = (process.env.PGDATABASE || process.env.POSTGRES_DB || 'mecanidoc').trim();
+  const port = (process.env.PGPORT || '5432').trim();
+  if (host && user && pass != null && pass !== '') {
+    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/${encodeURIComponent(db)}`;
+  }
   const url = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
   if (!url) {
-    throw new Error('DATABASE_URL não configurado. Use PostgreSQL local (Docker) ou defina DATABASE_URL.');
+    throw new Error('DATABASE_URL não configurado. Use PostgreSQL local (Docker) ou defina DATABASE_URL / PGHOST+PGUSER+PGPASSWORD.');
   }
   return url;
 }
@@ -163,11 +176,14 @@ export type DbError = {
 };
 
 export function toDbError(error: unknown): DbError {
-  if (error instanceof Error) {
-    const pg = error as Error & { code?: string; detail?: string };
-    return { message: pg.message, code: pg.code, details: pg.detail };
+  if (isDbUnavailable(error)) {
+    return { message: publicDbErrorMessage(), code: 'DB_UNAVAILABLE' };
   }
-  return { message: 'Erro desconhecido' };
+  if (error instanceof Error) {
+    const pg = error as Error & { code?: string };
+    return { message: 'Erreur base de données', code: pg.code };
+  }
+  return { message: 'Erreur base de données' };
 }
 
 export type QueryResultLike<T> = {

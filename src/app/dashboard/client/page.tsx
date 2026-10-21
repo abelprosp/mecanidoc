@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Package, MapPin, LogOut, Loader2, User, ExternalLink, Truck, ShieldCheck } from 'lucide-react';
+import { Package, MapPin, LogOut, Loader2, User, ExternalLink, Truck, ShieldCheck, MessageCircle, ShoppingCart } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import SecuritySettings from '@/components/account/SecuritySettings';
+import { useCart } from '@/context/CartContext';
+import Link from 'next/link';
 
 export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState('orders');
@@ -13,8 +15,12 @@ export default function ClientDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveOk, setSaveOk] = useState(false);
+  const [rebuyMsg, setRebuyMsg] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
+  const { addToCart } = useCart();
 
   // Profile Form State
   const [formData, setFormData] = useState({
@@ -61,11 +67,15 @@ export default function ClientDashboard() {
         .select(`
           *,
           order_items (
+            product_id,
             quantity,
             price,
             products (
+              id,
               name,
-              images
+              images,
+              base_price,
+              category
             )
           ),
           order_shipments (
@@ -97,6 +107,22 @@ export default function ClientDashboard() {
     fetchData();
   }, []);
 
+  const rebuyOrder = (order: { order_items?: Array<{ quantity: number; products?: Record<string, unknown> | null; product_id?: string }> }) => {
+    const items = order.order_items || [];
+    let added = 0;
+    for (const item of items) {
+      const product = item.products;
+      if (!product || !product.id) continue;
+      addToCart(product, item.quantity || 1, null);
+      added += 1;
+    }
+    if (!added) {
+      setRebuyMsg('Impossible de recharger cette commande (articles indisponibles).');
+      return;
+    }
+    router.push('/checkout');
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/auth/login');
@@ -106,16 +132,17 @@ export default function ClientDashboard() {
     e.preventDefault();
     setSaving(true);
     
+    setSaveError(null);
+    setSaveOk(false);
     const { error } = await supabase
       .from('profiles')
       .update(formData)
       .eq('id', user.id);
 
     if (error) {
-      alert('Erreur lors de la mise à jour du profil');
-      console.error(error);
+      setSaveError('Impossible d’enregistrer le profil. Vérifiez les champs et réessayez.');
     } else {
-      alert('Profil mis à jour avec succès');
+      setSaveOk(true);
       setProfile({ ...profile, ...formData });
     }
     setSaving(false);
@@ -181,6 +208,7 @@ export default function ClientDashboard() {
           {activeTab === 'orders' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h1 className="text-2xl font-bold text-gray-800 mb-6">Historique des commandes</h1>
+              {rebuyMsg ? <p className="mb-4 text-sm text-red-700">{rebuyMsg}</p> : null}
               
               {orders.length > 0 ? (
                 <div className="space-y-6">
@@ -272,6 +300,22 @@ export default function ClientDashboard() {
                             Livraison estimée : {new Date(order.estimated_delivery_date).toLocaleDateString()}
                           </p>
                         )}
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => rebuyOrder(order)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                          >
+                            <ShoppingCart size={14} /> Commander à nouveau
+                          </button>
+                          <Link
+                            href={`/besoin-aide?order=${encodeURIComponent(order.id)}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                          >
+                            <MessageCircle size={14} /> Aide sur cette commande
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -369,6 +413,8 @@ export default function ClientDashboard() {
                   </div>
                 </div>
 
+                {saveError ? <p className="text-sm text-red-700">{saveError}</p> : null}
+                {saveOk ? <p className="text-sm text-green-700">Profil mis à jour.</p> : null}
                 <div className="pt-4">
                   <button 
                     type="submit" 

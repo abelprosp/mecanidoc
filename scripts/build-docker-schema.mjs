@@ -9,8 +9,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
-const source = path.join(root, 'run_all_migrations.sql');
-const extra = path.join(root, 'create_neumaticos_andres_integration.sql');
+const source = path.join(root, 'archive/legacy-sql/run_all_migrations.sql');
+const extra = path.join(root, 'archive/legacy-sql/create_neumaticos_andres_integration.sql');
 const outDir = path.join(root, 'docker/postgres/init');
 const outFile = path.join(outDir, '02-schema.sql');
 

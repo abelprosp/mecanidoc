@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AlertTriangle, Loader2, Grid, Trash2, Upload } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { normalizeAdminImageUrl } from './shared';
+import { AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 
 export default function BrandsSection() {
   const supabase = createClient();
@@ -152,11 +153,11 @@ export default function BrandsSection() {
     }
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   return (
     <div>
-      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-gray-800">Gestion des Marques</h1>
+      <AdminPageHeader title="Marques" description="Logos et noms affichés sur le catalogue." />
 
       {/* Marques manquantes */}
       {missingBrands.length > 0 && (
@@ -265,7 +266,7 @@ export default function BrandsSection() {
       {/* Brands Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
         {brands.map(brand => (
-          <div key={brand.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4 flex flex-col items-center group hover:shadow-md transition-shadow relative">
+          <div key={brand.id} className="admin-card p-3 md:p-4 flex flex-col items-center group hover:shadow-md transition-shadow relative">
             <div className="h-12 md:h-16 w-full flex items-center justify-center mb-2 md:mb-4 bg-gray-50 rounded p-2">
               {brand.logo_url ? (
                 <img src={brand.logo_url} alt={brand.name} className="max-h-full max-w-full object-contain mix-blend-multiply" />
@@ -290,7 +291,7 @@ export default function BrandsSection() {
       {/* Edit Modal */}
       {editingBrand && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="admin-card shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-4 md:p-6 border-b flex justify-between items-center bg-gray-50">
                 <h3 className="font-bold text-lg text-gray-800">Modifier la marque</h3>
                 <button onClick={() => setEditingBrand(null)} className="text-gray-400 hover:text-gray-600 transition-colors text-2xl">&times;</button>

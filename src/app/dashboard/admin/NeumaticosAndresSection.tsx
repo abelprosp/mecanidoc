@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 import {
   Loader2,
   RefreshCw,
@@ -369,18 +370,13 @@ export default function NeumaticosAndresSection() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-blue-600" size={32} />
-      </div>
-    );
-  }
+  if (loading) return <AdminLoading />;
 
   return (
     <div className="space-y-6">
+      <AdminPageHeader title="Neumáticos Andrés" description="API v1.8 — stock, commandes et suivi de livraison." />
       {/* Ligar API */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="admin-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -531,7 +527,7 @@ export default function NeumaticosAndresSection() {
       </div>
 
       {/* Puxar pneus */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="admin-card p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
           <Download size={18} /> Puxar pneus da API europeia
         </h2>
@@ -617,10 +613,10 @@ export default function NeumaticosAndresSection() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Neumáticos Andrés</h1>
+      <div className="admin-card p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-2">Tableau de bord NA</h2>
         <p className="text-sm text-gray-500 mb-6">
-          Integração API v1.8 — stock, encomendas diretas e tracking de entrega.
+          Intégration API v1.8 — stock, commandes et suivi de livraison.
         </p>
 
         <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -729,7 +725,7 @@ export default function NeumaticosAndresSection() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="admin-card p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
           <Sparkles size={18} /> Enriquecimento catálogo (GTIN)
         </h2>

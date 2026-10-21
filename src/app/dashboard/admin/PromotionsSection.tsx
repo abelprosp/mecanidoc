@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { Loader2, Tag, Trash2, Plus, ImageIcon } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 const OVERLAY_OPTIONS = [
   { value: "strong", label: "Forte (texte très lisible)" },
@@ -162,8 +163,10 @@ export default function PromotionsSection() {
 
   return (
     <div>
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-3">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Promotions &amp; publicité</h1>
+      <AdminPageHeader
+        title="Promotions"
+        description="Bandeaux et opérations commerciales."
+        actions={
         <button
           type="button"
           onClick={() => {
@@ -186,7 +189,8 @@ export default function PromotionsSection() {
         >
           <Plus size={18} /> Nouvelle promotion
         </button>
-      </header>
+        }
+      />
 
       <p className="text-gray-600 text-sm mb-6 leading-relaxed">
         <strong>Catégorie mère vide</strong> : la promotion s&apos;affiche dans le <strong>bandeau orange</strong> en haut
@@ -208,7 +212,7 @@ export default function PromotionsSection() {
         {promotions.map((p) => (
           <div
             key={p.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5 flex flex-wrap items-center justify-between gap-3"
+            className="admin-card p-4 md:p-5 flex flex-wrap items-center justify-between gap-3"
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -268,7 +272,7 @@ export default function PromotionsSection() {
 
       {(editing || isAdding) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl my-8 max-h-[95vh] overflow-y-auto">
+          <div className="admin-card shadow-2xl w-full max-w-xl my-8 max-h-[95vh] overflow-y-auto">
             <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="font-bold text-lg">{editing?.id ? "Modifier" : "Nouvelle"} promotion</h3>
               <button

@@ -6,10 +6,10 @@ import { fulfillNeumaticosAndresOrder } from '@/lib/neumaticos-andres/fulfill-or
 import { getNaIntegrationSettings } from '@/lib/neumaticos-andres/server-helpers';
 import { NEUMATICOS_ANDRES_SUPPLIER } from '@/lib/neumaticos-andres/types';
 import { buildCustomerOrderId } from '@/lib/neumaticos-andres/config';
+import { STRIPE_CURRENCY, toStripeAmountCents } from '@/lib/stripe-amount';
 
-export const STRIPE_CURRENCY = 'eur';
-/** Montant minimum Stripe pour EUR (50 centimes). */
-export const STRIPE_MIN_AMOUNT_CENTS = 50;
+export { STRIPE_CURRENCY, STRIPE_MIN_AMOUNT_CENTS, toStripeAmountCents } from '@/lib/stripe-amount';
+
 /** Nombre maximal de tentatives automatiques d'envoi au fournisseur. */
 export const MAX_FULFILLMENT_ATTEMPTS = 5;
 
@@ -30,12 +30,6 @@ export type MarkOrderPaidResult = {
   error?: string;
   code?: 'NOT_FOUND' | 'AMOUNT_MISMATCH' | 'CURRENCY_MISMATCH' | 'DB_ERROR';
 };
-
-export function toStripeAmountCents(amount: number | string | null | undefined): number {
-  const value = Number(amount);
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  return Math.round(value * 100);
-}
 
 export function extractPaymentIntentId(
   paymentIntent: string | { id?: string } | null | undefined

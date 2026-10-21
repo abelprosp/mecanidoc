@@ -42,14 +42,17 @@ docker compose exec -T \
   -e POSTGRES_DB="$PGDB" \
   "$SERVICE" bash -s < docker/postgres/init/01-roles.sh
 
-echo "→ 2/3 esquema de segurança"
+echo "→ 2/4 esquema de segurança"
 run_psql_file docker/postgres/init/05-support.sql
 run_psql_file docker/postgres/init/06-security.sql
+run_psql_file docker/postgres/init/07-garage-agenda.sql
 
-echo "→ 3/3 permissões"
+echo "→ 3/4 permissões"
 run_psql_file docker/postgres/init/99-grants.sql
 
 echo ""
 echo "Concluído. Verifique com:"
 echo "  docker compose exec $SERVICE psql -U $PGUSER_SUPER -d $PGDB -c \"select rolname, rolsuper, rolbypassrls from pg_roles where rolname like 'mecanidoc%'\""
-echo "Reinicie a app para usar o novo utilizador: docker compose up -d --force-recreate app"
+echo "Reinicie a app: docker compose up -d --force-recreate db-roles app"
+echo "Login do SITE = e-mail/senha de um utilizador em public.users (ex. seed:master-admin)."
+echo "Login da BASE = MECANIDOC_APP_DB_PASSWORD (nunca se escreve no formulário do site)."

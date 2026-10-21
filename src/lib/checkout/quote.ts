@@ -2,26 +2,23 @@ import 'server-only';
 
 import type { PoolClient } from 'pg';
 import { calculateFinalPrice } from '@/lib/price-calculator';
+import { CURRENCY, UUID_RE, QuoteError, type DeliveryType, type QuoteItemInput } from './quote-input';
+
+export {
+  MAX_ITEMS,
+  MAX_QTY_PER_ITEM,
+  CURRENCY,
+  QuoteError,
+  normalizeQuoteItems,
+  normalizeDeliveryType,
+} from './quote-input';
+export type { DeliveryType, QuoteItemInput } from './quote-input';
 
 /**
  * Orçamento calculado exclusivamente no servidor.
  * O browser envia apenas identificadores, quantidades e opções; preços, taxas,
  * descontos, montagem, frete e seguro são recarregados da base de dados.
  */
-
-export const MAX_ITEMS = 50;
-export const MAX_QTY_PER_ITEM = 20;
-export const CURRENCY = 'eur';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export type DeliveryType = 'normal' | 'fast';
-
-export type QuoteItemInput = {
-  productId: string;
-  quantity: number;
-  garageId?: string | null;
-};
 
 export type QuoteInput = {
   items: QuoteItemInput[];
@@ -71,18 +68,6 @@ export type Quote = {
   };
 };
 
-export class QuoteError extends Error {
-  status: number;
-  code: string;
-  details?: unknown;
-  constructor(code: string, message: string, status = 400, details?: unknown) {
-    super(message);
-    this.code = code;
-    this.status = status;
-    this.details = details;
-  }
-}
-
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
@@ -90,41 +75,6 @@ function round2(n: number): number {
 function toNum(v: unknown, fallback = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
-}
-
-/** Normaliza e valida o input vindo do browser. Junta linhas repetidas do mesmo produto+garagem. */
-export function normalizeQuoteItems(raw: unknown): QuoteItemInput[] {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    throw new QuoteError('EMPTY_CART', 'Votre panier est vide.');
-  }
-  if (raw.length > MAX_ITEMS) {
-    throw new QuoteError('TOO_MANY_ITEMS', `Maximum ${MAX_ITEMS} articles par commande.`);
-  }
-  const merged = new Map<string, QuoteItemInput>();
-  for (const entry of raw) {
-    const productId = String((entry as { productId?: unknown })?.productId ?? '').trim();
-    const garageRaw = (entry as { garageId?: unknown })?.garageId;
-    const garageId = garageRaw == null || garageRaw === '' ? null : String(garageRaw).trim();
-    const qty = Number((entry as { quantity?: unknown })?.quantity);
-
-    if (!UUID_RE.test(productId)) throw new QuoteError('INVALID_PRODUCT', 'Article invalide.');
-    if (garageId && !UUID_RE.test(garageId)) throw new QuoteError('INVALID_GARAGE', 'Garage invalide.');
-    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY_PER_ITEM) {
-      throw new QuoteError('INVALID_QUANTITY', `Quantité invalide (1 à ${MAX_QTY_PER_ITEM}).`);
-    }
-    const key = `${productId}::${garageId ?? ''}`;
-    const existing = merged.get(key);
-    if (existing) {
-      existing.quantity = Math.min(MAX_QTY_PER_ITEM, existing.quantity + qty);
-    } else {
-      merged.set(key, { productId, quantity: qty, garageId });
-    }
-  }
-  return Array.from(merged.values());
-}
-
-export function normalizeDeliveryType(raw: unknown): DeliveryType {
-  return raw === 'fast' ? 'fast' : 'normal';
 }
 
 type ProductRow = {

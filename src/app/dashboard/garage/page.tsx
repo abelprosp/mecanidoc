@@ -1,17 +1,19 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Wrench, MapPin, Calendar, DollarSign, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, DollarSign, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import DashboardShell from '@/components/dashboard/DashboardShell';
+import GarageAgenda from './GarageAgenda';
 
 export default function GarageDashboard() {
   const [activeTab, setActiveTab] = useState('appointments');
   const [garage, setGarage] = useState<any>(null);
-  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveOk, setSaveOk] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
@@ -23,7 +25,9 @@ export default function GarageDashboard() {
     zip_code: '',
     phone_primary: '',
     email: '',
-    hourly_rate: ''
+    hourly_rate: '',
+    slot_minutes: '60',
+    daily_capacity: '8',
   });
 
   useEffect(() => {
@@ -46,17 +50,10 @@ export default function GarageDashboard() {
           zip_code: garageData.zip_code || '',
           phone_primary: garageData.phone_primary || '',
           email: user.email || '',
-          hourly_rate: garageData.hourly_rate || ''
+          hourly_rate: garageData.hourly_rate || '',
+          slot_minutes: String(garageData.slot_minutes || 60),
+          daily_capacity: String(garageData.daily_capacity || 8),
         });
-
-        // Fetch Appointments
-        const { data: items } = await supabase
-          .from('order_items')
-          .select('*, products(name, brand), orders(created_at, status, user_id, contact_name, contact_phone)')
-          .eq('garage_id', garageData.id)
-          .order('created_at', { ascending: false });
-        
-        setAppointments(items || []);
       }
       setLoading(false);
     };
@@ -66,16 +63,23 @@ export default function GarageDashboard() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from('garages').update({
+    setSaveError(null);
+    setSaveOk(false);
+    const payload: Record<string, unknown> = {
       name: formData.name,
       address: formData.address,
       city: formData.city,
       zip_code: formData.zip_code,
-      phone_primary: formData.phone_primary
-    }).eq('id', garage.id);
+      phone_primary: formData.phone_primary,
+    };
+    const slot = Number.parseInt(formData.slot_minutes, 10);
+    const cap = Number.parseInt(formData.daily_capacity, 10);
+    if (Number.isInteger(slot) && slot >= 15) payload.slot_minutes = slot;
+    if (Number.isInteger(cap) && cap >= 1) payload.daily_capacity = cap;
+    const { error } = await supabase.from('garages').update(payload).eq('id', garage.id);
 
-    if (error) alert('Erreur lors de la sauvegarde: ' + error.message);
-    else alert('Profil mis à jour !');
+    if (error) setSaveError(error.message);
+    else setSaveOk(true);
     setSaving(false);
   };
 
@@ -99,48 +103,7 @@ export default function GarageDashboard() {
       onSelect={setActiveTab}
       onSignOut={handleSignOut}
     >
-        {activeTab === 'appointments' && (
-          <>
-            <header className="mb-8">
-              <h1 className="text-2xl font-bold text-gray-800">Planning des Montages</h1>
-              <p className="text-gray-500 text-sm">Gérez les commandes à livrer et monter dans votre garage.</p>
-            </header>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {appointments.length > 0 ? (
-                <div className="divide-y divide-gray-100">
-                  {appointments.map((apt) => (
-                    <div key={apt.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                          <Wrench size={24} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-800">{apt.products?.name}</p>
-                          {apt.orders?.contact_name && (
-                             <p className="text-sm font-semibold text-gray-700 mt-1">Client: {apt.orders.contact_name} {apt.orders.contact_phone ? `(${apt.orders.contact_phone})` : ''}</p>
-                          )}
-                          <p className="text-sm text-gray-500">Qté: {apt.quantity} • {new Date(apt.created_at).toLocaleDateString()}</p>
-                          <p className="text-xs text-blue-600 mt-1">Commande du {new Date(apt.orders?.created_at).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${apt.orders?.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
-                          {apt.orders?.status === 'pending' ? 'En attente' : 'Confirmé'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-12 text-center text-gray-500">
-                  <Calendar size={48} className="mx-auto mb-4 opacity-20" />
-                  <p>Aucun rendez-vous planifié pour le moment.</p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        {activeTab === 'appointments' && <GarageAgenda />}
 
         {activeTab === 'profile' && (
           <>
@@ -175,6 +138,18 @@ export default function GarageDashboard() {
                     <input type="text" value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} className="w-full border rounded-lg px-4 py-2" />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Durée d&apos;un créneau (min)</label>
+                    <input type="number" min={15} max={240} value={formData.slot_minutes} onChange={e => setFormData({...formData, slot_minutes: e.target.value})} className="w-full border rounded-lg px-4 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Capacité par jour</label>
+                    <input type="number" min={1} max={40} value={formData.daily_capacity} onChange={e => setFormData({...formData, daily_capacity: e.target.value})} className="w-full border rounded-lg px-4 py-2" />
+                  </div>
+                </div>
+                {saveError ? <p className="text-sm text-red-700">{saveError}</p> : null}
+                {saveOk ? <p className="text-sm text-green-700">Profil mis à jour.</p> : null}
                 <button type="submit" disabled={saving} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors flex items-center gap-2">
                   {saving && <Loader2 className="animate-spin" size={18} />}
                   Sauvegarder les modifications

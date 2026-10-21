@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import SecuritySettings from '@/components/account/SecuritySettings';
+import { AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 
 export default function ProfileSection() { 
   const supabase = createClient();
   const [profile, setProfile] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveOk, setSaveOk] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -25,17 +27,18 @@ export default function ProfileSection() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveOk(false);
     await supabase.from('profiles').upsert(profile);
     setSaving(false);
-    alert('Profil mis à jour');
+    setSaveOk(true);
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   return (
     <div>
-      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-gray-800">Mon Profil</h1>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+      <AdminPageHeader title="Mon profil" description="Identité affichée et sécurité du compte." />
+      <div className="admin-card p-4 md:p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 mb-1">Nom complet</label>
@@ -65,7 +68,7 @@ export default function ProfileSection() {
             />
           </div>
         </div>
-        <div className="mt-6 pt-4 border-t">
+        <div className="mt-6 pt-4 border-t flex flex-wrap items-center gap-3">
           <button 
             onClick={handleSave}
             disabled={saving}
@@ -73,11 +76,12 @@ export default function ProfileSection() {
           >
             {saving ? 'Sauvegarde...' : 'Sauvegarder'}
           </button>
+          {saveOk ? <p className="text-sm text-emerald-700">Profil mis à jour.</p> : null}
         </div>
       </div>
 
       <h2 className="text-lg md:text-xl font-bold mt-8 mb-4 text-gray-800">Sécurité</h2>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+      <div className="admin-card p-4 md:p-6">
         <SecuritySettings />
       </div>
     </div>

@@ -3,6 +3,9 @@ import 'server-only';
 import { randomUUID } from 'crypto';
 import type { PoolClient } from 'pg';
 import { query, toDbError, type DbError } from './pool';
+import { assertIdent, DbValidationError, quoteIdent } from '@/lib/sql-ident';
+
+export { assertIdent, DbValidationError } from '@/lib/sql-ident';
 
 type Filter = {
   type: 'eq' | 'in' | 'not' | 'gte' | 'lte' | 'ilike' | 'neq' | 'or';
@@ -43,24 +46,6 @@ const TABLE_FK: Record<string, Record<string, { table: string; localKey: string;
     orders: { table: 'orders', localKey: 'order_id', foreignKey: 'id' },
   },
 };
-
-const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-
-export class DbValidationError extends Error {
-  code = 'DB_VALIDATION';
-}
-
-/** Garante que `name` é um identificador SQL simples (coluna/tabela). */
-export function assertIdent(name: string, what = 'identificador'): string {
-  if (typeof name !== 'string' || !IDENT_RE.test(name)) {
-    throw new DbValidationError(`${what} inválido: ${JSON.stringify(name)}`);
-  }
-  return name;
-}
-
-function quoteIdent(name: string) {
-  return `"${assertIdent(name).replace(/"/g, '""')}"`;
-}
 
 function parseEmbeds(selectRaw: string): { columns: string; embeds: EmbedSpec[] } {
   const embeds: EmbedSpec[] = [];
@@ -109,25 +94,6 @@ function normalizeLimit(n: unknown): number | null {
     throw new DbValidationError('limit inválido');
   }
   return Math.min(Math.floor(num), MAX_QUERY_LIMIT);
-}
-
-async function attachNested(
-  parentRow: Record<string, unknown>,
-  embed: EmbedSpec,
-  parentTable: string,
-  client?: PoolClient
-) {
-  const rel = TABLE_FK[parentTable]?.[embed.name];
-  if (!rel) return;
-  const fk = parentRow[rel.localKey];
-  if (!fk) return;
-  const childCols = sqlSelectList(embed.columns);
-  const { rows } = await query<Record<string, unknown>>(
-    `SELECT ${childCols} FROM ${quoteIdent(rel.table)} WHERE ${quoteIdent(rel.foreignKey)} = $1 LIMIT 1`,
-    [fk],
-    client
-  );
-  if (rows[0]) parentRow[embed.name] = rows[0];
 }
 
 export class QueryBuilder {

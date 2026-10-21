@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
-import {
-  LayoutDashboard, Package, Tag, CreditCard, Settings, Truck, FileText, CheckCircle,
-  Percent, DollarSign, Globe, User, Grid, Layout, List, MessageSquare, Inbox, PlugZap,
-} from 'lucide-react';
+import React, { Suspense, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
-import DashboardShell, { type DashboardNavItem } from '@/components/dashboard/DashboardShell';
+import DashboardShell from '@/components/dashboard/DashboardShell';
+import { AdminLoading } from '@/components/admin/ui';
+import { ADMIN_NAV_GROUPS } from './nav';
 import SubcategoriesSectionComponent from './SubcategoriesSection';
 import PromotionsSection from './PromotionsSection';
 import SupportChatSection from './SupportChatSection';
@@ -25,27 +23,6 @@ import ApprovalsSection from './sections/ApprovalsSection';
 import ProfileSection from './sections/ProfileSection';
 import FAQsSection from './sections/FAQsSection';
 import TaxesSection from './sections/TaxesSection';
-
-const MENU_ITEMS: DashboardNavItem[] = [
-  { key: 'overview', icon: LayoutDashboard, label: "Vue d'ensemble" },
-  { key: 'products', icon: Package, label: 'Gestion Produits' },
-  { key: 'brands', icon: Grid, label: 'Marques' },
-  { key: 'pages', icon: Layout, label: 'Pages Catégories' },
-  { key: 'subcategories', icon: List, label: 'Sous-catégories Menu' },
-  { key: 'footer', icon: Globe, label: 'Pied de page' },
-  { key: 'promotions', icon: Tag, label: 'Promotions' },
-  { key: 'faqs', icon: FileText, label: 'FAQs' },
-  { key: 'taxes', icon: Percent, label: 'Taxes' },
-  { key: 'settings', icon: Settings, label: 'Configuration Globale' },
-  { key: 'supplier-connections', icon: PlugZap, label: 'Connexions fournisseurs' },
-  { key: 'neumaticos-andres', icon: Truck, label: 'Neumáticos Andrés' },
-  { key: 'stripe', icon: CreditCard, label: 'Paiement Stripe' },
-  { key: 'approvals', icon: CheckCircle, label: 'Approbations' },
-  { key: 'support-chat', icon: MessageSquare, label: 'Support Chat' },
-  { key: 'support-inbox', icon: Inbox, label: 'Inbox Email' },
-  { key: 'sales', icon: DollarSign, label: 'Ventes', href: '/dashboard/admin/sales' },
-  { key: 'profile', icon: User, label: 'Mon Profil' },
-];
 
 const SECTIONS: Record<string, React.ComponentType> = {
   overview: OverviewSection,
@@ -67,9 +44,18 @@ const SECTIONS: Record<string, React.ComponentType> = {
   profile: ProfileSection,
 };
 
-export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
+function AdminDashboardInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'overview';
+
+  const setTab = useCallback(
+    (key: string) => {
+      const next = key === 'overview' ? '/dashboard/admin' : `/dashboard/admin?tab=${encodeURIComponent(key)}`;
+      router.replace(next, { scroll: false });
+    },
+    [router]
+  );
 
   const handleSignOut = async () => {
     await createClient().auth.signOut();
@@ -79,8 +65,24 @@ export default function AdminDashboard() {
   const Section = SECTIONS[activeTab] ?? OverviewSection;
 
   return (
-    <DashboardShell title="MecaniDoc" subtitle="MASTER ADMIN" items={MENU_ITEMS} activeKey={activeTab} onSelect={setActiveTab} onSignOut={handleSignOut}>
+    <DashboardShell
+      variant="admin"
+      title="MecaniDoc"
+      subtitle="Administration"
+      groups={ADMIN_NAV_GROUPS}
+      activeKey={activeTab}
+      onSelect={setTab}
+      onSignOut={handleSignOut}
+    >
       <Section />
     </DashboardShell>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <Suspense fallback={<AdminLoading />}>
+      <AdminDashboardInner />
+    </Suspense>
   );
 }

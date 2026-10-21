@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Star, ShoppingCart, Sun, CloudSnow, CloudLightning, Car, Bike, Truck, Tractor, Fuel, CloudRain, Volume2 } from 'lucide-react';
+import { ShoppingCart, Sun, CloudSnow, CloudLightning, Car, Bike, Truck, Tractor, Fuel, CloudRain, Volume2 } from 'lucide-react';
 import Link from 'next/link';
 import { useProductPrice } from '@/hooks/useProductPrice';
 import CategoryTooltip from './CategoryTooltip';
@@ -106,17 +106,12 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
             </span>
          </div>
 
-         {/* Stars (Right) */}
-         <div className="flex flex-col items-end">
-             <div className="flex gap-0.5 text-yellow-400 mb-1">
-                {[...Array(5)].map((_, i) => (
-                   <Star key={i} size={12} fill="currentColor" className="text-yellow-400" />
-                ))}
-             </div>
-             <div className="flex items-baseline gap-1 text-xs">
-                <span className="font-bold text-orange-500">4.6/5</span>
-                <span className="text-gray-400 text-[10px]">(481 avis)</span>
-             </div>
+         <div className="flex flex-col items-end text-right">
+             {product.stock_quantity != null && product.stock_quantity > 0 ? (
+               <span className="text-[11px] font-semibold text-green-700">En stock</span>
+             ) : (
+               <span className="text-[11px] font-medium text-gray-400">Sur commande</span>
+             )}
          </div>
       </div>
 
@@ -125,7 +120,7 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
          {/* Image */}
          <div className="w-28 h-28 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative">
             <img 
-              src={product.images?.[0] || 'https://placehold.co/200x200/f3f4f6/d1d5db?text=Pneu'} 
+              src={product.images?.[0] || '/placeholder-pneu.svg'} 
               alt={product.name} 
               className="w-full h-full object-cover mix-blend-multiply opacity-80"
             />
@@ -180,11 +175,12 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Button */}
-      <Link href={`/product/${product.id}`} className="w-full mt-auto">
-        <button className="w-full bg-[#003399] hover:bg-blue-800 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
-          <ShoppingCart size={16} />
-          Voir
-        </button>
+      <Link
+        href={`/product/${product.id}`}
+        className="w-full mt-auto bg-[#003399] hover:bg-blue-800 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+      >
+        <ShoppingCart size={16} />
+        Voir
       </Link>
 
     </div>

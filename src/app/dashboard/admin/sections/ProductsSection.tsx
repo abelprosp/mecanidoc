@@ -5,6 +5,7 @@ import { Package, Loader2, Trash2, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { normalizeAdminImageUrl } from './shared';
+import { AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 
 export default function ProductsSection() {
   const supabase = createClient();
@@ -155,19 +156,24 @@ export default function ProductsSection() {
     return matchesSearch && matchesCategory;
   });
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   return (
     <div>
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-3">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Gestion des Produits</h1>
-        <Link href="/dashboard/products" className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold hover:bg-blue-700 text-sm md:text-base w-full sm:w-auto text-center">
-          Importer / Ajouter (CSV)
-        </Link>
-      </header>
+      <AdminPageHeader
+        title="Produits"
+        description="Fiches, stock, prix de base. L’import CSV reste sur la page dédiée."
+        actions={
+          <Link
+            href="/dashboard/products"
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Importer / ajouter (CSV)
+          </Link>
+        }
+      />
 
-      {/* Filtres */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 md:mb-6">
+      <div className="admin-card p-4 mb-4 md:mb-6">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1">
             <input
@@ -197,7 +203,7 @@ export default function ProductsSection() {
       {/* Mobile Cards View */}
       <div className="md:hidden space-y-3">
         {filteredProducts.map((product) => (
-          <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div key={product.id} className="admin-card p-4">
             <div className="flex gap-3">
               {(product.image_url || (product.images && product.images[0])) && (
                 <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0">
@@ -237,7 +243,7 @@ export default function ProductsSection() {
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="hidden md:block admin-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
@@ -310,7 +316,7 @@ export default function ProductsSection() {
       {/* Modal d'édition */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+          <div className="admin-card shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
             <div className="p-4 md:p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="font-bold text-lg">Modifier le produit</h3>
               <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>

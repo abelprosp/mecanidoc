@@ -1,486 +1,71 @@
-"use client";
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import ProductClient from './ProductClient';
+import { getProductById, productImage } from '@/lib/catalog/product';
 
-import React, { useEffect, useState } from 'react';
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { Star, ShoppingCart, Fuel, CloudRain, Volume2, ShieldCheck, Truck, Info, MapPin, Check, Loader2, X, Search } from 'lucide-react';
-import Link from 'next/link';
-import { createClient } from '@/lib/supabase';
-import { useParams } from 'next/navigation';
-import { useProductPrice } from '@/hooks/useProductPrice';
+const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.mecanidoc.com').replace(/\/$/, '');
 
-// Reusing TireLabel component logic
-const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', value: string | number, color: string }) => {
-  const icons = {
-    fuel: <Fuel size={20} className="text-gray-700" />,
-    wet: <CloudRain size={20} className="text-gray-700" />,
-    noise: <Volume2 size={20} className="text-gray-700" />
+type Props = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const product = await getProductById(id);
+  if (!product) return { title: 'Produit introuvable', robots: { index: false, follow: false } };
+  const title = [product.brand, product.name].filter(Boolean).join(' ');
+  const description = product.description?.slice(0, 160) || `Pneu ${title} chez MecaniDoc. Prix TTC, montage possible en garage partenaire.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `${SITE_URL}/product/${product.id}` },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/product/${product.id}`,
+      images: [{ url: productImage(product) }],
+    },
   };
-
-  return (
-    <div className="flex items-center gap-1.5 md:gap-2 mb-1">
-      <div className="w-5 md:w-6 flex justify-center">{icons[type]}</div>
-      {type === 'noise' ? (
-        <div className="flex items-center bg-gray-800 text-white text-[11px] md:text-xs font-bold px-1.5 md:px-2 h-6 rounded-r-sm relative ml-2 md:ml-4 w-12 md:w-14 justify-between">
-           <div className="absolute -left-1.5 md:-left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[6px] md:border-r-[8px] border-r-gray-800 border-b-[12px] border-b-transparent"></div>
-           <span className="ml-1">{value}</span>
-           <span className="text-[9px] scale-75">dB</span>
-        </div>
-      ) : (
-        <div className={`flex items-center text-white text-[11px] md:text-xs font-bold px-1.5 md:px-2 h-6 rounded-r-sm relative ml-2 md:ml-4 w-12 md:w-14 justify-center ${color}`}>
-           <div className={`absolute -left-1.5 md:-left-2 top-0 w-0 h-0 border-t-[12px] border-t-transparent border-r-[6px] md:border-r-[8px] border-b-[12px] border-b-transparent`} style={{ borderRightColor: 'inherit' }}></div>
-           {value}
-        </div>
-      )}
-    </div>
-  );
-};
-
-import { useCart } from '@/context/CartContext';
-import { useRouter } from 'next/navigation';
-import RelatedProducts from '@/components/RelatedProducts';
-import CategoryTooltip from '@/components/CategoryTooltip';
-import { buildEprelLabelApiUrl, resolveProductMedia } from '@/lib/product-images';
-
-function ProductPriceDisplay({ basePrice, category }: { basePrice: number | string; category?: string }) {
-  const price = Number(basePrice) || 0;
-  const { finalPrice, loading } = useProductPrice(price, category || 'Auto');
-
-  if (loading) {
-    return <span className="text-4xl font-bold text-[#003399]">€{price.toFixed(2)}</span>;
-  }
-
-  return <span className="text-4xl font-bold text-[#003399]">€{finalPrice.toFixed(2)}</span>;
 }
 
-export default function ProductPage() {
-  const params = useParams();
-  const [product, setProduct] = useState<any>(null);
-  const { addToCart } = useCart();
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+export default async function ProductPage({ params }: Props) {
+  const { id } = await params;
+  const product = await getProductById(id);
+  if (!product) notFound();
 
-  // Garage Selection State
-  const [showGarageModal, setShowGarageModal] = useState(false);
-  const [garages, setGarages] = useState<any[]>([]);
-  const [selectedGarage, setSelectedGarage] = useState<any>(null);
-  const [garageSearch, setGarageSearch] = useState('');
-  const [loadingGarages, setLoadingGarages] = useState(false);
-  const [quantity, setQuantity] = useState(1);
-
-  useEffect(() => {
-    const fetchProduct = async () => {
-      if (!params.id) return;
-      
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, brands(id, name, logo_url)')
-        .eq('id', params.id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching product:", error);
-      } else {
-        console.log("Product data:", data);
-        console.log("Product specs:", data?.specs);
-        console.log("Autres categories:", data?.specs?.autres_categories);
-        setProduct(data);
-        if (data.category && data.category.toUpperCase() === 'AUTO') {
-          setQuantity(4);
-        } else {
-          setQuantity(1);
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchProduct();
-  }, [params.id]);
-
-  const handleOpenGarageModal = async () => {
-    setShowGarageModal(true);
-    if (garages.length === 0) {
-      setLoadingGarages(true);
-      const { data, error } = await supabase
-        .from('garages')
-        .select('*')
-        .eq('is_approved', true)
-        .order('name');
-
-      if (error) {
-        console.error('Garages fetch error:', error);
-      }
-      setGarages(data || []);
-      setLoadingGarages(false);
-    }
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: [product.brand, product.name].filter(Boolean).join(' '),
+    image: productImage(product),
+    sku: product.id,
+    gtin13: product.ean || undefined,
+    brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+    offers: {
+      '@type': 'Offer',
+      url: `${SITE_URL}/product/${product.id}`,
+      priceCurrency: 'EUR',
+      price: product.final_price.toFixed(2),
+      availability:
+        product.stock_quantity && product.stock_quantity > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/PreOrder',
+    },
   };
 
-  const filteredGarages = garages.filter((g) => {
-    const q = garageSearch.trim().toLowerCase();
-    if (!q) return true;
-    const zip = String(g.zip_code ?? g.postal_code ?? '').toLowerCase();
-    const name = (g.name || '').toLowerCase();
-    const city = (g.city || '').toLowerCase();
-    const addr = (g.address || '').toLowerCase();
-    return name.includes(q) || city.includes(q) || zip.includes(q) || addr.includes(q);
-  });
-
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-[#F1F1F1] flex items-center justify-center">
-        <Loader2 className="animate-spin text-gray-400" size={48} />
-      </main>
-    );
-  }
-
-  if (!product) {
-    return (
-      <main className="min-h-screen bg-[#F1F1F1]">
-        <Header />
-        <div className="layout-container py-20 text-center">
-          <h1 className="text-2xl font-bold text-gray-800">Produit non trouvé</h1>
-          <Link href="/" className="text-blue-600 hover:underline mt-4 block">Retour à l'accueil</Link>
-        </div>
-        <Footer />
-      </main>
-    );
-  }
-
-  // Garantir que specs seja um objeto (pode vir como string JSON do banco)
-  // Cópia local: nunca mutar o objeto vindo do estado (`product.specs`).
-  let specs: Record<string, any> = {};
-  try {
-    if (typeof product.specs === 'string') {
-      specs = { ...JSON.parse(product.specs) };
-    } else {
-      specs = { ...(product.specs || {}) };
-    }
-  } catch (e) {
-    console.error('Error parsing specs:', e);
-    specs = {};
-  }
-
-  const labels = typeof product.labels === 'string'
-    ? (() => {
-        try {
-          return JSON.parse(product.labels);
-        } catch (e) {
-          return {};
-        }
-      })()
-    : (product.labels || {});
-  
-  // Garantir que autres_categories seja sempre um array (na cópia local)
-  const rawCategories = specs.autres_categories;
-  specs = {
-    ...specs,
-    autres_categories:
-      typeof rawCategories === 'string'
-        ? rawCategories.split(/[,;|]/).map((cat: string) => cat.trim()).filter((cat: string) => cat.length > 0)
-        : Array.isArray(rawCategories)
-          ? rawCategories
-          : [],
+  const breadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: product.category || 'Pneus', item: `${SITE_URL}/search?category=${encodeURIComponent(product.category || 'Auto')}` },
+      { '@type': 'ListItem', position: 3, name: product.name, item: `${SITE_URL}/product/${product.id}` },
+    ],
   };
-  const fuelColor = (labels.fuel === 'A' || labels.fuel === 'B') ? 'bg-green-500 border-green-500' : (labels.fuel === 'C' || labels.fuel === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
-  const wetColor = (labels.wet === 'A' || labels.wet === 'B') ? 'bg-green-500 border-green-500' : (labels.wet === 'C' || labels.wet === 'D') ? 'bg-yellow-400 border-yellow-400' : 'bg-orange-500 border-orange-500';
-
-  const media = resolveProductMedia(product);
-  const mainImage =
-    media.tireImage ||
-    'https://placehold.co/400x400/f3f4f6/d1d5db?text=Pneu';
-  const eprelLabelSrc =
-    media.eprelLabelImage || buildEprelLabelApiUrl(product) || null;
 
   return (
-    <main className="min-h-screen bg-[#F1F1F1]">
-      <Header />
-      
-      <div className="layout-container py-4 md:py-8">
-        
-        {/* Top Section: Product Main */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row mb-6">
-          
-          {/* Left Column: Image & Badges */}
-          <div className="w-full md:w-5/12 p-4 md:p-8 border-r border-gray-100 flex flex-col items-center">
-            
-            {/* Main Image com Labels e Marca - com padding para evitar sobreposição */}
-            <div className="w-full h-[460px] md:h-[500px] flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative p-4 md:p-12">
-              {/* Brand Logo - posicionado fora da área da imagem */}
-              <div className="absolute top-2 left-2 md:top-4 md:left-4 z-10">
-                {product.brands?.logo_url ? (
-                  <img src={product.brands.logo_url} alt={product.brand} className="h-12 md:h-16 w-auto object-contain" />
-                ) : (
-                  <span className="text-sm md:text-base font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
-                )}
-              </div>
-
-              {/* Container flex para imagem e labels lado a lado */}
-              <div className="w-full h-full flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6">
-                {/* Imagem do pneu - com padding interno para não sobrepor marca */}
-                <div className="flex-1 w-full h-full flex items-center justify-center pt-10 md:pt-8 md:pl-8">
-                  <img 
-                    src={mainImage} 
-                    alt={product.name} 
-                    className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] md:w-full md:h-full object-contain mix-blend-multiply scale-[1.35] sm:scale-[1.45] md:scale-100"
-                  />
-                </div>
-
-                {/* Labels - ao lado da imagem, alinhados verticalmente */}
-                <div className="w-full px-2 sm:px-4 md:w-auto md:px-0 flex flex-row md:flex-col gap-1.5 md:gap-2 justify-center md:justify-center">
-                  <TireLabel type="fuel" value={labels.fuel || '-'} color={fuelColor} />
-                  <TireLabel type="wet" value={labels.wet || '-'} color={wetColor} />
-                  <TireLabel type="noise" value={labels.noise || '-'} color="bg-black" />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[10px] text-gray-400 text-center mb-6">
-              © Les images sont uniquement illustratives. Les prix affichés sont TTC et concernent uniquement les pneus, sans les jantes.
-            </p>
-
-            {/* Trust Box */}
-            <div className="bg-gray-50 rounded-lg p-4 w-full text-center border border-gray-100">
-               <p className="text-xs font-bold text-gray-700 mb-1">Achat sécurisé avec MecaniDoc</p>
-               <div className="flex flex-col gap-1 text-xs text-gray-500 mt-3">
-                 <div className="flex items-center justify-center gap-1"><Check size={10} className="text-green-500"/> Client satisfait partout en France</div>
-                 <div className="flex items-center justify-center gap-1"><Truck size={10} className="text-green-500"/> Livraison rapide & sécurisée</div>
-                 <div className="flex items-center justify-center gap-1"><ShieldCheck size={10} className="text-green-500"/> Service de confiance</div>
-               </div>
-            </div>
-          </div>
-
-          {/* Right Column: Info & Action */}
-          <div className="w-full md:w-7/12 p-8">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-gray-400 text-xs">Aucun avis pour le moment</span>
-            </div>
-
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 uppercase">
-              {[product.brands?.name || product.brand, product.name].filter(Boolean).join(' ')}
-            </h1>
-            <p className="text-lg text-gray-900 mb-6 font-medium">
-              <span>{specs.width}/{specs.height} R{specs.diameter} {specs.load_index}{specs.speed_index}</span>
-              {specs.autres_categories && Array.isArray(specs.autres_categories) && specs.autres_categories.length > 0 && (
-                <>
-                  {' '}
-                  {specs.autres_categories.map((cat: string, index: number) => (
-                    <React.Fragment key={index}>
-                      {index > 0 && ', '}
-                      <CategoryTooltip category={cat} />
-                    </React.Fragment>
-                  ))}
-                </>
-              )}
-            </p>
-
-            <div className="mb-6">
-              <span className="text-xs text-gray-500 block mb-1">Prix unitaire</span>
-              <ProductPriceDisplay basePrice={product.base_price} category={product.category} />
-            </div>
-
-            <div className="flex items-center gap-4 mb-8">
-               <div className="w-16">
-                 <input 
-                   type="number" 
-                   min="1"
-                   value={quantity}
-                   onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                   className="w-full border border-gray-300 rounded px-2 py-2 text-center text-sm" 
-                 />
-               </div>
-               <button 
-                 onClick={() => {
-                   addToCart(product, quantity, selectedGarage);
-                   // Optional: Router push or toast
-                   router.push('/checkout');
-                 }}
-                 className="flex-1 bg-[#0066CC] hover:bg-blue-700 text-white font-bold py-2 rounded text-sm transition-colors uppercase flex items-center justify-center gap-2"
-               >
-                 <ShoppingCart size={18} />
-                 Ajouter au panier
-               </button>
-            </div>
-
-            {/* Garage Selection (Dynamic) */}
-            <div className={`bg-gray-50 border ${selectedGarage ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} rounded p-4 mb-8 flex items-center justify-between transition-colors`}>
-              <div className="flex items-center gap-3">
-                <MapPin className={`${selectedGarage ? 'text-blue-600' : 'text-gray-400'}`} />
-                <div>
-                  <span className="font-bold text-gray-700 text-sm block">
-                    {selectedGarage ? 'Garage sélectionné :' : 'Montage en garage'}
-                  </span>
-                  {selectedGarage ? (
-                     <span className="text-sm text-blue-800 font-medium">{selectedGarage.name} - {selectedGarage.city}</span>
-                  ) : (
-                     <span className="text-xs text-gray-500">2000 centres partenaires</span>
-                  )}
-                </div>
-              </div>
-              <button 
-                onClick={handleOpenGarageModal}
-                className={`${selectedGarage ? 'bg-white text-blue-600 border border-blue-200' : 'bg-[#1877F2] text-white'} text-xs font-bold py-2 px-3 rounded hover:opacity-90 transition-all`}
-              >
-                {selectedGarage ? 'Modifier' : 'Sélectionner un Garage'}
-              </button>
-            </div>
-
-            {/* Specifications */}
-            <h3 className="text-sm font-bold text-gray-600 uppercase border-b border-gray-200 pb-2 mb-4">Spécifications complètes</h3>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Largeur :</span>
-                <span className="font-medium text-gray-800">{specs.width || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Hauteur :</span>
-                <span className="font-medium text-gray-800">{specs.height || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Diamètre :</span>
-                <span className="font-medium text-gray-800">{specs.diameter || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Charge :</span>
-                <span className="font-medium text-gray-800">{specs.load_index || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Vitesse :</span>
-                <span className="font-medium text-gray-800">{specs.speed_index || '-'}</span>
-              </div>
-               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Climat :</span>
-                <span className="font-medium text-gray-800">{specs.season || '-'}</span>
-              </div>
-               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Marque :</span>
-                <span className="font-medium text-gray-800">{product.brand || '-'}</span>
-              </div>
-               <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Catégorie :</span>
-                <span className="font-medium text-gray-800">{product.category || '-'}</span>
-              </div>
-              {specs.autres_categories && Array.isArray(specs.autres_categories) && specs.autres_categories.length > 0 && (
-                <div className="flex justify-between py-2 border-b border-gray-100 col-span-2">
-                  <span className="text-gray-500">Autres catégories :</span>
-                  <span className="font-medium text-gray-900">
-                    {specs.autres_categories.map((cat: string, index: number) => (
-                      <React.Fragment key={index}>
-                        {index > 0 && ', '}
-                        <CategoryTooltip category={cat} />
-                      </React.Fragment>
-                    ))}
-                  </span>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-
-        {/* Middle Section: Description & Reviews */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          
-          {/* About */}
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Info size={18} className="text-red-400" /> À propos de ce pneu
-            </h3>
-            <div className="text-gray-600 text-xs leading-relaxed space-y-4">
-              <p>{product.description || "Aucune description disponible pour ce produit."}</p>
-            </div>
-
-            {eprelLabelSrc && (
-              <div className="mt-6">
-                <h4 className="font-bold text-gray-700 text-sm mb-3">
-                  Étiquette énergétique UE (EPREL)
-                </h4>
-                <div className="w-full max-w-md border border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-3">
-                  <img
-                    src={eprelLabelSrc}
-                    alt="Étiquette énergétique UE EPREL"
-                    className="max-w-full h-auto object-contain"
-                  />
-                </div>
-                {(labels.fuel || labels.wet || labels.noise) && (
-                  <p className="text-[10px] text-gray-500 mt-2">
-                    Consommation {labels.fuel || '-'} · Adhérence mouillé {labels.wet || '-'} · Bruit {labels.noise || '-'} dB
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Reviews */}
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <Star size={18} className="text-yellow-400" /> Avis des clients
-            </h3>
-            <p className="text-gray-500 text-sm italic">Aucun avis pour le moment.</p>
-          </div>
-        </div>
-
-
-        {/* Related Products Carousel */}
-        {product && (
-          <RelatedProducts 
-            productId={product.id}
-            category={product.category}
-            brandId={product.brand_id || product.brands?.id}
-            brandName={product.brand || product.brands?.name}
-            specs={specs}
-          />
-        )}
-
-      </div>
-
-      <Footer />
-
-      {/* Garage Selection Modal */}
-      {showGarageModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-             <div className="p-4 border-b flex justify-between items-center">
-                <h3 className="font-bold text-lg text-gray-800">Choisir un centre de montage</h3>
-                <button onClick={() => setShowGarageModal(false)} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
-             </div>
-             <div className="p-4 border-b bg-gray-50">
-                <div className="relative">
-                   <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-                   <input 
-                     type="text" 
-                     placeholder="Rechercher par ville, code postal ou nom..." 
-                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                     value={garageSearch}
-                     onChange={(e) => setGarageSearch(e.target.value)}
-                   />
-                </div>
-             </div>
-             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {loadingGarages ? (
-                   <div className="flex justify-center py-8"><Loader2 className="animate-spin text-gray-400" /></div>
-                ) : garages.length === 0 ? (
-                   <p className="text-center text-gray-500 py-8 text-sm px-2">
-                     Aucun centre de montage partenaire disponible pour le moment. Les garages doivent être approuvés dans l&apos;admin avant d&apos;apparaître ici.
-                   </p>
-                ) : filteredGarages.length > 0 ? (
-                   filteredGarages.map(garage => (
-                     <div key={garage.id} onClick={() => { setSelectedGarage(garage); setShowGarageModal(false); }} className="border border-gray-200 rounded-lg p-3 hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors flex justify-between items-center group">
-                        <div>
-                           <p className="font-bold text-gray-800 text-sm">{garage.name}</p>
-                           <p className="text-xs text-gray-500">{garage.address}, {garage.zip_code || garage.postal_code || ''} {garage.city}</p>
-                        </div>
-                        <button className="text-blue-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">CHOISIR</button>
-                     </div>
-                   ))
-                ) : (
-                   <p className="text-center text-gray-500 py-8 text-sm">Aucun garage trouvé pour votre recherche.</p>
-                )}
-             </div>
-          </div>
-        </div>
-      )}
-
-    </main>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+      <ProductClient initialProduct={product} />
+    </>
   );
 }

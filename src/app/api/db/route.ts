@@ -138,12 +138,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: null, error: { message: (error as Error).message } }, { status: 400 });
     }
     const msg = error instanceof Error ? error.message : 'Erro DB';
-    // Não expor detalhes internos ao browser; ficam no log do servidor.
     console.error('[api/db]', body.table, body.operation, msg);
+    const { isDbUnavailable, publicDbErrorMessage } = await import('@/lib/db/errors');
+    if (isDbUnavailable(error)) {
+      return NextResponse.json({ data: null, error: { message: publicDbErrorMessage() } }, { status: 503 });
+    }
     const pgCode = (error as { code?: string })?.code;
     const status = pgCode === '42501' ? 403 : 500;
     return NextResponse.json(
-      { data: null, error: { message: status === 403 ? 'Accès refusé' : 'Erreur base de données', code: pgCode } },
+      { data: null, error: { message: status === 403 ? 'Accès refusé' : 'Erreur base de données' } },
       { status }
     );
   }

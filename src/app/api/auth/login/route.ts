@@ -3,6 +3,7 @@ import { loginUser } from '@/lib/db/client';
 import { createMfaChallengeToken, createSessionToken, sessionCookieOptions, SESSION_COOKIE } from '@/lib/auth/session';
 import { normalizeEmail } from '@/lib/auth/validation';
 import { clientIp, rateLimit, rateLimitReset } from '@/lib/rate-limit';
+import { isDbUnavailable, publicDbErrorMessage } from '@/lib/db/errors';
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
@@ -49,11 +50,14 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Erreur de connexion';
+    if (isDbUnavailable(error) || /password authentication failed/i.test(msg)) {
+      console.error('[auth/login] PostgreSQL recusou mecanidoc_app — alinhe MECANIDOC_APP_DB_PASSWORD e corra bash scripts/db-harden.sh');
+      return NextResponse.json({ error: publicDbErrorMessage() }, { status: 503 });
+    }
     const isCredentials = /invalid login credentials/i.test(msg);
     if (isCredentials) {
       return NextResponse.json({ error: 'Email ou mot de passe incorrect.' }, { status: 401 });
     }
-    // Erros de configuração/BD → 503 sem detalhes para o cliente; detalhes no log.
     console.error('[auth/login]', msg);
     return NextResponse.json({ error: 'Service temporairement indisponible.' }, { status: 503 });
   }

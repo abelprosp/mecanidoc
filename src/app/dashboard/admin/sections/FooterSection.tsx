@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Loader2, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 
 export default function FooterSection() {
   const supabase = createClient();
@@ -45,20 +46,23 @@ export default function FooterSection() {
     legal: 'Légal (Barre inférieure)'
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   return (
     <div>
-       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-3">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Gestion du Pied de page</h1>
-        <button onClick={() => { setIsAdding(true); setEditingLink({ section: 'products', sort_order: 0, is_active: true }); }} className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base w-full sm:w-auto">
-          + Nouveau Lien
-        </button>
-      </header>
+      <AdminPageHeader
+        title="Pied de page"
+        description="Liens institutionnels et de navigation."
+        actions={
+          <button onClick={() => { setIsAdding(true); setEditingLink({ section: 'products', sort_order: 0, is_active: true }); }} className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base">
+            + Nouveau lien
+          </button>
+        }
+      />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-8">
         {Object.entries(sections).map(([key, label]) => (
-           <div key={key} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+           <div key={key} className="admin-card p-4 md:p-6">
               <h3 className="font-bold text-blue-600 mb-3 md:mb-4 uppercase text-xs tracking-wider">{label}</h3>
               <ul className="space-y-2">
                  {links.filter(l => l.section === key).sort((a,b) => a.sort_order - b.sort_order).map(link => (
@@ -83,7 +87,7 @@ export default function FooterSection() {
 
       {(editingLink || isAdding) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[95vh] overflow-y-auto">
+          <div className="admin-card shadow-2xl w-full max-w-lg max-h-[95vh] overflow-y-auto">
             <div className="p-4 md:p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
               <h3 className="font-bold text-lg">{editingLink?.id ? 'Modifier' : 'Ajouter'} un lien</h3>
               <button onClick={() => { setEditingLink(null); setIsAdding(false); }} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>

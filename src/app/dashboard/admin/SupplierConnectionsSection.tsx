@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import type { FormField, ProviderPreset, ProviderRegion } from '@/lib/supplier-connections/providers';
+import { AdminPageHeader } from '@/components/admin/ui';
 
 type Connection = {
   id: string;
@@ -237,19 +238,13 @@ export default function SupplierConnectionsSection() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <PlugZap className="text-[#0066CC]" /> Connexions fournisseurs
-        </h1>
-        <p className="text-sm text-gray-500 mt-1 max-w-3xl">
-          Branchez n’importe quel grossiste pneus via API : choisissez le fournisseur, saisissez les identifiants
-          reçus de votre commercial, testez, puis tirez le catalogue. Les principaux acteurs France / Europe sont
-          déjà préconfigurés.
-        </p>
-      </header>
+      <AdminPageHeader
+        title="Fournisseurs"
+        description="API des grossistes : identifiants, test de connexion, import catalogue. France / Europe déjà préconfigurés."
+      />
 
       {connections.length > 0 && (
-        <section className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <section className="admin-card overflow-hidden">
           <div className="px-5 py-3 border-b font-semibold text-gray-800">Connexions actives</div>
           <div className="divide-y">
             {connections.map((c) => (
@@ -312,7 +307,7 @@ export default function SupplierConnectionsSection() {
                 key={p.id}
                 type="button"
                 onClick={() => openNew(p.id)}
-                className="text-left bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:border-blue-300 hover:shadow transition-all"
+                className="text-left admin-card p-4 hover:border-blue-300 hover:shadow transition-all"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Inbox, Loader2, RefreshCcw, Send } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/ui';
 
 type EmailThread = {
   id: string;
@@ -108,22 +109,20 @@ export default function SupportInboxSection() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Inbox Email</h1>
-          <p className="text-sm text-gray-500">
-            Synchronisation IMAP et réponses SMTP. Configurez les serveurs dans <strong>Configuration Globale</strong> → Messagerie support (ou variables SUPPORT_* sur le serveur).
-          </p>
-        </div>
-        <button onClick={syncInbox} disabled={syncing} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-          {syncing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCcw size={16} />} Synchroniser
-        </button>
-      </header>
+      <AdminPageHeader
+        title="Inbox e-mail"
+        description="IMAP / SMTP. Serveurs dans Configuration → Messagerie support."
+        actions={
+          <button onClick={syncInbox} disabled={syncing} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+            {syncing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCcw size={16} />} Synchroniser
+          </button>
+        }
+      />
 
       {error ? <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</div> : null}
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <section className="rounded-xl border bg-white">
+        <section className="admin-card">
           <div className="border-b p-4 font-semibold text-gray-800">Boîte de réception</div>
           <div className="max-h-[70vh] overflow-y-auto">
             {loading ? <div className="flex justify-center p-6"><Loader2 className="animate-spin" /></div> : null}
@@ -143,7 +142,7 @@ export default function SupportInboxSection() {
           </div>
         </section>
 
-        <section className="rounded-xl border bg-white">
+        <section className="admin-card">
           {!selected ? (
             <div className="flex min-h-[500px] items-center justify-center text-gray-500">Sélectionnez un email.</div>
           ) : (

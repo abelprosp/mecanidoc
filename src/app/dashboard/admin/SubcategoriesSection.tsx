@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { Settings, Trash2, Loader2, ImageIcon } from "lucide-react";
+import { AdminLoading, AdminPageHeader } from "@/components/admin/ui";
 
 type HeroOverlay = "strong" | "medium" | "soft";
 
@@ -98,12 +99,14 @@ export default function SubcategoriesSection() {
     fetchSubcategories();
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   return (
     <div>
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-3">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Gestion des Sous-catégories du Menu</h1>
+      <AdminPageHeader
+        title="Menu"
+        description="Sous-catégories du header public."
+        actions={
         <button
           onClick={() => {
             setIsAdding(true);
@@ -121,9 +124,10 @@ export default function SubcategoriesSection() {
           }}
           className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base w-full sm:w-auto"
         >
-          + Nouvelle Sous-catégorie
+          + Nouvelle sous-catégorie
         </button>
-      </header>
+        }
+      />
 
       {/* Filter */}
       <div className="mb-4">
@@ -144,7 +148,7 @@ export default function SubcategoriesSection() {
       {/* Mobile Cards View */}
       <div className="md:hidden space-y-3">
         {subcategories.map((sub) => (
-          <div key={sub.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div key={sub.id} className="admin-card p-4">
             <div className="flex justify-between items-start">
               <div className="flex-1 pr-2">
                 <p className="font-bold text-gray-800 text-sm mb-1">{sub.name}</p>
@@ -169,14 +173,14 @@ export default function SubcategoriesSection() {
           </div>
         ))}
         {subcategories.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
+          <div className="admin-card p-8 text-center text-gray-400">
             Aucune sous-catégorie trouvée
           </div>
         )}
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="hidden md:block admin-card overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
@@ -241,7 +245,7 @@ export default function SubcategoriesSection() {
 
       {(editingSub || isAdding) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+          <div className="admin-card shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
             <div className="p-4 md:p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
               <h3 className="font-bold text-lg">{editingSub?.id ? 'Modifier' : 'Ajouter'} une sous-catégorie</h3>
               <button

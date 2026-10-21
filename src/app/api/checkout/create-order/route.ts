@@ -116,10 +116,11 @@ export async function POST(request: NextRequest) {
       );
 
       for (const line of quote.lines) {
-        await client.query(
+        const inserted = await client.query<{ id: string }>(
           `insert into public.order_items (
              order_id, product_id, product_name, quantity, unit_base_price, price, installation_price, line_total, garage_id
-           ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           returning id`,
           [
             orderId,
             line.productId,
@@ -132,6 +133,26 @@ export async function POST(request: NextRequest) {
             line.garageId,
           ]
         );
+        if (line.garageId) {
+          try {
+            await client.query(
+              `insert into public.garage_appointments (
+                 garage_id, order_id, order_item_id, status, customer_name, customer_phone, product_name, quantity
+               ) values ($1, $2, $3, 'pending', $4, $5, $6, $7)`,
+              [
+                line.garageId,
+                orderId,
+                inserted.rows[0]?.id ?? null,
+                `${contact.firstName} ${contact.lastName}`.trim(),
+                contact.phone,
+                line.productName,
+                line.quantity,
+              ]
+            );
+          } catch (err) {
+            console.warn('[checkout/create-order] agenda garage indisponible', err);
+          }
+        }
       }
 
       return { orderId, quote };

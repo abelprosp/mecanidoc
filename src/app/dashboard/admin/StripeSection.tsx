@@ -9,6 +9,7 @@ import {
   Loader2,
   Wifi,
 } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/ui';
 
 type CredStatus = {
   configured?: boolean;
@@ -117,11 +118,12 @@ export default function StripeSection() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <AdminPageHeader title="Stripe" description="Clés API, webhook et mode test / live." />
+      <div className="admin-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <CreditCard size={18} /> Paiement Stripe
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+              <CreditCard size={16} /> Clés de paiement
             </h2>
             <p className="text-sm text-gray-500 mt-1">
               Collez les clés depuis le Dashboard Stripe (Developers → API keys). En local utilisez

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Lock, Shield, Truck, Award, Star } from 'lucide-react';
+import { Lock, Shield, Truck, Award } from 'lucide-react';
 import ChatBot from './ChatBot';
 
 export default function Footer() {
@@ -177,11 +177,6 @@ export default function Footer() {
                   <div className="flex items-center gap-1.5 text-emerald-800">
                     <Award size={18} className="flex-shrink-0" />
                     <span className="font-medium text-sm">Garantie qualité</span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star key={i} size={14} className="fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>

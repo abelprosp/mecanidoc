@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import OrderHint from "./OrderHint";
 
 export const metadata = {
   title: "Besoin d'aide - MecaniDoc",
@@ -19,6 +21,9 @@ export default function BesoinAidePage() {
           <p className="text-gray-600 text-sm md:text-base mb-8">
             Nous sommes là pour vous accompagner sur vos commandes, la livraison et l&apos;installation.
           </p>
+          <Suspense fallback={null}>
+            <OrderHint />
+          </Suspense>
 
           <div className="prose prose-gray max-w-none space-y-8 text-gray-700 text-sm md:text-base">
             <section>

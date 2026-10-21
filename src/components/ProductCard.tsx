@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Star, Fuel, CloudRain, Volume2, Sun, CloudLightning, CloudSnow } from 'lucide-react';
+import { Fuel, CloudRain, Volume2, Sun, CloudLightning, CloudSnow } from 'lucide-react';
 import Link from 'next/link';
 import { useProductPrice } from '@/hooks/useProductPrice';
 import CategoryTooltip from './CategoryTooltip';
@@ -91,18 +91,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
 
-        {/* Stars and Price - Alinhados horizontalmente */}
-        <div className="flex items-center gap-3">
-          {/* Stars */}
-          <div className="flex items-center gap-1">
-             <div className="flex text-orange-300 text-[10px]">
-               {[...Array(5)].map((_, i) => <Star key={i} size={10} fill={i < 4 ? "currentColor" : "none"} />)}
-             </div>
-             <span className="text-[10px] text-gray-400 font-medium">4,3/5</span>
-          </div>
-          {/* Price */}
-          <span className="text-2xl font-bold text-[#5c7c9e]">€{finalPrice.toFixed(2)}</span>
-        </div>
+        <span className="text-2xl font-bold text-[#5c7c9e]">€{finalPrice.toFixed(2)}</span>
       </div>
 
       {/* 3. Main Content: Image & Info */}
@@ -110,7 +99,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Left: Image */}
         <div className="w-32 flex-shrink-0 flex items-center justify-center">
           <img 
-            src={product.images?.[0] || 'https://placehold.co/200x200/f3f4f6/d1d5db?text=Pneu'} 
+            src={product.images?.[0] || '/placeholder-pneu.svg'} 
             alt={product.name} 
             className="w-full h-auto object-contain mix-blend-multiply opacity-90 group-hover:scale-105 transition-transform duration-300"
           />
@@ -161,10 +150,11 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Button */}
-        <Link href={`/product/${product.id}`}>
-          <button className="bg-[#5c8bc0] hover:bg-[#4a72a0] text-white text-xs font-bold py-2 px-8 rounded shadow-sm transition-colors uppercase tracking-wider">
-            VOIR
-          </button>
+        <Link
+          href={`/product/${product.id}`}
+          className="inline-flex bg-[#5c8bc0] hover:bg-[#4a72a0] text-white text-sm font-bold py-2 px-8 rounded shadow-sm transition-colors uppercase tracking-wider"
+        >
+          Voir
         </Link>
       </div>
 

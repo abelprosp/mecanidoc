@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import Link from "next/link";
+import AffiliateInterestForm from "@/components/AffiliateInterestForm";
 
 export const metadata = {
   title: "Devenez affilié - MecaniDoc",
@@ -42,31 +42,12 @@ export default function DevenezAffiliePage() {
 
           <section className="mb-10">
             <h2 className="text-xl font-bold text-gray-900 mb-4 uppercase tracking-wide">
-              Des questions ?
+              Candidater au programme
             </h2>
             <p className="text-gray-700 mb-4">
-              Rendez-vous sur notre page affiliés pour plus d&apos;informations et rejoignez-nous via les plateformes <strong className="text-gray-900">Awin</strong>, <strong className="text-gray-900">Tradedoubler</strong> ou <strong className="text-gray-900">Affilae</strong>.
+              Le programme d&apos;affiliation MecaniDoc n&apos;est pas encore ouvert en libre-service. Déposez votre intérêt : nous vous recontactons avec les conditions, le taux applicable et, le cas échéant, le lien d&apos;inscription officiel.
             </p>
-            <ul className="space-y-2">
-              <li>
-                <strong className="text-gray-900">Awin :</strong>{" "}
-                <Link href="https://www.awin.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  Inscrivez-vous ici sur notre programme d&apos;affiliation Awin
-                </Link>
-              </li>
-              <li>
-                <strong className="text-gray-900">Tradedoubler :</strong>{" "}
-                <Link href="https://www.tradedoubler.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  Inscrivez-vous ici sur notre programme d&apos;affiliation Tradedoubler
-                </Link>
-              </li>
-              <li>
-                <strong className="text-gray-900">Affilae :</strong>{" "}
-                <Link href="https://www.affilae.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  Inscrivez-vous ici sur notre programme d&apos;affiliation Affilae
-                </Link>
-              </li>
-            </ul>
+            <AffiliateInterestForm />
           </section>
 
           <section className="mb-10">
@@ -83,7 +64,7 @@ export default function DevenezAffiliePage() {
               <div>
                 <h3 className="font-bold text-gray-900 mb-2">Génération de ventes</h3>
                 <p className="text-gray-700">
-                  Lorsqu&apos;un visiteur clique sur une offre Mecanidoc.com, il est redirigé vers la boutique en ligne. Vous percevez <strong className="text-gray-900">3% de commission</strong> sur tout achat effectué par les clients redirigés, calculée sur le montant net de la commande (hors TVA et frais de port).
+                  Lorsqu&apos;un visiteur clique sur une offre Mecanidoc.com, il est redirigé vers la boutique en ligne. La commission (jusqu&apos;à 3&nbsp;% selon le contrat validé) est calculée sur le montant net de la commande hors TVA et frais de port.
                 </p>
               </div>
               <div>

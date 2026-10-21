@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Inbox } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 
 type MailSettingsForm = {
   id: string | null;
@@ -125,13 +126,13 @@ export default function SettingsSection() {
     }
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <h1 className="text-xl md:text-2xl font-bold text-gray-800">Configuration Globale</h1>
+      <AdminPageHeader title="Configuration" description="Boutique, livraison, messagerie support." />
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+      <div className="admin-card p-4 md:p-6">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Boutique</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <div>
@@ -157,7 +158,7 @@ export default function SettingsSection() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+      <div className="admin-card p-4 md:p-6">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">Messagerie support (SMTP / IMAP)</h2>
         <p className="text-xs text-gray-500 mb-4">
           Utilisé pour l&apos;envoi des réponses et la synchronisation de la boîte « Inbox Email ». Laissez les champs mot de passe vides pour ne pas les modifier.

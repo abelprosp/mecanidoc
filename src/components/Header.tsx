@@ -409,7 +409,7 @@ export default function Header() {
                           {/* Product Image */}
                           <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                             <img
-                              src={product.images?.[0] || 'https://placehold.co/200x200/f3f4f6/d1d5db?text=Pneu'}
+                              src={product.images?.[0] || '/placeholder-pneu.svg'}
                               alt={product.name}
                               className="w-full h-full object-cover"
                             />

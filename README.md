@@ -20,8 +20,8 @@ Copia `.env.example` para `.env` e preenche. Obrigatórias em produção:
 | Variável | Uso |
 | --- | --- |
 | `POSTGRES_PASSWORD` | Superutilizador (só init/migrações/scripts) |
-| `MECANIDOC_APP_DB_PASSWORD` | Password do papel `mecanidoc_app` |
-| `DATABASE_URL` | Aplicação: `postgresql://mecanidoc_app:...@postgres:5432/mecanidoc` (o compose constrói-a) |
+| `MECANIDOC_APP_DB_PASSWORD` | Password do papel PostgreSQL `mecanidoc_app` — **não é** o login do site |
+| `PGHOST` / `PGUSER` / `PGPASSWORD` | O compose preenche-as; a app já não monta `DATABASE_URL` com a senha crua (evita falha se a senha tiver `@`) |
 | `DB_ADMIN_ROLE` | Papel de elevação (defeito `mecanidoc_admin`) |
 | `AUTH_SECRET` | Assinatura do JWT de sessão e cifra de segredos na BD |
 | `CRON_SECRET` | Autoriza chamadas às rotas `/api/cron/*` |
@@ -35,8 +35,16 @@ As chaves Stripe e da API de fornecedor podem ser guardadas cifradas na tabela `
 
 ```bash
 cp .env.example .env      # preencher
-docker compose up -d      # postgres + app
-npm run seed:master-admin # cria o utilizador master
+docker compose up -d      # postgres + sync de papéis + app
+npm run seed:master-admin # cria o utilizador master do SITE
+```
+
+O formulário `/auth/login` usa um e-mail em `public.users` (o seed), **nunca** o utilizador `mecanidoc_app`. Se o browser mostrar `password authentication failed for user "mecanidoc_app"`, a senha da **base** no `.env` não coincide com o papel no Postgres. Corrija no VPS:
+
+```bash
+# no .env: MECANIDOC_APP_DB_PASSWORD=a-mesma-que-quer-usar
+bash scripts/db-harden.sh
+docker compose up -d --force-recreate db-roles app
 ```
 
 Desenvolvimento local sem Docker para a app: `npm run dev` com `DATABASE_URL` a apontar para o Postgres do compose (`docker-compose.dev.yml`).

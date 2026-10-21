@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import CookiePreferences from "@/components/CookiePreferences";
 
 export const metadata = {
   title: "Paramétrez les cookies - MecaniDoc",
@@ -31,6 +32,8 @@ export default function ParametrezLesCookiesPage() {
                 <li><strong className="text-gray-900">Cookies publicitaires</strong> : utilisés pour personnaliser les publicités et mesurer l&apos;efficacité des campagnes. Ils ne sont déposés qu&apos;avec votre consentement.</li>
               </ul>
             </section>
+
+            <CookiePreferences />
 
             <section>
               <h2 className="text-lg font-bold text-gray-900 mt-6 mb-2">3. Gestion des cookies</h2>

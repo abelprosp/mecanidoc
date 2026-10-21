@@ -52,3 +52,70 @@ body {
     padding-top: max(0px, env(safe-area-inset-top));
   }
 }
+
+/* ——— Admin UI (scoped) ——— */
+.admin-ui {
+  --admin-ring: 0 0 0 3px rgb(37 99 235 / 0.15);
+  color: #0f172a;
+}
+.admin-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+.admin-ui input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='range']):not([type='color']),
+.admin-ui select,
+.admin-ui textarea {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #0f172a;
+  box-shadow: 0 1px 1px rgb(15 23 42 / 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.admin-ui input:not([type='checkbox']):not([type='radio']):focus,
+.admin-ui select:focus,
+.admin-ui textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: var(--admin-ring);
+}
+.admin-ui thead {
+  background: #f8fafc;
+}
+.admin-ui th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 0.75rem 1rem;
+}
+.admin-ui td {
+  padding: 0.85rem 1rem;
+  font-size: 0.875rem;
+  color: #334155;
+  vertical-align: middle;
+}
+.admin-ui tbody tr {
+  border-top: 1px solid #f1f5f9;
+}
+.admin-ui tbody tr:hover {
+  background: #f8fafc;
+}
+.admin-ui button[class*="bg-blue-600"],
+.admin-ui a[class*="bg-blue-600"],
+.admin-ui button[class*="bg-[#0066CC]"] {
+  background-color: #0f172a;
+  border-radius: 0.625rem;
+  font-weight: 600;
+}
+.admin-ui button[class*="bg-blue-600"]:hover,
+.admin-ui a[class*="bg-blue-600"]:hover,
+.admin-ui button[class*="bg-[#0066CC]"]:hover {
+  background-color: #1e293b;
+}

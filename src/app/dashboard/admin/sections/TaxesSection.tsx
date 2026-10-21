@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Loader2, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { AdminLoading, AdminPageHeader } from '@/components/admin/ui';
 
 export default function TaxesSection() {
   const supabase = createClient();
@@ -69,22 +70,25 @@ export default function TaxesSection() {
     fetchTaxes();
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <AdminLoading />;
 
   return (
     <div>
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-3">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">Gestion des Taxes</h1>
-        <button
-          onClick={() => {
-            setIsAdding(true);
-            setEditingTax({ name: '', description: '', rate: 0, is_percentage: true, applies_to: 'all', sort_order: (taxes.length + 1) * 10, is_active: true });
-          }}
-          className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base w-full sm:w-auto"
-        >
-          + Nouvelle Taxe
-        </button>
-      </header>
+      <AdminPageHeader
+        title="Taxes"
+        description="Taux appliqués au prix public (TTC)."
+        actions={
+          <button
+            onClick={() => {
+              setIsAdding(true);
+              setEditingTax({ name: '', description: '', rate: 0, is_percentage: true, applies_to: 'all', sort_order: (taxes.length + 1) * 10, is_active: true });
+            }}
+            className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg font-bold text-sm md:text-base"
+          >
+            + Nouvelle taxe
+          </button>
+        }
+      />
       {errorMsg && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorMsg}
@@ -94,7 +98,7 @@ export default function TaxesSection() {
       {/* Mobile Cards View */}
       <div className="md:hidden space-y-3">
         {taxes.map((tax) => (
-          <div key={tax.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div key={tax.id} className="admin-card p-4">
             <div className="flex justify-between items-start">
               <div className="flex-1 pr-2">
                 <p className="font-bold text-gray-800 text-sm mb-1">{tax.name}</p>
@@ -121,14 +125,14 @@ export default function TaxesSection() {
           </div>
         ))}
         {taxes.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
+          <div className="admin-card p-8 text-center text-gray-400">
             Aucune taxe configurée
           </div>
         )}
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="hidden md:block admin-card overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
@@ -189,7 +193,7 @@ export default function TaxesSection() {
 
       {(editingTax || isAdding) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+          <div className="admin-card shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
             <div className="p-4 md:p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
               <h3 className="font-bold text-lg">{editingTax?.id ? 'Modifier' : 'Ajouter'} une taxe</h3>
               <button

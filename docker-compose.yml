@@ -22,6 +22,25 @@ services:
       timeout: 5s
       retries: 10
 
+  # Volume antigo não corre 01-roles.sh. Este serviço alinha a senha em CADA up.
+  db-roles:
+    image: postgres:16-alpine
+    container_name: mecanidoc-db-roles
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-mecanidoc}
+      POSTGRES_DB: ${POSTGRES_DB:-mecanidoc}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+      MECANIDOC_APP_DB_PASSWORD: ${MECANIDOC_APP_DB_PASSWORD:?Defina MECANIDOC_APP_DB_PASSWORD no .env}
+    volumes:
+      - ./docker/postgres/sync-roles.sh:/sync-roles.sh:ro
+    command: ["bash", "/sync-roles.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   app:
     build:
       context: .
@@ -36,8 +55,12 @@ services:
       - "127.0.0.1:${MECANIDOC_APP_PORT:-3980}:3000"
     environment:
       NODE_ENV: production
-      # Utilizador sem privilégios; RLS aplica-se. Operações de servidor fazem SET ROLE mecanidoc_admin.
-      DATABASE_URL: postgresql://mecanidoc_app:${MECANIDOC_APP_DB_PASSWORD:?Defina MECANIDOC_APP_DB_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-mecanidoc}
+      # Variáveis separadas: a senha pode ter @ # % sem partir a URL.
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: mecanidoc_app
+      PGPASSWORD: ${MECANIDOC_APP_DB_PASSWORD:?Defina MECANIDOC_APP_DB_PASSWORD no .env}
+      PGDATABASE: ${POSTGRES_DB:-mecanidoc}
       DB_ADMIN_ROLE: mecanidoc_admin
       # Sem valores por defeito: gerar com `openssl rand -hex 32`
       AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no .env (openssl rand -hex 32)}
@@ -64,6 +87,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-roles:
+        condition: service_completed_successfully
     healthcheck:
       # /api/health verifica app + ligação à BD (a imagem node inclui wget via busybox/alpine)
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1"]

@@ -9,6 +9,8 @@
     "build": "node scripts/run-next.js build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "mirror-images": "node scripts/mirror-product-images.mjs",
     "mirror-images:dry": "node scripts/mirror-product-images.mjs --dry-run",

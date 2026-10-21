@@ -2,14 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { createClient } from '@/lib/supabase';
 import ProductCard from './VerticalProductCard';
-import {
-  applyCategoryToQuery,
-  applyPaTipoToQuery,
-  productMatchesUiCategory,
-  productMatchesPaTipo,
-} from '@/lib/product-query-helpers';
+import { productMatchesUiCategory, productMatchesPaTipo } from '@/lib/product-query-helpers';
 
 interface BestSellersProps {
   category?: string;
@@ -20,40 +14,29 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
-
   useEffect(() => {
-    const fetchProducts = async () => {
-      let query = supabase
-        .from('products')
-        .select('*, brands(id, name, logo_url)')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(12);
-
-      if (category?.trim()) {
-        query = applyCategoryToQuery(query, category.trim());
-      }
-      query = applyPaTipoToQuery(query, paTipo);
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching products:', error);
-        setProducts([]);
-      } else {
+    const controller = new AbortController();
+    const qs = new URLSearchParams();
+    if (category?.trim()) qs.set('category', category.trim());
+    if (paTipo?.trim()) qs.set('pa_tipo', paTipo.trim());
+    fetch(`/api/products/bestsellers?${qs.toString()}`, { signal: controller.signal })
+      .then(async (res) => (await res.json()) as { items?: unknown[] })
+      .then((json) => {
+        const items = Array.isArray(json.items) ? json.items : [];
         const cat = category?.trim() || '';
-        const filtered = (data || []).filter((product: any) => {
-          if (!cat) return true;
-          if (!productMatchesUiCategory(product.category, cat)) return false;
-          return productMatchesPaTipo(product.pa_tipo, paTipo || '');
-        });
-        setProducts(filtered);
-      }
-      setLoading(false);
-    };
-
-    fetchProducts();
+        setProducts(
+          items.filter((product: any) => {
+            if (!cat) return true;
+            if (!productMatchesUiCategory(product.category, cat)) return false;
+            return productMatchesPaTipo(product.pa_tipo, paTipo || '');
+          })
+        );
+      })
+      .catch((error) => {
+        if (error?.name !== 'AbortError') setProducts([]);
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [category, paTipo]);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -79,7 +62,7 @@ export default function BestSellers({ category, paTipo }: BestSellersProps) {
   return (
     <section className="py-4 md:py-6 bg-transparent relative group">
       <div className="layout-container">
-        <h2 className="text-sm font-bold text-gray-900 mb-3 md:mb-5 uppercase tracking-wide">Les meilleures ventes {category ? `- ${category}` : ''}</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-3 md:mb-5 uppercase tracking-wide">Meilleures ventes {category ? `– ${category}` : ''}</h2>
         
         <div className="relative">
           {/* Scroll Buttons - Visible on Desktop Hover */}
