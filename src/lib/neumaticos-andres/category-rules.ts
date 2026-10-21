@@ -79,13 +79,13 @@ export function formatTireName(input: {
   loadIndex?: string | null;
   speedIndex?: string | null;
   model?: string | null;
-}) {
+}): string {
   const size =
     input.width && input.height && input.diameter
       ? `${input.width}/${input.height} R${input.diameter}`
       : '';
   const load = [input.loadIndex, input.speedIndex].filter(Boolean).join('');
-  const parts = [input.brand, input.model, size, load].filter(Boolean);
+  const parts = [input.brand, input.model, size, load].filter((p): p is string => Boolean(p));
   if (parts.length >= 2) return parts.join(' ');
   if (parts.length === 1 && size) return parts[0];
   if (input.brand && input.ean) return `${input.brand} · EAN ${input.ean}`;
