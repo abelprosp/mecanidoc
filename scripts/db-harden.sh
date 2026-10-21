@@ -61,6 +61,12 @@ alter table public.users add column if not exists mfa_secret_enc text;
 alter table public.users add column if not exists mfa_recovery_hashes text[] not null default '{}';
 alter table public.users add column if not exists mfa_enabled_at timestamptz;
 alter table public.users add column if not exists password_changed_at timestamptz;
+
+-- Login antigo faz SET row_security=off como mecanidoc_app — RLS em users rebenta.
+alter table public.users disable row level security;
+grant select, update on public.users to mecanidoc_app, mecanidoc_admin;
+grant mecanidoc_admin to mecanidoc_app;
+alter role mecanidoc_admin with bypassrls;
 SQL
 run_psql_file docker/postgres/init/05-support.sql
 run_psql_file docker/postgres/init/06-security.sql

@@ -28,6 +28,7 @@ BEGIN
 END
 \$\$;
 
+ALTER ROLE mecanidoc_admin WITH NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE BYPASSRLS;
 ALTER ROLE mecanidoc_app PASSWORD '${APP_PW_SQL}';
 ALTER ROLE mecanidoc_app SET statement_timeout = '30s';
 GRANT mecanidoc_admin TO mecanidoc_app;

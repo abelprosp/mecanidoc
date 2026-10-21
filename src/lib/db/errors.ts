@@ -1,6 +1,6 @@
 /** Falhas de ligação PostgreSQL — nunca são o e-mail/senha do site. */
 const DB_DOWN =
-  /password authentication failed|failed for user|28P01|econnrefused|etimedout|enotfound|the database system is|too many connections|connection terminated|remaining connection slots|connect ECONN|timeout expired|no pg_hba|database ".*" does not exist/i;
+  /password authentication failed|failed for user|28P01|econnrefused|etimedout|enotfound|the database system is|too many connections|connection terminated|remaining connection slots|connect ECONN|timeout expired|no pg_hba|database ".*" does not exist|row-level security policy|42501/i;
 
 export function isDbUnavailable(error: unknown): boolean {
   if (!error) return false;

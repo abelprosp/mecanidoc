@@ -74,11 +74,11 @@ async function detectAdminMode(): Promise<AdminMode> {
     return 'set_role';
   }
 
-  console.error(
-    `[db] Papel administrativo "${DB_ADMIN_ROLE}" não existe ou o utilizador atual não é membro. ` +
-      'Operações de servidor (login, checkout, webhooks) vão falhar. Execute docker/postgres/init/01-roles.sh e 99-grants.sql.'
+  throw new Error(
+    `[db] Papel "${DB_ADMIN_ROLE}" inexistente ou sem GRANT ao utilizador atual. ` +
+      'Não se pode fazer SET row_security=off como mecanidoc_app (RLS em public.users). ' +
+      'Na VPS: ALTER ROLE mecanidoc_admin BYPASSRLS; GRANT mecanidoc_admin TO mecanidoc_app;'
   );
-  return 'row_security_off';
 }
 
 export function getAdminMode(): Promise<AdminMode> {

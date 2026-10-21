@@ -54,13 +54,24 @@ create table if not exists public.stripe_webhook_events (
 create index if not exists idx_stripe_webhook_events_processed_at
   on public.stripe_webhook_events(processed_at);
 
+-- Credenciais: SEM RLS. Isolamento é por GRANT (99-grants revoga mecanidoc_app).
+-- RLS ligado + SET row_security=off no papel app gera:
+-- "query would be affected by row-level security policy for table users"
+do $$
+begin
+  if to_regclass('public.users') is not null then
+    execute 'alter table public.users disable row level security';
+  end if;
+end
+$$;
+
 -- Tabelas sem políticas ficam acessíveis apenas ao papel administrativo (BYPASSRLS).
 do $$
 declare
   t text;
 begin
   foreach t in array array[
-    'users', 'suppliers', 'companies', 'stripe_webhook_events',
+    'suppliers', 'companies', 'stripe_webhook_events',
     'support_conversations', 'support_messages',
     'support_email_threads', 'support_email_messages'
   ]
