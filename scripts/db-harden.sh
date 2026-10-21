@@ -43,6 +43,17 @@ docker compose exec -T \
   "$SERVICE" bash -s < docker/postgres/init/01-roles.sh
 
 echo "→ 2/4 esquema de segurança"
+# Volume antigo pode não ter tabelas criadas depois do primeiro init.
+# Criar antes de 06-security.sql (o ALTER TABLE falha se a relação não existir).
+docker compose exec -T "$SERVICE" psql -v ON_ERROR_STOP=1 -U "$PGUSER_SUPER" -d "$PGDB" <<'SQL'
+create table if not exists public.stripe_webhook_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamptz default timezone('utc'::text, now()) not null
+);
+create index if not exists idx_stripe_webhook_events_processed_at
+  on public.stripe_webhook_events(processed_at);
+SQL
 run_psql_file docker/postgres/init/05-support.sql
 run_psql_file docker/postgres/init/06-security.sql
 run_psql_file docker/postgres/init/07-garage-agenda.sql

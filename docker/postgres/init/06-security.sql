@@ -45,15 +45,32 @@ $$;
 -- -----------------------------------------------------------------------------
 -- 2. RLS em todas as tabelas
 -- -----------------------------------------------------------------------------
+-- Bases antigas podem não ter tabelas criadas depois do primeiro init.
+create table if not exists public.stripe_webhook_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamptz default timezone('utc'::text, now()) not null
+);
+create index if not exists idx_stripe_webhook_events_processed_at
+  on public.stripe_webhook_events(processed_at);
+
 -- Tabelas sem políticas ficam acessíveis apenas ao papel administrativo (BYPASSRLS).
-alter table public.users enable row level security;
-alter table public.suppliers enable row level security;
-alter table public.companies enable row level security;
-alter table public.stripe_webhook_events enable row level security;
-alter table public.support_conversations enable row level security;
-alter table public.support_messages enable row level security;
-alter table public.support_email_threads enable row level security;
-alter table public.support_email_messages enable row level security;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'users', 'suppliers', 'companies', 'stripe_webhook_events',
+    'support_conversations', 'support_messages',
+    'support_email_threads', 'support_email_messages'
+  ]
+  loop
+    if to_regclass('public.' || t) is not null then
+      execute format('alter table public.%I enable row level security', t);
+    end if;
+  end loop;
+end
+$$;
 
 -- profiles: leitura própria ou master (antes: pública)
 drop policy if exists "Public profiles are viewable by everyone" on public.profiles;

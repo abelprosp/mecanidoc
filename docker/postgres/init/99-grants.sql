@@ -23,12 +23,23 @@ begin
   execute 'alter default privileges in schema public grant execute on functions to mecanidoc_app, mecanidoc_admin';
 
   -- A tabela de credenciais nunca é lida pelo papel de utilizador: só via SET ROLE mecanidoc_admin.
-  execute 'revoke all on public.users from mecanidoc_app';
-  execute 'revoke all on public.password_reset_tokens from mecanidoc_app';
-  execute 'revoke all on public.email_verification_tokens from mecanidoc_app';
-  execute 'revoke all on public.stripe_webhook_events from mecanidoc_app';
-  -- Credenciais de fornecedores: só o servidor (SET ROLE admin) lê/escreve segredos.
-  execute 'revoke all on public.supplier_connections from mecanidoc_app';
-  execute 'revoke all on public.supplier_connection_runs from mecanidoc_app';
+  if to_regclass('public.users') is not null then
+    execute 'revoke all on public.users from mecanidoc_app';
+  end if;
+  if to_regclass('public.password_reset_tokens') is not null then
+    execute 'revoke all on public.password_reset_tokens from mecanidoc_app';
+  end if;
+  if to_regclass('public.email_verification_tokens') is not null then
+    execute 'revoke all on public.email_verification_tokens from mecanidoc_app';
+  end if;
+  if to_regclass('public.stripe_webhook_events') is not null then
+    execute 'revoke all on public.stripe_webhook_events from mecanidoc_app';
+  end if;
+  if to_regclass('public.supplier_connections') is not null then
+    execute 'revoke all on public.supplier_connections from mecanidoc_app';
+  end if;
+  if to_regclass('public.supplier_connection_runs') is not null then
+    execute 'revoke all on public.supplier_connection_runs from mecanidoc_app';
+  end if;
 end
 $$;
