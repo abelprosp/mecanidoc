@@ -204,7 +204,8 @@ export default function NeumaticosAndresSection() {
         setConnectionResult(data.error || 'Ligação falhou');
       } else {
         setConnectionResult(
-          `OK — ${data.sample?.productId || 'API'} | stock: ${data.sample?.amount ?? '?'} | preço: €${data.sample?.price ?? '?'}`
+          data.warning ||
+            `OK — ${data.sample?.productId || 'API'} | stock: ${data.sample?.amount ?? '?'} | preço: €${data.sample?.price ?? '?'}`
         );
       }
     } catch {

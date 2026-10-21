@@ -68,7 +68,9 @@ function getNextSteps(checks: Record<string, boolean | string | number>): string
     );
   }
   if (!checks.databaseMigration) {
-    steps.push('Execute create_neumaticos_andres_integration.sql e create_supplier_api.sql no PostgreSQL.');
+    steps.push(
+      'Faltam colunas em global_settings. Na VPS, no contentor Postgres, aplique docker/postgres/init/08-neumaticos.sql (já incluído em scripts/db-harden.sh).'
+    );
   }
   if (Number(checks.linkedProductCount) === 0) {
     steps.push(

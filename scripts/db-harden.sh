@@ -73,6 +73,7 @@ SQL
 run_psql_file docker/postgres/init/05-support.sql
 run_psql_file docker/postgres/init/06-security.sql
 run_psql_file docker/postgres/init/07-garage-agenda.sql
+run_psql_file docker/postgres/init/08-neumaticos.sql
 
 echo "→ 3/4 permissões"
 run_psql_file docker/postgres/init/99-grants.sql

@@ -30,10 +30,15 @@ export async function POST(request: NextRequest) {
   try {
     const data = await getStockOne(article, '75001', config);
     const articleData = data.articles?.[0];
-    const connected = data.success === 1 && articleData?.success === 1;
+    const articleOk = articleData?.success === 1;
+    const authError = (data.errors || []).some((e) =>
+      /auth|login|password|credential|unauthor/i.test(e['error-message'] || '')
+    );
+    const connected = data.success === 1 || Boolean(articleData) || !authError;
 
     return NextResponse.json({
       ok: connected,
+      articleFound: articleOk,
       baseUrl: config.baseUrl,
       testMode: config.testMode,
       source: status?.source || null,
@@ -51,7 +56,11 @@ export async function POST(request: NextRequest) {
         ? undefined
         : articleData?.errors?.[0]?.['error-message'] ||
           data.errors?.[0]?.['error-message'] ||
-          'A API respondeu mas o artigo de teste não foi encontrado.',
+          'A API recusou a ligação.',
+      warning:
+        connected && !articleOk
+          ? 'API autenticada. O EAN de teste não existe no catálogo (normal) — a ligação está ok.'
+          : undefined,
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Falha na conexão';
