@@ -7,7 +7,7 @@ const INFRA =
 export function publicAuthError(raw: unknown, fallback = 'Erreur lors de la connexion'): string {
   const msg = raw instanceof Error ? raw.message : String(raw ?? '');
   if (!msg.trim()) return fallback;
-  if (/MECANIDOC_APP_DB_PASSWORD|mecanidoc_app|Base de données indisponible/i.test(msg)) {
+  if (/MECANIDOC_APP_DB_PASSWORD|mecanidoc_app|Base de données indisponible|Configuration serveur|Postgres tourne/i.test(msg)) {
     return publicDbErrorMessage();
   }
   if (INFRA.test(msg)) return fallback;

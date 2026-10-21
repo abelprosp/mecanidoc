@@ -383,22 +383,35 @@ create index if not exists idx_order_items_garage on public.order_items(garage_i
 -- -----------------------------------------------------------------------------
 -- 5. Configuração comercial (frete, seguro) usada pelo orçamento do servidor
 -- -----------------------------------------------------------------------------
-alter table public.global_settings
-  add column if not exists fast_delivery_fee numeric default 19.90,
-  add column if not exists fast_delivery_fee_bulk numeric default 29.90,
-  add column if not exists fast_delivery_bulk_min_qty integer default 4,
-  add column if not exists warranty_fee numeric default 5.50,
-  add column if not exists free_standard_delivery_min_qty integer default 2;
+do $$
+begin
+  if to_regclass('public.global_settings') is null then
+    raise notice 'public.global_settings inexistente — a saltar colunas comerciais';
+    return;
+  end if;
+  alter table public.global_settings
+    add column if not exists fast_delivery_fee numeric default 19.90,
+    add column if not exists fast_delivery_fee_bulk numeric default 29.90,
+    add column if not exists fast_delivery_bulk_min_qty integer default 4,
+    add column if not exists warranty_fee numeric default 5.50,
+    add column if not exists free_standard_delivery_min_qty integer default 2;
+end
+$$;
 
-comment on column public.global_settings.delivery_base_fee is 'Livraison standard pour moins de free_standard_delivery_min_qty pneus';
-comment on column public.global_settings.fast_delivery_fee is 'Livraison express (jusqu''à fast_delivery_bulk_min_qty - 1 pneus)';
-comment on column public.global_settings.fast_delivery_fee_bulk is 'Livraison express à partir de fast_delivery_bulk_min_qty pneus';
-comment on column public.global_settings.warranty_fee is 'Assurance crevaison, par pneu';
-
--- Garantir uma linha de configurações
-insert into public.global_settings (id)
-select gen_random_uuid()
-where not exists (select 1 from public.global_settings);
+do $$
+begin
+  if to_regclass('public.global_settings') is null then
+    return;
+  end if;
+  comment on column public.global_settings.delivery_base_fee is 'Livraison standard pour moins de free_standard_delivery_min_qty pneus';
+  comment on column public.global_settings.fast_delivery_fee is 'Livraison express (jusqu''à fast_delivery_bulk_min_qty - 1 pneus)';
+  comment on column public.global_settings.fast_delivery_fee_bulk is 'Livraison express à partir de fast_delivery_bulk_min_qty pneus';
+  comment on column public.global_settings.warranty_fee is 'Assurance crevaison, par pneu';
+  insert into public.global_settings (id)
+  select gen_random_uuid()
+  where not exists (select 1 from public.global_settings);
+end
+$$;
 
 -- -----------------------------------------------------------------------------
 -- 6. Recuperação de password
@@ -481,8 +494,15 @@ create policy "supplier_connection_runs master" on public.supplier_connection_ru
   for select using (auth.is_master());
 
 -- Origem do produto (para sincronizações incrementais por ligação)
-alter table public.products
-  add column if not exists supplier_connection_id uuid references public.supplier_connections(id) on delete set null,
-  add column if not exists supplier_sku text,
-  add column if not exists updated_at timestamptz;
-create index if not exists idx_products_connection_sku on public.products(supplier_connection_id, supplier_sku);
+do $$
+begin
+  if to_regclass('public.products') is null then
+    return;
+  end if;
+  alter table public.products
+    add column if not exists supplier_connection_id uuid references public.supplier_connections(id) on delete set null,
+    add column if not exists supplier_sku text,
+    add column if not exists updated_at timestamptz;
+  execute 'create index if not exists idx_products_connection_sku on public.products(supplier_connection_id, supplier_sku)';
+end
+$$;

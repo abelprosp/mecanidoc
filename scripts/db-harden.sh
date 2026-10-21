@@ -53,6 +53,14 @@ create table if not exists public.stripe_webhook_events (
 );
 create index if not exists idx_stripe_webhook_events_processed_at
   on public.stripe_webhook_events(processed_at);
+
+-- Colunas que o login lê (06-security.sql antigo podia falhar antes de as criar).
+alter table public.users add column if not exists session_version integer not null default 1;
+alter table public.users add column if not exists mfa_enabled boolean not null default false;
+alter table public.users add column if not exists mfa_secret_enc text;
+alter table public.users add column if not exists mfa_recovery_hashes text[] not null default '{}';
+alter table public.users add column if not exists mfa_enabled_at timestamptz;
+alter table public.users add column if not exists password_changed_at timestamptz;
 SQL
 run_psql_file docker/postgres/init/05-support.sql
 run_psql_file docker/postgres/init/06-security.sql
