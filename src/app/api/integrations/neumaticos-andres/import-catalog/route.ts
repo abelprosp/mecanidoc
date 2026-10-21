@@ -3,11 +3,9 @@ import { createAdminDbClient } from '@/lib/db/client';
 import { requireMasterUser } from '@/lib/admin-auth-server';
 import { importNeumaticosCatalog } from '@/lib/neumaticos-andres/import-catalog';
 import {
-  createNaJob,
   failNaJob,
   finishNaJob,
-  getRunningNaJob,
-  publicNaJob,
+  replaceRunningNaJob,
   setNaJobLogs,
 } from '@/lib/neumaticos-andres/jobs';
 
@@ -42,16 +40,11 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const options = parseImportBody(body);
 
-  const existing = getRunningNaJob('import-catalog');
-  if (existing) {
-    return NextResponse.json(
-      { ok: true, started: true, reused: true, jobId: existing.id, ...publicNaJob(existing) },
-      { status: 202 }
-    );
-  }
-
-  const job = createNaJob('import-catalog');
+  const job = replaceRunningNaJob('import-catalog');
   const jobId = job.id;
+  setNaJobLogs(jobId, [
+    `Pedido: de=${options.from ?? '—'} até=${options.to ?? '—'} limite=${options.limit} CP=${options.postCode}`,
+  ]);
 
   void (async () => {
     try {

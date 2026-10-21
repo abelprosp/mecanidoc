@@ -53,6 +53,14 @@ export function getRunningNaJob(type: NaJobType): NaJob | null {
   return job;
 }
 
+export function replaceRunningNaJob(type: NaJobType): NaJob {
+  const running = getRunningNaJob(type);
+  if (running) {
+    failNaJob(running.id, 'Substituído por um novo pedido com outros parâmetros.');
+  }
+  return createNaJob(type);
+}
+
 export function createNaJob(type: NaJobType): NaJob {
   pruneOldJobs();
   const running = getRunningNaJob(type);
