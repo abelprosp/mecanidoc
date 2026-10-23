@@ -190,7 +190,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
     console.log([
-      'Busca etiquetas exclusivamente no EPREL, por EAN e, como alternativa, pelo identificador do modelo com a medida do pneu.',
+      'Busca etiquetas exclusivamente no EPREL para produtos que já passaram pelo enriquecimento de dados.',
       '',
       'Opções: --dry-run | --force | --fallback-only | --supplier=neumaticos_andres | --all-suppliers',
       '        --limit=500 | --delay=1200 | --help',
@@ -209,11 +209,19 @@ async function main() {
   });
 
   try {
-    const where = ['ean IS NOT NULL', "length(trim(ean)) >= 8"];
+    const where = [
+      'p.ean IS NOT NULL',
+      "length(trim(p.ean)) >= 8",
+      `(
+        nullif(p.external_metadata->'catalog_enrich'->>'enrichedAt', '') IS NOT NULL
+        OR nullif(p.external_metadata->'gtin_enrich'->>'enrichedAt', '') IS NOT NULL
+        OR nullif(p.external_metadata->'eprel_enrich'->>'enrichedAt', '') IS NOT NULL
+      )`,
+    ];
     const params = [];
     if (!options.allSuppliers) {
       params.push(options.supplier);
-      where.push(`external_supplier = $${params.length}`);
+      where.push(`p.external_supplier = $${params.length}`);
     }
 
     let sql = `
@@ -227,7 +235,7 @@ async function main() {
 
     const { rows } = await client.query(sql, params);
     const targets = options.force ? rows : rows.filter((row) => hasMissingEnergyLabel(row.labels));
-    console.log(`Produtos selecionados: ${rows.length} | com etiqueta EPREL pendente: ${targets.length}`);
+    console.log(`Produtos já enriquecidos selecionados: ${rows.length} | com etiqueta EPREL pendente: ${targets.length}`);
     console.log(`Fornecedor: ${options.allSuppliers ? 'todos' : options.supplier} | intervalo: ${options.delayMs} ms`);
     console.log(`Fonte: EPREL${options.fallbackOnly ? ' (busca por medida)' : ' (EAN e, se necessário, medida)'}`);
     if (options.dryRun) console.log('Modo dry-run: nenhuma alteração será gravada.');
