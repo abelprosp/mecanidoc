@@ -14,12 +14,11 @@
 import pg from 'pg';
 import { loadEnvFiles } from './lib/load-env.mjs';
 import {
-  fetchEprelProductByGtin,
   fetchEprelTyresByModelIdentifier,
   fetchEprelTyreByRegistrationNumber,
   mapEprelHit,
 } from './lib/eprel-client.mjs';
-import { getDbUrl, normalizeGtin, parseTireSpecsFromText } from './lib/product-enrich.mjs';
+import { getDbUrl, parseTireSpecsFromText } from './lib/product-enrich.mjs';
 
 loadEnvFiles();
 
@@ -106,10 +105,6 @@ function addMissingLabels(target, source) {
   return added;
 }
 
-function normalizeBrand(value) {
-  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
-
 function nestedStrings(value, depth = 0) {
   if (depth > 5 || value == null) return [];
   if (typeof value === 'string' || typeof value === 'number') return [String(value)];
@@ -140,50 +135,66 @@ function tireSize(product) {
   return width && height && rim ? `${width}/${height} R${rim}` : null;
 }
 
-function exactEprelFitment(product, hit) {
+function sameEprelSize(product, hit) {
   const fields = { ...hit, ...(hit?.technicalParameters || {}) };
-  const brand = String(product.brand_name || product.brand || '').trim();
-  const hitBrand = fields.supplierOrTrademark || fields.brandName || fields.brand || fields.organisation?.organisationName;
-  if (brand && normalizeBrand(hitBrand) !== normalizeBrand(brand)) return false;
-
   const productSpecs = productTireSpecs(product);
-  const hitSpecs = parseTireSpecsFromText(fields.tyreDesignation || fields.sizeDesignationFiltered || fields.sizeDesignation || fields.modelIdentifier || '');
+  const designation = [
+    fields.tyreDesignation,
+    fields.sizeDesignationFiltered,
+    fields.sizeDesignation,
+    fields.tyreSizeDesignation,
+    fields.modelIdentifier,
+  ].filter(Boolean).join(' ');
+  const hitSpecs = parseTireSpecsFromText(designation);
   const dimensions = [
     [productSpecs.width, fields.tyreSection || fields.width || hitSpecs.width],
     [productSpecs.height, fields.aspectRatio || fields.aspect_ratio || hitSpecs.height],
     [productSpecs.diameter, fields.rimDiameter || fields.rim_diameter || hitSpecs.diameter],
   ];
-  if (dimensions.some(([wanted, got]) => !wanted || !got || String(wanted).replace(/\D/g, '') !== String(got).replace(/\D/g, ''))) return false;
-
-  const load = String(productSpecs.load_index || '').trim();
-  const candidateLoad = String(fields.loadCapacityIndex || fields.load_index || '').trim();
-  if (load && load !== candidateLoad) return false;
-  const speed = String(productSpecs.speed_index || '').replace(/[()]/g, '').trim().toUpperCase();
-  const candidateSpeed = String(fields.speedCategorySymbol || fields.speed_rating || '').replace(/[()]/g, '').trim().toUpperCase();
-  if (speed && speed !== candidateSpeed) return false;
-  return true;
+  return dimensions.every(([wanted, got]) => wanted && got && String(wanted).replace(/\D/g, '') === String(got).replace(/\D/g, ''));
 }
 
 async function fetchEprelLabelBySize(product) {
   const size = tireSize(product);
   if (!size) return { detail: null, reason: 'medida ausente no nome e nas especificações', size: null };
-  const brand = String(product.brand_name || product.brand || '').trim();
   const rows = await fetchEprelTyresByModelIdentifier(size, { strict: true });
-  const exact = rows.filter((row) => exactEprelFitment(product, row));
-  if (!exact.length) return { detail: null, reason: 'EPREL não retornou correspondência exata de marca, medida e índices disponíveis', size };
-  if (exact.length > 1) return { detail: null, reason: `${exact.length} registros EPREL exatos; seleção ambígua`, size };
+  const exact = rows.filter((row) => sameEprelSize(product, row));
+  if (!exact.length) return { detail: null, reason: `EPREL não retornou registro com medida ${size}`, size };
 
-  const row = exact[0];
+  let candidates = exact;
+  const productBrand = String(product.brand_name || product.brand || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (productBrand) {
+    const brandMatches = exact.filter((row) => {
+      const fields = { ...row, ...(row?.technicalParameters || {}) };
+      const brand = String(fields.supplierOrTrademark || fields.brandName || fields.brand || fields.organisation?.organisationName || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      return brand === productBrand;
+    });
+    if (brandMatches.length === 1) candidates = brandMatches;
+  }
+  if (candidates.length > 1) {
+    const labelSets = candidates.map((row) => {
+      const mapped = mapEprelHit(row)?.labels || {};
+      return [mapped.fuel || null, mapped.wet || null, mapped.noise || null];
+    });
+    const signatures = new Set(labelSets.map((labels) => JSON.stringify(labels)));
+    if (labelSets.some((labels) => labels.every((value) => value === null))) {
+      return { detail: null, reason: `${candidates.length} registros EPREL para ${size}, sem etiquetas suficientes para desambiguar`, size };
+    }
+    if (signatures.size !== 1) return { detail: null, reason: `${candidates.length} registros EPREL para ${size} com etiquetas diferentes`, size };
+  }
+
+  const row = candidates[0];
   const registrationNumber = row.eprelRegistrationNumber || row.registrationNumber || row.id;
   const fullHit = registrationNumber
     ? await fetchEprelTyreByRegistrationNumber(registrationNumber, { strict: true })
     : row;
   if (!fullHit) return { detail: null, reason: 'registro EPREL não pôde ser carregado', size };
   const detail = mapEprelHit(fullHit);
-  if (!detail?.labels || !exactEprelFitment(product, fullHit)) {
+  if (!detail?.labels || !sameEprelSize(product, fullHit)) {
     return { detail: null, reason: 'registro EPREL sem etiqueta ou sem confirmação da variante', size };
   }
-  return { detail, reason: null, size, brand };
+  return { detail, reason: null, size };
 }
 
 async function main() {
@@ -192,7 +203,7 @@ async function main() {
     console.log([
       'Busca etiquetas exclusivamente no EPREL para produtos que já passaram pelo enriquecimento de dados.',
       '',
-      'Opções: --dry-run | --force | --fallback-only | --supplier=neumaticos_andres | --all-suppliers',
+      'Opções: --dry-run | --force | --supplier=neumaticos_andres | --all-suppliers',
       '        --limit=500 | --delay=1200 | --help',
       'A busca por medida usa EPREL_API_KEY e consulta o grupo público de pneus do EPREL.',
     ].join('\n'));
@@ -210,8 +221,6 @@ async function main() {
 
   try {
     const where = [
-      'p.ean IS NOT NULL',
-      "length(trim(p.ean)) >= 8",
       `(
         nullif(p.external_metadata->'catalog_enrich'->>'enrichedAt', '') IS NOT NULL
         OR nullif(p.external_metadata->'gtin_enrich'->>'enrichedAt', '') IS NOT NULL
@@ -242,49 +251,21 @@ async function main() {
     const targets = options.force ? rows : rows.filter((row) => hasMissingEnergyLabel(row.labels));
     console.log(`Produtos já enriquecidos selecionados: ${rows.length} | com etiqueta EPREL pendente: ${targets.length}`);
     console.log(`Fornecedor: ${options.allSuppliers ? 'todos' : options.supplier} | intervalo: ${options.delayMs} ms`);
-    console.log(`Fonte: EPREL${options.fallbackOnly ? ' (busca por medida)' : ' (EAN e, se necessário, medida)'}`);
+    console.log('Fonte: EPREL (busca exclusivamente por medida)');
     if (options.dryRun) console.log('Modo dry-run: nenhuma alteração será gravada.');
 
     let updated = 0;
-    let notFound = 0;
     let noLabel = 0;
     let errors = 0;
     let sizeFallbacks = 0;
 
     for (const product of targets) {
       if (interrupted) break;
-      const ean = normalizeGtin(product.ean);
+      const productRef = String(product.ean || product.id);
       const labels = asObject(product.labels);
       const labelSources = asObject(labels.label_sources);
-      const eprelErrors = [];
-      let detail = null;
       let sizeLookupReason = '';
-      if (!options.fallbackOnly) {
-        try {
-          detail = await fetchEprelProductByGtin(ean, { strict: true });
-        } catch (error) {
-          eprelErrors.push(error instanceof Error ? error.message : 'falha na consulta EPREL');
-        }
-      }
-
-      if (!options.fallbackOnly && !detail) notFound++;
-      const eprelAdded = addMissingLabels(labels, detail?.labels || {});
-      if (options.force && detail?.labels) {
-        for (const key of [...LABEL_KEYS, 'noise_class']) {
-          const value = validLabelValue(key, detail.labels[key]);
-          if (value !== null && labels[key] !== value && !eprelAdded.includes(key)) {
-            labels[key] = value;
-            eprelAdded.push(key);
-          }
-        }
-      }
-      let addedCount = eprelAdded.length;
-      if (eprelAdded.length) {
-        for (const key of eprelAdded) {
-          labelSources[key] = { source: 'EPREL', registration_number: detail.registrationNumber || null };
-        }
-      }
-
+      let addedCount = 0;
       if (LABEL_KEYS.some((key) => validLabelValue(key, labels[key]) === null)) {
         try {
           const sizeLookup = await fetchEprelLabelBySize(product);
@@ -295,20 +276,20 @@ async function main() {
               sizeFallbacks++;
               for (const key of added) {
                 labelSources[key] = {
-                  source: 'EPREL, busca por identificador do modelo/medida',
+                  source: 'EPREL, busca por medida',
                   url: `https://eprel.ec.europa.eu/screen/product/tyres/${encodeURIComponent(sizeLookup.detail.registrationNumber)}`,
                   registration_number: sizeLookup.detail.registrationNumber,
                   size: sizeLookup.size,
                 };
               }
-              console.log(`↳ ${ean}: EPREL por identificador/medida ${sizeLookup.size} (${added.join(', ')})`);
+              console.log(`↳ ${productRef}: EPREL ${sizeLookup.size} (${added.join(', ')})`);
             }
           } else {
             sizeLookupReason = `busca por medida não realizada/concluída: ${sizeLookup.reason}`;
           }
         } catch (error) {
           errors++;
-          console.log(`✗ ${ean}: busca EPREL por medida — ${error instanceof Error ? error.message : 'erro na consulta'}`);
+          console.log(`✗ ${productRef}: busca EPREL por medida — ${error instanceof Error ? error.message : 'erro na consulta'}`);
         }
       }
 
@@ -317,26 +298,24 @@ async function main() {
       if (!addedCount && remainingMissing) {
         noLabel++;
         const details = [
-          options.fallbackOnly ? '' : detail ? `registro ${detail.registrationNumber || ''} sem etiqueta` : 'EAN não localizado na EPREL',
           sizeLookupReason,
-          eprelErrors.length ? `EPREL: ${eprelErrors.join('; ')}` : '',
         ].filter(Boolean).join(' | ');
-        console.log(`— ${ean}: ${details}`);
+        console.log(`— ${productRef}: ${details || `nenhuma etiqueta EPREL encontrada para ${tireSize(product) || 'medida ausente'}`}`);
       } else if (addedCount) {
         const summary = LABEL_KEYS.map((key) => `${key}=${labels[key] || '-'}`).join(' ');
         if (options.dryRun) {
           updated++;
-          console.log(`[dry-run] ${ean}: ${summary}`);
+          console.log(`[dry-run] ${productRef}: ${summary}`);
         } else {
           await client.query('UPDATE public.products SET labels = $2::jsonb WHERE id = $1', [product.id, JSON.stringify(labels)]);
           updated++;
-          console.log(`✓ ${ean}: ${summary}`);
+          console.log(`✓ ${productRef}: ${summary}`);
         }
       }
       if (options.delayMs) await sleep(options.delayMs);
     }
 
-    console.log(`\nResumo: ${updated} produtos atualizados${options.dryRun ? ' (simulação)' : ''}, ${notFound} EANs não localizados na EPREL, ${sizeFallbacks} preenchidos pela busca EPREL por medida, ${noLabel} sem dados novos para preencher, ${errors} erros de consulta.`);
+    console.log(`\nResumo: ${updated} produtos atualizados${options.dryRun ? ' (simulação)' : ''}, ${sizeFallbacks} preenchidos pela busca EPREL por medida, ${noLabel} sem etiquetas EPREL correspondentes, ${errors} erros de consulta.`);
   } finally {
     await client.end();
   }
