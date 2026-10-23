@@ -99,14 +99,22 @@ async function main() {
     if (options.dryRun) console.log('Modo dry-run: nenhuma alteração será gravada.');
 
     let updated = 0;
-    let noData = 0;
+    let notFound = 0;
+    let noLabel = 0;
     let errors = 0;
 
     for (const product of targets) {
       if (interrupted) break;
       const ean = normalizeGtin(product.ean);
       try {
-        const detail = await fetchEprelProductByGtin(ean);
+        const detail = await fetchEprelProductByGtin(ean, { strict: true });
+        if (!detail) {
+          notFound++;
+          console.log(`— ${ean}: EAN não localizado na EPREL`);
+          if (options.delayMs) await sleep(options.delayMs);
+          continue;
+        }
+
         const eprelLabels = detail?.labels || {};
         const available = Object.fromEntries(
           LABEL_KEYS.filter((key) => eprelLabels[key] !== undefined && eprelLabels[key] !== null && eprelLabels[key] !== '')
@@ -114,8 +122,8 @@ async function main() {
         );
 
         if (!Object.keys(available).length) {
-          noData++;
-          console.log(`— ${ean}: sem dados de etiqueta na EPREL`);
+          noLabel++;
+          console.log(`— ${ean}: registro ${detail.registrationNumber || ''} encontrado, sem dados de etiqueta`);
         } else {
           const labels = { ...(product.labels || {}), ...available };
           // Guarda também a classe de ruído, caso a EPREL tenha enviado esse dado.
@@ -138,7 +146,7 @@ async function main() {
       if (options.delayMs) await sleep(options.delayMs);
     }
 
-    console.log(`\nResumo: ${updated} atualizados${options.dryRun ? ' (simulação)' : ''}, ${noData} sem dados, ${errors} erros.`);
+    console.log(`\nResumo: ${updated} atualizados${options.dryRun ? ' (simulação)' : ''}, ${notFound} EANs não localizados, ${noLabel} registros sem etiqueta, ${errors} erros de consulta.`);
   } finally {
     await client.end();
   }

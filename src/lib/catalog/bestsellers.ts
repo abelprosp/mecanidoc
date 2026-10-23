@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { PoolClient } from 'pg';
+import { productQualityOrderSql } from '@/lib/catalog/product-quality';
 
 /**
  * Produits les plus vendus (commandes payées). Repli sur les nouveautés s'il n'y a pas encore de ventes.
@@ -30,7 +31,7 @@ export async function listBestsellers(
       where coalesce(p.is_active, true) = true
         and ($1::text is null or p.category ilike $1 or coalesce(p.specs->>'vehicle','') ilike $1)
         and ($2::text is null or p.pa_tipo = $2)
-      order by coalesce(s.units, 0) desc, p.created_at desc nulls last
+      order by ${productQualityOrderSql('p')}, coalesce(s.units, 0) desc, p.created_at desc nulls last
       limit $3`,
     [category, paTipo, limit]
   );

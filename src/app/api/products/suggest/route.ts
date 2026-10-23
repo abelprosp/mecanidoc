@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withUserContext } from '@/lib/db/pool';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
+import { productQualityOrderSql } from '@/lib/catalog/product-quality';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
               or lower(p.specs->>'speed_index') = $2
               or lower(p.specs->>'season') = $2
             )
-          order by (p.name ilike $1 escape '\\') desc, p.name asc
+          order by ${productQualityOrderSql('p')}, (p.name ilike $1 escape '\\') desc, p.name asc
           limit $3`,
         [like, exact, MAX_RESULTS]
       );

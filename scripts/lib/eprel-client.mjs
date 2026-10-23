@@ -14,25 +14,42 @@ export function normalizeGtin(raw) {
   return String(raw || '').replace(/\D/g, '');
 }
 
-function pickHit(json) {
+function pickHit(json, { strict = false } = {}) {
   if (!json || typeof json !== 'object') return null;
   if (json.code === 'NOT_FOUND') return null;
   if (Array.isArray(json.hits)) return json.hits[0] || null;
   if (json.tyreSection != null || json.eprelRegistrationNumber) return json;
+  if (strict) throw new Error('EPREL HTTP 200: estrutura de resposta inesperada');
   return null;
 }
 
-export async function fetchEprelByGtin(gtin) {
+export async function fetchEprelByGtin(gtin, { strict = false } = {}) {
   const h = headers();
-  if (!h) return null;
+  if (!h) {
+    if (strict) throw new Error('EPREL_API_KEY não configurada');
+    return null;
+  }
   const normalized = normalizeGtin(gtin);
   if (normalized.length < 8) return null;
 
   const res = await fetch(`${EPREL_BASE}/product/gtin/${encodeURIComponent(normalized)}`, {
     headers: h,
+    redirect: 'error',
+    signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) return null;
-  return pickHit(await res.json());
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    if (strict) throw new Error(`EPREL HTTP ${res.status}`);
+    return null;
+  }
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    if (strict) throw new Error(`EPREL HTTP ${res.status}: resposta não é JSON válido`);
+    return null;
+  }
+  return pickHit(json, { strict });
 }
 
 export function mapEprelHit(hit) {
@@ -79,8 +96,8 @@ export function mapEprelHit(hit) {
   };
 }
 
-export async function fetchEprelProductByGtin(gtin) {
-  const hit = await fetchEprelByGtin(gtin);
+export async function fetchEprelProductByGtin(gtin, options) {
+  const hit = await fetchEprelByGtin(gtin, options);
   return mapEprelHit(hit);
 }
 

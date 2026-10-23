@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { createClient } from '@/lib/supabase';
 import VerticalProductCard from './VerticalProductCard';
 
 interface RelatedProductsProps {
@@ -27,66 +26,35 @@ export default function RelatedProducts({
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
 
   useEffect(() => {
-    const fetchRelatedProducts = async () => {
-      setLoading(true);
-      
-      let query = supabase
-        .from('products')
-        .select('*, brands(id, name, logo_url)')
-        .eq('is_active', true)
-        .neq('id', productId) // Excluir o produto atual
-        .limit(12);
+    const controller = new AbortController();
+    const params = new URLSearchParams({ product_id: productId });
+    if (category) params.set('category', category);
+    if (brandId) params.set('brand_id', brandId);
+    else if (brandName) params.set('brand', brandName);
+    if (specs?.width) params.set('width', specs.width);
+    if (specs?.height) params.set('height', specs.height);
+    if (specs?.diameter) params.set('diameter', specs.diameter);
 
-      // Filtrar por categoria - garantir match exato para evitar mistura
-      if (category) {
-        const normalizedCategory = category.trim();
-        // Filtrar por categoria exata - garantir que categorias diferentes não se misturem
-        query = query.or(
-          `category.eq.${normalizedCategory},category.eq.${normalizedCategory.toLowerCase()},category.eq.${normalizedCategory.toUpperCase()}`
-        );
-      }
+    setLoading(true);
+    fetch(`/api/products/related?${params.toString()}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        setProducts(Array.isArray(json.items) ? json.items : []);
+      })
+      .catch((error) => {
+        if (error?.name !== 'AbortError') {
+          console.error('Error fetching related products:', error);
+          setProducts([]);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
 
-      // Filtrar por marca (brand_id ou brand texto)
-      if (brandId) {
-        query = query.eq('brand_id', brandId);
-      } else if (brandName) {
-        query = query.ilike('brand', `%${brandName}%`);
-      }
-
-      // Filtrar por medidas (width, height, diameter)
-      if (specs?.width) {
-        query = query.contains('specs', { width: specs.width });
-      }
-      if (specs?.height) {
-        query = query.contains('specs', { height: specs.height });
-      }
-      if (specs?.diameter) {
-        query = query.contains('specs', { diameter: specs.diameter });
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error fetching related products:", error);
-      } else {
-        // Filtro adicional no cliente para garantir match exato (case-insensitive)
-        const normalizedCategory = category?.trim().toLowerCase();
-        const filtered = (data || []).filter((product: any) => {
-          if (!category) return true;
-          const productCategory = (product.category || '').toLowerCase();
-          return productCategory === normalizedCategory;
-        });
-        setProducts(filtered);
-      }
-      setLoading(false);
-    };
-
-    if (productId) {
-      fetchRelatedProducts();
-    }
+    return () => controller.abort();
   }, [productId, category, brandId, brandName, specs]);
 
   const scroll = (direction: 'left' | 'right') => {

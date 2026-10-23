@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { PoolClient } from 'pg';
 import { dbCategoryFromUi, normalizeSpecValue } from '@/lib/product-query-helpers';
+import { productQualityOrderSql } from '@/lib/catalog/product-quality';
 
 /**
  * Pesquisa de catálogo no servidor: filtros, paginação e facetas numa única
@@ -178,15 +179,18 @@ function applyRemainingFilters(b: SqlBuilder, p: SearchParams) {
 }
 
 function orderBy(sort: SearchSort, qParamIndex: number | null): string {
+  const quality = productQualityOrderSql('p');
   switch (sort) {
     case 'price_asc':
-      return 'p.base_price asc nulls last, p.name asc';
+      return `${quality}, p.base_price asc nulls last, p.name asc`;
     case 'price_desc':
-      return 'p.base_price desc nulls last, p.name asc';
+      return `${quality}, p.base_price desc nulls last, p.name asc`;
     case 'name_asc':
-      return 'p.name asc';
+      return `${quality}, p.name asc`;
     default:
-      return qParamIndex ? `(p.name ilike $${qParamIndex} escape '\\') desc, p.created_at desc nulls last, p.name asc` : 'p.created_at desc nulls last, p.name asc';
+      return qParamIndex
+        ? `${quality}, (p.name ilike $${qParamIndex} escape '\\') desc, p.created_at desc nulls last, p.name asc`
+        : `${quality}, p.created_at desc nulls last, p.name asc`;
   }
 }
 
