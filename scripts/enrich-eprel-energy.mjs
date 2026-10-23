@@ -110,8 +110,30 @@ function normalizeBrand(value) {
   return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
-function tireSize(product) {
+function nestedStrings(value, depth = 0) {
+  if (depth > 5 || value == null) return [];
+  if (typeof value === 'string' || typeof value === 'number') return [String(value)];
+  if (Array.isArray(value)) return value.flatMap((item) => nestedStrings(item, depth + 1));
+  if (typeof value === 'object') return Object.values(value).flatMap((item) => nestedStrings(item, depth + 1));
+  return [];
+}
+
+function productTireSpecs(product) {
   const specs = { ...parseTireSpecsFromText(product.name), ...asObject(product.specs) };
+  const metadata = asObject(product.external_metadata);
+  for (const key of ['size', 'tyre_size', 'tire_size', 'size_designation', 'tyreDesignation', 'dimension', 'dimensions']) {
+    const value = specs[key] ?? metadata[key];
+    if (value == null) continue;
+    Object.assign(specs, parseTireSpecsFromText(value));
+  }
+  for (const value of nestedStrings([product.description, metadata])) {
+    Object.assign(specs, parseTireSpecsFromText(value));
+  }
+  return specs;
+}
+
+function tireSize(product) {
+  const specs = productTireSpecs(product);
   const width = String(specs.width || '').replace(/\D/g, '');
   const height = String(specs.height || '').replace(/\D/g, '');
   const rim = String(specs.diameter || '').replace(/\D/g, '');
@@ -124,7 +146,7 @@ function exactEprelFitment(product, hit) {
   const hitBrand = fields.supplierOrTrademark || fields.brandName || fields.brand || fields.organisation?.organisationName;
   if (brand && normalizeBrand(hitBrand) !== normalizeBrand(brand)) return false;
 
-  const productSpecs = { ...parseTireSpecsFromText(product.name), ...asObject(product.specs) };
+  const productSpecs = productTireSpecs(product);
   const hitSpecs = parseTireSpecsFromText(fields.tyreDesignation || fields.sizeDesignationFiltered || fields.sizeDesignation || fields.modelIdentifier || '');
   const dimensions = [
     [productSpecs.width, fields.tyreSection || fields.width || hitSpecs.width],
@@ -195,7 +217,7 @@ async function main() {
     }
 
     let sql = `
-      SELECT p.id, p.ean, p.name, p.brand, p.specs, p.labels, p.external_metadata,
+      SELECT p.id, p.ean, p.name, p.description, p.brand, p.specs, p.labels, p.external_metadata,
              b.name AS brand_name
       FROM public.products p
       LEFT JOIN public.brands b ON b.id = p.brand_id
@@ -223,6 +245,7 @@ async function main() {
       const labelSources = asObject(labels.label_sources);
       const eprelErrors = [];
       let detail = null;
+      let sizeLookupReason = '';
       if (!options.fallbackOnly) {
         try {
           detail = await fetchEprelProductByGtin(ean, { strict: true });
@@ -268,7 +291,7 @@ async function main() {
               console.log(`↳ ${ean}: EPREL por identificador/medida ${sizeLookup.size} (${added.join(', ')})`);
             }
           } else {
-            console.log(`— ${ean}: EPREL sem correspondência segura para ${sizeLookup.size || 'medida ausente'} (${sizeLookup.reason})`);
+            sizeLookupReason = `busca por medida não realizada/concluída: ${sizeLookup.reason}`;
           }
         } catch (error) {
           errors++;
@@ -282,6 +305,7 @@ async function main() {
         noLabel++;
         const details = [
           options.fallbackOnly ? '' : detail ? `registro ${detail.registrationNumber || ''} sem etiqueta` : 'EAN não localizado na EPREL',
+          sizeLookupReason,
           eprelErrors.length ? `EPREL: ${eprelErrors.join('; ')}` : '',
         ].filter(Boolean).join(' | ');
         console.log(`— ${ean}: ${details}`);
