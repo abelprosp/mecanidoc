@@ -216,6 +216,11 @@ async function main() {
         nullif(p.external_metadata->'catalog_enrich'->>'enrichedAt', '') IS NOT NULL
         OR nullif(p.external_metadata->'gtin_enrich'->>'enrichedAt', '') IS NOT NULL
         OR nullif(p.external_metadata->'eprel_enrich'->>'enrichedAt', '') IS NOT NULL
+        OR (
+          nullif(p.specs->>'width', '') IS NOT NULL
+          AND nullif(p.specs->>'height', '') IS NOT NULL
+          AND nullif(p.specs->>'diameter', '') IS NOT NULL
+        )
       )`,
     ];
     const params = [];
