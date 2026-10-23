@@ -154,6 +154,49 @@ function sameEprelSize(product, hit) {
   return dimensions.every(([wanted, got]) => wanted && got && String(wanted).replace(/\D/g, '') === String(got).replace(/\D/g, ''));
 }
 
+function normalizeMatchText(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function eprelFields(hit) {
+  return { ...hit, ...(hit?.technicalParameters || {}) };
+}
+
+function scoreEprelCandidate(product, hit) {
+  const fields = eprelFields(hit);
+  const productBrand = normalizeMatchText(product.brand_name || product.brand);
+  const hitBrand = normalizeMatchText(
+    fields.supplierOrTrademark || fields.brandName || fields.trademark || fields.supplierName || fields.brand || fields.organisation?.organisationName
+  );
+  let score = 0;
+  if (productBrand && hitBrand) {
+    const brandTokens = productBrand.split(' ');
+    if (hitBrand === productBrand) score += 12;
+    else if (brandTokens.every((token) => hitBrand.split(' ').includes(token))) score += 10;
+  }
+
+  const productSpecs = productTireSpecs(product);
+  const load = String(productSpecs.load_index || '').trim();
+  const candidateLoad = String(fields.loadCapacityIndex || fields.load_index || '').trim();
+  if (load && candidateLoad && load === candidateLoad) score += 4;
+  const speed = String(productSpecs.speed_index || '').replace(/[()]/g, '').trim().toUpperCase();
+  const candidateSpeed = String(fields.speedCategorySymbol || fields.speed_rating || '').replace(/[()]/g, '').trim().toUpperCase();
+  if (speed && candidateSpeed && speed === candidateSpeed) score += 4;
+
+  const knownBrandTokens = new Set(productBrand.split(' '));
+  const ignore = new Set(['xl', 'tl', 'rf', 'runflat', 'pneu', 'tyre', 'tire', 'reifen', 'summer', 'winter', 'all', 'season']);
+  const productTokens = new Set(normalizeMatchText(product.name).split(' ').filter((token) =>
+    token && !knownBrandTokens.has(token) && !ignore.has(token) && !/^\d+$/.test(token)
+  ));
+  const candidateText = [fields.commercialName, fields.modelIdentifier, fields.modelName, fields.tyreDesignation]
+    .filter(Boolean).map(normalizeMatchText).join(' ');
+  const candidateTokens = new Set(candidateText.split(' ').filter((token) =>
+    token && !ignore.has(token) && !/^\d+$/.test(token)
+  ));
+  for (const token of productTokens) if (candidateTokens.has(token)) score += 2;
+  return score;
+}
+
 async function fetchEprelLabelBySize(product) {
   const size = tireSize(product);
   if (!size) return { detail: null, reason: 'medida ausente no nome e nas especificações', size: null };
@@ -162,15 +205,11 @@ async function fetchEprelLabelBySize(product) {
   if (!exact.length) return { detail: null, reason: `EPREL não retornou registro com medida ${size}`, size };
 
   let candidates = exact;
-  const productBrand = String(product.brand_name || product.brand || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  if (productBrand) {
-    const brandMatches = exact.filter((row) => {
-      const fields = { ...row, ...(row?.technicalParameters || {}) };
-      const brand = String(fields.supplierOrTrademark || fields.brandName || fields.brand || fields.organisation?.organisationName || '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      return brand === productBrand;
-    });
-    if (brandMatches.length === 1) candidates = brandMatches;
+  if (exact.length > 1) {
+    const ranked = exact.map((row) => ({ row, score: scoreEprelCandidate(product, row) })).sort((a, b) => b.score - a.score);
+    if (ranked[0].score > 0 && (ranked.length === 1 || ranked[0].score > ranked[1].score)) {
+      candidates = [ranked[0].row];
+    }
   }
   if (candidates.length > 1) {
     const labelSets = candidates.map((row) => {
