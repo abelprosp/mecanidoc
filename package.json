@@ -44,6 +44,8 @@
     "enrich:eprel:vps": "bash scripts/vps-import.sh enrich-catalog.mjs --supplier=neumaticos_andres --generic-only --skip-upc --skip-gtinhub",
     "enrich:eprel-energy": "node scripts/enrich-eprel-energy.mjs",
     "enrich:eprel-energy:vps": "bash scripts/vps-import.sh enrich-eprel-energy.mjs",
+    "enrich:eprel-energy:fallback": "node scripts/enrich-eprel-energy.mjs --fallback-only",
+    "enrich:eprel-energy:fallback:vps": "bash scripts/vps-import.sh enrich-eprel-energy.mjs --fallback-only",
     "enrich:catalog": "node scripts/enrich-catalog.mjs",
     "enrich:catalog:vps": "bash scripts/vps-import.sh enrich-catalog.mjs",
     "enrich:generic": "node scripts/enrich-catalog.mjs --supplier=neumaticos_andres --generic-only --skip-upc",
@@ -54,6 +56,8 @@
     "fetch:na-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:andres-stock-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:eprel-images": "node scripts/fetch-eprel-images.mjs",
+    "fetch:product-reviews": "node scripts/fetch-product-reviews.mjs",
+    "fetch:product-reviews:vps": "bash scripts/vps-import.sh fetch-product-reviews.mjs",
     "enrich:products": "node scripts/enrich-products.mjs"
   },
   "dependencies": {

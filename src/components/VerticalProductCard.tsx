@@ -5,6 +5,7 @@ import { ShoppingCart, Sun, CloudSnow, CloudLightning, Car, Bike, Truck, Tractor
 import Link from 'next/link';
 import { useProductPrice } from '@/hooks/useProductPrice';
 import CategoryTooltip from './CategoryTooltip';
+import { BrandLogo, ProductPhoto } from './ProductPhoto';
 
 interface ProductCardProps {
   product: any;
@@ -89,17 +90,12 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
          <div className="flex flex-col items-start">
             {/* Brand Logo */}
             <div className="h-5 mb-1 flex items-center">
-              {product.brands?.logo_url ? (
-                <img 
-                  src={product.brands.logo_url} 
-                  alt={product.brands?.name || product.brand || 'Marque'} 
-                  className="h-full w-auto object-contain max-w-[80px]"
-                />
-              ) : (
-                <span className="text-xs font-bold text-gray-800 uppercase">
-                  {product.brands?.name || product.brand || 'Pneu'}
-                </span>
-              )}
+              <BrandLogo
+                src={product.brands?.logo_url}
+                name={product.brands?.name || product.brand || 'Pneu'}
+                className="h-full w-auto object-contain max-w-[80px]"
+                fallbackClassName="text-xs font-bold text-gray-800 uppercase"
+              />
             </div>
             <span className="text-[11px] text-gray-600 font-medium line-clamp-1">
               {[product.brands?.name || product.brand, product.name].filter(Boolean).join(' ')}
@@ -119,9 +115,9 @@ export default function VerticalProductCard({ product }: ProductCardProps) {
       <div className="flex justify-center items-center gap-3 mb-3 w-full">
          {/* Image */}
          <div className="w-28 h-28 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative">
-            <img 
-              src={product.images?.[0] || '/placeholder-pneu.svg'} 
-              alt={product.name} 
+            <ProductPhoto
+              src={product.images?.[0]}
+              alt={product.name}
               className="w-full h-full object-cover mix-blend-multiply opacity-80"
             />
          </div>

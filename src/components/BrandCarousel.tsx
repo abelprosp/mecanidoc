@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { BrandLogo } from './ProductPhoto';
 import {
   applyCategoryToQuery,
   applyPaTipoToQuery,
@@ -154,15 +155,13 @@ export default function BrandCarousel({ category = 'Auto', paTipo }: BrandCarous
               >
                 <div className="bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow w-28 h-20 md:w-32 md:h-24 flex flex-col items-center justify-center p-3 gap-2 cursor-pointer">
                   <div className="h-8 md:h-10 flex items-center justify-center w-full">
-                    {brand.logo_url ? (
-                      <img 
-                        src={brand.logo_url} 
-                        alt={brand.name} 
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    ) : (
-                      <span className="text-xl font-bold text-gray-300">{brand.name[0]}</span>
-                    )}
+                    <BrandLogo
+                      src={brand.logo_url}
+                      name={brand.name}
+                      className="max-h-full max-w-full object-contain"
+                      fallbackClassName="text-xl font-bold text-gray-300"
+                      fallbackLabel={brand.name[0] || '?'}
+                    />
                   </div>
                   <span className="text-[10px] md:text-xs font-bold uppercase text-gray-700 text-center truncate w-full">{brand.name}</span>
                 </div>

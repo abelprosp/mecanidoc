@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useParams } from 'next/navigation';
 import { useProductPrice } from '@/hooks/useProductPrice';
+import { BrandLogo, ProductPhoto } from '@/components/ProductPhoto';
 
 // Reusing TireLabel component logic
 const TireLabel = ({ type, value, color }: { type: 'fuel' | 'wet' | 'noise', value: string | number, color: string }) => {
@@ -206,20 +207,21 @@ export default function ProductClient({ initialProduct }: { initialProduct: Reco
             <div className="w-full h-[460px] md:h-[500px] flex items-center justify-center bg-gray-50 rounded-lg mb-6 relative p-4 md:p-12">
               {/* Brand Logo - posicionado fora da área da imagem */}
               <div className="absolute top-2 left-2 md:top-4 md:left-4 z-10">
-                {product.brands?.logo_url ? (
-                  <img src={product.brands.logo_url} alt={product.brand} className="h-12 md:h-16 w-auto object-contain" />
-                ) : (
-                  <span className="text-sm md:text-base font-bold text-gray-700 uppercase">{product.brand || 'MARQUE'}</span>
-                )}
+                <BrandLogo
+                  src={product.brands?.logo_url}
+                  name={product.brands?.name || product.brand || 'MARQUE'}
+                  className="h-12 md:h-16 w-auto object-contain"
+                  fallbackClassName="text-sm md:text-base font-bold text-gray-700 uppercase"
+                />
               </div>
 
               {/* Container flex para imagem e labels lado a lado */}
               <div className="w-full h-full flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6">
                 {/* Imagem do pneu - com padding interno para não sobrepor marca */}
                 <div className="flex-1 w-full h-full flex items-center justify-center pt-10 md:pt-8 md:pl-8">
-                  <img 
-                    src={mainImage} 
-                    alt={product.name} 
+                  <ProductPhoto
+                    src={mainImage}
+                    alt={product.name}
                     className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] md:w-full md:h-full object-contain mix-blend-multiply scale-[1.35] sm:scale-[1.45] md:scale-100"
                   />
                 </div>

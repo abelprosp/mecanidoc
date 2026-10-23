@@ -52,30 +52,91 @@ export async function fetchEprelByGtin(gtin, { strict = false } = {}) {
   return pickHit(json, { strict });
 }
 
+function pickProductRows(json) {
+  if (Array.isArray(json)) return json;
+  for (const key of ['content', 'products', 'hits', 'results', 'data']) {
+    if (Array.isArray(json?.[key])) return json[key];
+  }
+  return [];
+}
+
+/** Busca pneus no registo público EPREL pelo identificador do modelo, como no portal. */
+export async function fetchEprelTyresByModelIdentifier(identifier, { strict = false } = {}) {
+  const h = headers();
+  if (!h) {
+    if (strict) throw new Error('EPREL_API_KEY não configurada');
+    return [];
+  }
+  const value = String(identifier || '').trim();
+  if (!value) return [];
+
+  const params = new URLSearchParams({ modelIdentifier: value, _page: '1', _limit: '100' });
+  const res = await fetch(`${EPREL_BASE}/products/tyres?${params}`, {
+    headers: h,
+    redirect: 'error',
+    signal: AbortSignal.timeout(25000),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    if (strict) throw new Error(`EPREL HTTP ${res.status} na busca por dimensão`);
+    return [];
+  }
+  const json = await res.json();
+  const rows = pickProductRows(json);
+  if (!rows.length && strict && !Array.isArray(json?.content) && !Array.isArray(json?.products) && !Array.isArray(json?.hits) && !Array.isArray(json?.results) && !Array.isArray(json?.data)) {
+    throw new Error('EPREL HTTP 200: resposta de busca por dimensão inesperada');
+  }
+  return rows;
+}
+
+export async function fetchEprelTyreByRegistrationNumber(registrationNumber, { strict = false } = {}) {
+  const h = headers();
+  if (!h || !registrationNumber) {
+    if (strict && !h) throw new Error('EPREL_API_KEY não configurada');
+    return null;
+  }
+  const res = await fetch(`${EPREL_BASE}/products/tyres/${encodeURIComponent(registrationNumber)}`, {
+    headers: h,
+    redirect: 'error',
+    signal: AbortSignal.timeout(20000),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    if (strict) throw new Error(`EPREL HTTP ${res.status} ao ler o registo ${registrationNumber}`);
+    return null;
+  }
+  const json = await res.json();
+  return pickHit(json, { strict }) || json;
+}
+
 export function mapEprelHit(hit) {
   if (!hit) return null;
 
-  const brand = hit.supplierOrTrademark || hit.organisation?.organisationName;
-  const size = hit.tyreDesignation || hit.sizeDesignationFiltered;
-  const commercial = hit.commercialName || hit.modelIdentifier;
+  // The public product-group API may nest tyre fields under technicalParameters;
+  // the older GTIN endpoint returns most of them at the top level.
+  const fields = { ...hit, ...(hit.technicalParameters || {}) };
+
+  const brand = fields.supplierOrTrademark || fields.brandName || fields.organisation?.organisationName;
+  const size = fields.tyreDesignation || fields.sizeDesignationFiltered || fields.sizeDesignation;
+  const commercial = fields.commercialName || fields.modelIdentifier;
   const name = [brand, commercial, size].filter(Boolean).join(' ');
 
   const specs = { season: 'Été' };
-  if (hit.tyreSection != null) specs.width = String(hit.tyreSection);
-  if (hit.aspectRatio != null) specs.height = String(hit.aspectRatio);
-  if (hit.rimDiameter != null) specs.diameter = String(hit.rimDiameter);
-  if (hit.loadCapacityIndex != null) specs.load_index = String(hit.loadCapacityIndex);
-  if (hit.speedCategorySymbol) specs.speed_index = String(hit.speedCategorySymbol);
+  if (fields.tyreSection != null) specs.width = String(fields.tyreSection);
+  if (fields.aspectRatio != null) specs.height = String(fields.aspectRatio);
+  if (fields.rimDiameter != null) specs.diameter = String(fields.rimDiameter);
+  if (fields.loadCapacityIndex != null) specs.load_index = String(fields.loadCapacityIndex);
+  if (fields.speedCategorySymbol) specs.speed_index = String(fields.speedCategorySymbol);
   if (size) specs.eprel_size = size;
 
   const labels = {};
-  if (hit.energyClass) labels.fuel = hit.energyClass;
-  if (hit.wetGripClass) labels.wet = hit.wetGripClass;
-  if (hit.externalRollingNoiseValue != null) labels.noise = String(hit.externalRollingNoiseValue);
-  if (hit.externalRollingNoiseClass) labels.noise_class = hit.externalRollingNoiseClass;
+  if (fields.energyClass || fields.fuelEfficiencyClass) labels.fuel = fields.energyClass || fields.fuelEfficiencyClass;
+  if (fields.wetGripClass) labels.wet = fields.wetGripClass;
+  if (fields.externalRollingNoiseValue != null) labels.noise = String(fields.externalRollingNoiseValue);
+  if (fields.externalRollingNoiseClass) labels.noise_class = fields.externalRollingNoiseClass;
 
   let category;
-  const tc = hit.tyreClass;
+  const tc = fields.tyreClass;
   const designation = String(size || '').toLowerCase();
   if (tc === 'C3' || tc === 'C2') category = 'Camion';
   else if (tc === 'C1') category = 'Auto';
@@ -84,15 +145,15 @@ export function mapEprelHit(hit) {
 
   return {
     source: 'eprel',
-    registrationNumber: hit.eprelRegistrationNumber || hit.registrationNumber,
-    productGroup: hit.productGroup || 'tyres',
+    registrationNumber: fields.eprelRegistrationNumber || fields.registrationNumber || fields.id,
+    productGroup: fields.productGroup || 'tyres',
     name: name.trim() || undefined,
     brand,
     category,
     description: name.trim() || undefined,
     specs,
     labels: Object.keys(labels).length ? labels : undefined,
-    tyreClass: hit.tyreClass,
+    tyreClass: fields.tyreClass,
   };
 }
 

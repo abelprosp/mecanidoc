@@ -5,6 +5,7 @@ import { Fuel, CloudRain, Volume2, Sun, CloudLightning, CloudSnow } from 'lucide
 import Link from 'next/link';
 import { useProductPrice } from '@/hooks/useProductPrice';
 import CategoryTooltip from './CategoryTooltip';
+import { BrandLogo, ProductPhoto } from './ProductPhoto';
 
 interface ProductCardProps {
   product: any;
@@ -78,17 +79,11 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="flex justify-between items-center mb-2">
         {/* Brand Logo */}
         <div className="h-6 flex items-center">
-          {product.brands?.logo_url ? (
-            <img 
-              src={product.brands.logo_url} 
-              alt={product.brands?.name || product.brand || 'Marque'} 
-              className="h-full w-auto object-contain" 
-            />
-          ) : (
-            <span className="text-xs font-bold text-gray-700 uppercase">
-              {product.brands?.name || product.brand || 'Marque'}
-            </span>
-          )}
+          <BrandLogo
+            src={product.brands?.logo_url}
+            name={product.brands?.name || product.brand || 'Marque'}
+            className="h-full w-auto object-contain"
+          />
         </div>
 
         <span className="text-2xl font-bold text-[#5c7c9e]">€{finalPrice.toFixed(2)}</span>
@@ -98,9 +93,9 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="flex gap-6 mb-4">
         {/* Left: Image */}
         <div className="w-32 flex-shrink-0 flex items-center justify-center">
-          <img 
-            src={product.images?.[0] || '/placeholder-pneu.svg'} 
-            alt={product.name} 
+          <ProductPhoto
+            src={product.images?.[0]}
+            alt={product.name}
             className="w-full h-auto object-contain mix-blend-multiply opacity-90 group-hover:scale-105 transition-transform duration-300"
           />
         </div>

@@ -9,6 +9,7 @@ import {
   Tractor, Leaf, Factory, Search, CircleDot, Warehouse
 } from 'lucide-react';
 import Link from 'next/link';
+import { BrandLogo, ProductPhoto } from './ProductPhoto';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { Loader2 } from 'lucide-react';
@@ -408,8 +409,8 @@ export default function Header() {
                         <div className="flex items-center gap-4">
                           {/* Product Image */}
                           <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                            <img
-                              src={product.images?.[0] || '/placeholder-pneu.svg'}
+                            <ProductPhoto
+                              src={product.images?.[0]}
                               alt={product.name}
                               className="w-full h-full object-cover"
                             />
@@ -418,17 +419,12 @@ export default function Header() {
                           {/* Product Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              {product.brands?.logo_url ? (
-                                <img
-                                  src={product.brands.logo_url}
-                                  alt={product.brands.name}
-                                  className="h-4 w-auto object-contain"
-                                />
-                              ) : (
-                                <span className="text-xs font-bold text-gray-600 uppercase">
-                                  {product.brands?.name || product.brand || 'Marque'}
-                                </span>
-                              )}
+                              <BrandLogo
+                                src={product.brands?.logo_url}
+                                name={product.brands?.name || product.brand || 'Marque'}
+                                className="h-4 w-auto object-contain"
+                                fallbackClassName="text-xs font-bold text-gray-600 uppercase"
+                              />
                             </div>
                             <h4 className="font-bold text-gray-800 text-sm mb-1 truncate group-hover:text-blue-600">
                               {product.name}
