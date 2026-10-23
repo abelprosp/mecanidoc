@@ -40,6 +40,8 @@
     "fix:product-names:vps": "bash scripts/vps-import.sh fix-product-names.mjs",
     "enrich:eprel": "node scripts/enrich-catalog.mjs --supplier=neumaticos_andres --generic-only --skip-upc --skip-gtinhub",
     "enrich:eprel:vps": "bash scripts/vps-import.sh enrich-catalog.mjs --supplier=neumaticos_andres --generic-only --skip-upc --skip-gtinhub",
+    "enrich:eprel-energy": "node scripts/enrich-eprel-energy.mjs",
+    "enrich:eprel-energy:vps": "bash scripts/vps-import.sh enrich-eprel-energy.mjs",
     "enrich:catalog": "node scripts/enrich-catalog.mjs",
     "enrich:catalog:vps": "bash scripts/vps-import.sh enrich-catalog.mjs",
     "enrich:generic": "node scripts/enrich-catalog.mjs --supplier=neumaticos_andres --generic-only --skip-upc",
@@ -48,6 +50,7 @@
     "probe:gtinhub:vps": "bash scripts/vps-import.sh probe-gtinhub.mjs",
     "probe:product-name": "node scripts/probe-product-name.mjs",
     "fetch:na-images": "node scripts/fetch-na-product-images.mjs",
+    "fetch:andres-stock-images": "node scripts/fetch-na-product-images.mjs",
     "fetch:eprel-images": "node scripts/fetch-eprel-images.mjs",
     "enrich:products": "node scripts/enrich-products.mjs"
   },

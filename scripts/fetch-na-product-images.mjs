@@ -6,7 +6,7 @@
  * Este script consulta o fornecedor para validar o artigo e obtém fotos via:
  *   1. UPCitemdb (por EAN)
  *   2. GTINHub (opcional, GTINHUB_API_KEY)
- *   3. EPREL — ficha/etiqueta quando disponível (fallback visual)
+ * Não usa a etiqueta energética EPREL como foto do pneu.
  *
  * Uso:
  *   npm run fetch:na-images
@@ -18,6 +18,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadEnvFiles } from './lib/load-env.mjs';
+import { getDbUrl } from './lib/product-enrich.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -26,21 +27,15 @@ loadEnvFiles();
 
 const { Client } = pg;
 
-const login = process.env.NEUMATICOS_ANDRES_LOGIN || 'godinho_joao';
-const password = process.env.NEUMATICOS_ANDRES_PASSWORD || '9kDhipiV4maH';
-const baseUrl = (process.env.NEUMATICOS_ANDRES_BASE_URL || 'https://backend-pre2.genasa.es').replace(
+const login = process.env.NEUMATICOS_ANDRES_LOGIN?.trim() || '';
+const password = process.env.NEUMATICOS_ANDRES_PASSWORD?.trim() || '';
+const baseUrl = (process.env.NEUMATICOS_ANDRES_BASE_URL || 'https://backend.genasa.es').replace(
   /\/$/,
   ''
 );
-const dbUrl =
-  process.env.DATABASE_URL || 'postgresql://mecanidoc:mecanidoc@localhost:5433/mecanidoc';
 const uploadRoot = process.env.UPLOAD_DIR || path.join(ROOT, 'uploads');
 const GTINHUB = (process.env.GTINHUB_BASE_URL || 'https://gtinhub.com/api/v1').replace(/\/$/, '');
 const UPC_TRIAL = 'https://api.upcitemdb.com/prod/trial/lookup';
-import {
-  fetchEprelProductByGtin,
-  fetchEprelLabelPng,
-} from './lib/eprel-client.mjs';
 
 function parseArgs(argv) {
   const opts = { dryRun: false, force: false, limit: 0, delayMs: 350 };
@@ -65,15 +60,17 @@ function hasRealImage(images) {
 }
 
 async function verifyNaArticle(naRef, ean) {
-  if (!naRef) return true;
+  if (!naRef) return false;
   try {
     const res = await fetch(`${baseUrl}/api/na/getstock/${encodeURIComponent(naRef)}?post-code=75001`, {
       headers: { login, password, Accept: 'application/json' },
+      redirect: 'error',
+      signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) return false;
     const json = await res.json();
     const article = json.articles?.[0];
-    return article?.success === 1 && normalizeEan(article.ean) === normalizeEan(ean);
+    return article?.success === 1 && Number(article.amount) > 0 && normalizeEan(article.ean) === normalizeEan(ean);
   } catch {
     return false;
   }
@@ -108,30 +105,8 @@ async function fetchFromGtinHub(ean) {
   }
 }
 
-async function fetchFromEprelImage(ean) {
-  const detail = await fetchEprelProductByGtin(ean);
-  if (!detail?.registrationNumber) return null;
-  const label = await fetchEprelLabelPng(detail.registrationNumber, detail.productGroup || 'tyres');
-  if (!label) return null;
-  return { source: 'eprel_label', title: detail.name, buffer: label.buffer, contentType: label.contentType };
-}
-
-async function resolveImageUrl(ean) {
-  const eprel = await fetchFromEprelImage(ean);
-  if (eprel) return eprel;
-  await new Promise((r) => setTimeout(r, 200));
-
-  const upc = await fetchFromUpc(ean);
-  if (upc) return upc;
-  await new Promise((r) => setTimeout(r, 200));
-
-  const hub = await fetchFromGtinHub(ean);
-  if (hub) return hub;
-  return null;
-}
-
 async function downloadImage(url) {
-  const res = await fetch(url, { redirect: 'follow' });
+  const res = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const ct = res.headers.get('content-type') || '';
   if (ct.includes('text/html')) throw new Error('Resposta HTML, não imagem');
@@ -170,14 +145,15 @@ async function resolveImageUrl(ean) {
   await new Promise((r) => setTimeout(r, 200));
   const hub = await fetchFromGtinHub(ean);
   if (hub) return hub;
-  const eprel = await fetchFromEprel(ean);
-  if (eprel) return eprel;
   return null;
 }
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const client = new Client({ connectionString: dbUrl });
+  if (!login || !password) {
+    throw new Error('Configure NEUMATICOS_ANDRES_LOGIN e NEUMATICOS_ANDRES_PASSWORD no .env.');
+  }
+  const client = new Client({ connectionString: getDbUrl() });
   await client.connect();
 
   try {
@@ -185,6 +161,8 @@ async function main() {
       SELECT id, ean, name, brand, images, external_product_id
       FROM products
       WHERE external_supplier = 'neumaticos_andres'
+        AND is_active = true
+        AND COALESCE(stock_quantity, 0) > 0
         AND ean IS NOT NULL
         AND length(trim(ean)) >= 8
       ORDER BY created_at`;
@@ -193,8 +171,8 @@ async function main() {
     const { rows } = await client.query(query);
     const targets = opts.force ? rows : rows.filter((r) => !hasRealImage(r.images));
 
-    console.log(`Produtos NA: ${rows.length} | sem foto: ${targets.length}`);
-    console.log('API NA getstock: sem campo de imagem — fotos via UPC/GTIN/EPREL por EAN.\n');
+    console.log(`Produtos ativos em estoque NA: ${rows.length} | sem foto: ${targets.length}`);
+    console.log('API NA getstock valida referência e estoque; fotos reais são localizadas por EAN via UPCitemdb/GTINHub.\n');
 
     let ok = 0;
     let skip = 0;
@@ -205,10 +183,13 @@ async function main() {
       const ean = normalizeEan(product.ean);
       const naRef = product.external_product_id;
 
-      const valid = await verifyNaArticle(naRef, ean);
-      if (!valid && naRef) {
+      const valid = await verifyNaArticle(naRef || ean, ean);
+      if (!valid) {
         naInvalid++;
-        if (ok + fail < 5) console.log(`⚠ ref ${naRef} não confirmada na API NA — continua com EAN ${ean}`);
+        skip++;
+        if (naInvalid <= 10) console.log(`— ref ${naRef || ean}: não confirmada com estoque disponível na API NA`);
+        await new Promise((r) => setTimeout(r, opts.delayMs));
+        continue;
       }
 
       const found = await resolveImageUrl(ean);
@@ -253,7 +234,7 @@ async function main() {
     console.log(`Refs NA não confirmadas: ${naInvalid}`);
     if (skip > 0) {
       console.log('\nMuitos EANs de pneu não têm foto em UPC/GTIN públicos.');
-      console.log('Para fotos reais em massa, peça ao fornecedor catálogo CSV com URLs ou integração desadv/fatura.');
+      console.log('Para mais fotos, solicite ao fornecedor um feed de catálogo com URLs de imagem.');
     }
   } finally {
     await client.end();
